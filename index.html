@@ -808,33 +808,42 @@ function delRec(i){
 }
 
 // גיבוי מלא: כל ההיסטוריה + התעריף + התאריך
-function buildBackup(){
+function buildBackup(pretty){
   return JSON.stringify({
     app: 'electricity-splitter', version: 1,
     history,
     rate: localStorage.getItem(LS_RATE) || String(RATE_DEFAULT),
     rateDate: localStorage.getItem(LS_RATEDATE) || '',
     exportedAt: new Date().toISOString()
-  }, null, 2);
+  }, null, pretty ? 2 : 0);
 }
 function backupName(){ return 'electricity-backup-'+todayStr().replace(/\//g,'-')+'.json'; }
 
-// שיתוף הגיבוי — מנסה כקובץ, נופל לטקסט, ואז להורדה
+// שיתוף הגיבוי — קובץ (HTTPS), טקסט, קישור וואטסאפ (גם בקובץ מקומי), ולבסוף הורדה
 async function shareBackup(){
-  const payload = buildBackup();
-  const fname = backupName();
+  const payload = buildBackup(true);
+  // 1) Web Share כקובץ (דורש HTTPS)
   try{
-    const file = new File([payload], fname, {type:'application/json'});
+    const file = new File([payload], backupName(), {type:'application/json'});
     if(navigator.canShare && navigator.canShare({files:[file]})){
       await navigator.share({files:[file], title:'גיבוי חשמל', text:'גיבוי היסטוריית חשמל'});
       return;
     }
   }catch(e){ if(e && e.name==='AbortError') return; }
+  // 2) Web Share כטקסט (דורש HTTPS)
   try{
     if(navigator.share){ await navigator.share({title:'גיבוי חשמל', text:payload}); return; }
   }catch(e){ if(e && e.name==='AbortError') return; }
-  exportData();  // נפילה אחרונה: הורדת קובץ
-  toast('שיתוף לא נתמך — הקובץ הורד למכשיר');
+  // 3) קישור וואטסאפ ישיר (עובד גם בקובץ מקומי) — בחר את עצמך
+  const compact = buildBackup(false);
+  if(compact.length < 12000){
+    window.open('https://wa.me/?text='+encodeURIComponent(compact), '_blank');
+    toast('בחר את עצמך בוואטסאפ לשמירת הגיבוי');
+    return;
+  }
+  // 4) נפילה אחרונה: הורדת קובץ
+  exportData();
+  toast('הגיבוי ארוך לשיתוף בוואטסאפ — הקובץ הורד למכשיר');
 }
 
 function exportData(){
