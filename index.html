@@ -187,7 +187,7 @@
             <button class="btn ghost" onclick="clearCrop()">↺ בטל סימון</button>
             <button class="btn primary-sm" id="ocrBtn" onclick="runOCR()">🔍 קרא אוטומטית</button>
           </div>
-          <div class="hint">גרור על התמונה כדי לסמן <b>רק את המסך הדיגיטלי</b> (משפר דיוק מאוד). סובב אם המסך מוטה.</div>
+          <div class="hint">צרף תמונה — Gemini מזהה אוטומטית את מסך המונה וקורא אותו, גם בתמונה מלאה ומוטה. הסיבוב/הסימון אופציונליים, רק אם הזיהוי שגוי ורוצים לעזור לו.</div>
           <div id="ocrResult" class="ocr-result" style="display:none"></div>
           <details class="ocr-settings">
             <summary>⚙️ הגדרות OCR</summary>
@@ -271,6 +271,8 @@
 
 <script>
 const RATE_DEFAULT = 0.6432;
+const READING_RE = /^\d{6}\.\d$/;          // פורמט קריאת המונה: 6 ספרות, נקודה, ספרה
+const READING_DESC = '6 ספרות, נקודה, וספרה אחת (למשל 033095.1)';
 const LS_HIST = 'elec_history_v1';
 const LS_RATE = 'elec_rate_v1';
 const LS_RATEDATE = 'elec_ratedate_v1';
@@ -343,8 +345,8 @@ function recalc(){
   if(prev !== null && !isNaN(nw)) consume = nw - prev;
   document.getElementById('consumeNum').textContent = fmt(consume);
   document.getElementById('warnNeg').style.display = (consume < 0) ? 'block' : 'none';
-  const amount = consume > 0 ? consume * rate : 0;
-  document.getElementById('amountNum').textContent = amount.toFixed(2);
+  const amount = consume > 0 ? Math.round(consume * rate) : 0;
+  document.getElementById('amountNum').textContent = amount;
 }
 
 function onRateChange(){
@@ -397,8 +399,17 @@ function loadPhoto(ev){
     img.onload = ()=>{
       srcImg = img; rotation = 0; crop = null;
       document.getElementById('ocrArea').style.display = 'block';
-      document.getElementById('ocrResult').style.display = 'none';
+      const res = document.getElementById('ocrResult');
+      res.style.display = 'none';
       rebuildWork();
+      // זיהוי אוטומטי בעת צירוף התמונה (Gemini מזהה את המסך גם בתמונה מלאה ומוטה)
+      const engine = localStorage.getItem(LS_ENGINE) || 'gemini';
+      if(engine === 'gemini'){
+        res.style.display = 'block';
+        res.style.border = '1px solid var(--line)'; res.style.background = 'var(--green-l)';
+        res.innerHTML = 'מזהה אוטומטית…<span class="spin" style="border-color:var(--green-d);border-top-color:transparent"></span>';
+        setTimeout(runOCR, 60);
+      }
     };
     img.src = e.target.result;
   };
@@ -539,8 +550,9 @@ async function runOCR(){
     }
     showOcrResult(text);
   }catch(e){
-    document.getElementById('ocrResult').style.display='block';
-    document.getElementById('ocrResult').innerHTML = '⚠️ שגיאת זיהוי: '+e.message+'<br><small>נסה שוב, החלף מנוע בהגדרות, או הקלד ידנית.</small>';
+    const el = document.getElementById('ocrResult');
+    el.style.display='block'; el.style.border='2px solid var(--danger)'; el.style.background='#fdecea';
+    el.innerHTML = '⚠️ שגיאת זיהוי: '+e.message+'<br><small>נסה שוב, החלף מנוע בהגדרות, או הקלד ידנית.</small>';
   }finally{
     btn.innerHTML = '🔍 קרא אוטומטית'; btn.disabled = false;
   }
@@ -560,27 +572,23 @@ function toggleEngineOpts(){
   document.getElementById('ocrspaceOpts').style.display = (eng==='ocrspace')?'block':'none';
 }
 
-// חותך לאזור המסומן ומגדיל; מחזיר קנבס צבעוני
-function buildRegionCanvas(targetH){
-  let sx=0, sy=0, sw=workCanvas.width, sh=workCanvas.height;
-  if(crop && crop.w>8 && crop.h>8){
-    sx = crop.x/dispScale; sy = crop.y/dispScale;
-    sw = crop.w/dispScale; sh = crop.h/dispScale;
-  }
-  let k = targetH/sh;
+// האזור לשליחה: החיתוך המסומן, או התמונה המלאה אם אין סימון
+function regionRect(){
+  if(crop && crop.w>8 && crop.h>8)
+    return { sx:crop.x/dispScale, sy:crop.y/dispScale, sw:crop.w/dispScale, sh:crop.h/dispScale };
+  return { sx:0, sy:0, sw:workCanvas.width, sh:workCanvas.height };
+}
+
+// תמונה מעובדת ל-OCR קלאסי: גווני אפור + מתיחת ניגודיות אדפטיבית
+function buildOcrImage(){
+  const {sx,sy,sw,sh} = regionRect();
+  let k = 220/sh;
   k = Math.max(1.2, Math.min(k, 2400/sw));
   const out = document.createElement('canvas');
   out.width = Math.round(sw*k); out.height = Math.round(sh*k);
   const ctx = out.getContext('2d');
   ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
   ctx.drawImage(workCanvas, sx, sy, sw, sh, 0, 0, out.width, out.height);
-  return out;
-}
-
-// תמונה מעובדת ל-OCR קלאסי: גווני אפור + מתיחת ניגודיות אדפטיבית
-function buildOcrImage(){
-  const out = buildRegionCanvas(220);
-  const ctx = out.getContext('2d');
   const im = ctx.getImageData(0,0,out.width,out.height);
   const d = im.data, n = out.width*out.height;
   const gray = new Float32Array(n);
@@ -597,9 +605,17 @@ function buildOcrImage(){
   return out.toDataURL('image/png');
 }
 
-// תמונה צבעונית באיכות טובה ל-AI Vision
+// תמונה צבעונית באיכות טובה ל-AI Vision: שולח את התמונה המלאה (או החיתוך) ברזולוציה נאותה
 function buildVisionImage(){
-  return buildRegionCanvas(440).toDataURL('image/jpeg', 0.9);
+  const {sx,sy,sw,sh} = regionRect();
+  let k = 1500/Math.max(sw,sh);
+  k = Math.min(k, 3);  // מאפשר הגדלה לחיתוך קטן; לתמונה מלאה גדולה k<1 (הקטנה)
+  const out = document.createElement('canvas');
+  out.width = Math.round(sw*k); out.height = Math.round(sh*k);
+  const ctx = out.getContext('2d');
+  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(workCanvas, sx, sy, sw, sh, 0, 0, out.width, out.height);
+  return out.toDataURL('image/jpeg', 0.85);
 }
 
 // ---- מנוע AI Vision: Google Gemini (ישירות מהדפדפן) ----
@@ -609,7 +625,7 @@ async function geminiOCR(dataUrl, key){
   const mime = dataUrl.substring(5, dataUrl.indexOf(';'));
   const body = {
     contents:[{ parts:[
-      { text: 'This image is a digital electricity meter with a seven-segment LCD. Read the number shown on the display. Reply with ONLY the number exactly as shown, including the decimal point if present. No spaces, no units, no words — only the number.' },
+      { text: 'This photo shows a home electrical panel. Find the single-phase kWh electricity meter (brand "GREEN") and read the number on its digital seven-segment LCD screen. The screen shows exactly 6 digits, then a decimal point, then 1 more digit (format DDDDDD.D, for example 033095.1). The screen may be rotated in the photo. Ignore every other number or text in the image (circuit-breaker labels, voltage/current ratings, etc.). Output ONLY the meter reading: exactly 6 digits, a decimal point, and 1 digit, including any leading zeros. No spaces, units, or other text.' },
       { inline_data:{ mime_type: mime, data: b64 } }
     ]}],
     generationConfig:{ temperature:0 }
@@ -641,29 +657,38 @@ function digitize(s){
   return s.replace(/[^\d.\s]/g, c => map[c] !== undefined ? map[c] : ' ');
 }
 
+function rawDetails(text){
+  return `<details style="margin-top:8px"><summary style="font-size:12px;color:var(--muted)">טקסט גולמי מה-OCR</summary><div style="font-size:12px;direction:ltr;text-align:left;white-space:pre-wrap">${(text||'(ריק)').trim()}</div></details>`;
+}
+
 function showOcrResult(text){
   const el = document.getElementById('ocrResult');
   el.style.display='block';
   const mapped = digitize(text||'');
-  let nums = mapped.match(/\d[\d.]*\d|\d/g) || [];
-  nums = nums.map(n=>n.replace(/\.+/g,'.').replace(/^\.|\.$/g,'')).filter(n=>n.replace(/\D/g,'').length>=2);
-  // ניקוד: מעדיף ארוך + עם נקודה עשרונית
-  nums.sort((a,b)=>{
-    const sa=(a.includes('.')?2:0)+a.replace(/\D/g,'').length;
-    const sb=(b.includes('.')?2:0)+b.replace(/\D/g,'').length;
-    return sb-sa;
-  });
-  const uniq = [...new Set(nums)];
-  if(!uniq.length){
-    el.innerHTML = '😕 לא זוהו ספרות. נסה לסמן רק את המסך, לסובב, או להקליד ידנית.<br><small>טקסט גולמי: '+(text||'(ריק)').trim()+'</small>';
+  const tokens = mapped.match(/\d+(?:\.\d+)?/g) || [];
+
+  // 1) קריאה תקינה בפורמט המדויק (6 ספרות . ספרה)
+  const valid = tokens.find(t => READING_RE.test(t));
+  if(valid){
+    fillReading(valid);
+    el.style.border = '2px solid var(--green)'; el.style.background = 'var(--green-l)';
+    el.innerHTML = `✅ זוהה (פורמט תקין): <div class="detected">${valid}</div>` + rawDetails(text);
     return;
   }
-  const best = uniq[0];
-  fillReading(best);
-  let chips = uniq.slice(0,6).map(n=>`<span class="chip" onclick="fillReading('${n}')">${n}</span>`).join('');
-  el.innerHTML = `זוהה אוטומטית (בדוק ותקן אם צריך):<div class="detected">${best}</div>`+
-                 `<div class="chips">${chips}</div>`+
-                 `<details style="margin-top:8px"><summary style="font-size:12px;color:var(--muted)">טקסט גולמי מה-OCR</summary><div style="font-size:12px;direction:ltr;text-align:left;white-space:pre-wrap">${(text||'').trim()}</div></details>`;
+
+  // 2) אין התאמה לפורמט → שגיאה. לא ממלאים אוטומטית; מציגים מועמדים ללחיצה
+  el.style.border = '2px solid var(--danger)'; el.style.background = '#fdecea';
+  const uniq = [...new Set(tokens)]
+    .filter(t => t.replace(/\D/g,'').length >= 2)
+    .sort((a,b)=> b.replace(/\D/g,'').length - a.replace(/\D/g,'').length);
+  if(!uniq.length){
+    el.innerHTML = `❌ לא זוהו ספרות. צלם מהמסך מקרוב וישר, או הקלד ידנית.` + rawDetails(text);
+    return;
+  }
+  const chips = uniq.slice(0,6).map(n=>`<span class="chip" onclick="fillReading('${n}')">${n}</span>`).join('');
+  el.innerHTML = `❌ הזיהוי אינו בפורמט הנדרש (${READING_DESC}).<br>` +
+                 `בדוק, בחר מועמד או הקלד ידנית:` +
+                 `<div class="chips">${chips}</div>` + rawDetails(text);
 }
 
 function fillReading(v){
@@ -698,7 +723,7 @@ function save(){
     newReading: nw,
     consumption: +(consume).toFixed(2),
     rate: rate,
-    amount: +(Math.max(consume,0) * rate).toFixed(2)
+    amount: Math.round(Math.max(consume,0) * rate)
   };
   history.push(rec);
   localStorage.setItem(LS_HIST, JSON.stringify(history));
@@ -711,7 +736,7 @@ function save(){
   renderPrev();
   renderHist();
   recalc();
-  toast('נשמר! סכום: ' + rec.amount.toFixed(2) + ' ₪');
+  toast('נשמר! סכום: ' + rec.amount + ' ₪');
 }
 
 // מספר נקי להודעה: עד 4 ספרות עשרוניות, בלי אפסים מיותרים ובלי פסיקי אלפים
@@ -759,7 +784,7 @@ function renderHist(){
       <td>${fmt(r.newReading)}</td>
       <td>${fmt(r.consumption)}</td>
       <td>${r.rate}</td>
-      <td class="amt">${r.amount.toFixed(2)} ₪</td>
+      <td class="amt">${Math.round(r.amount)} ₪</td>
       <td><button class="del" onclick="delRec(${i})">🗑</button></td>`;
     body.appendChild(tr);
   }
