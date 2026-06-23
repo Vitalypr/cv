@@ -202,8 +202,8 @@
               <input type="text" id="gKey" placeholder="הדבק מפתח מ-Google AI Studio" oninput="saveGKey()">
               <div class="hint">מפתח חינמי תוך דקה ב-<a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com/apikey</a> (בלי כרטיס אשראי). הרובד החינמי מספיק בקלות לשימוש חודשי.</div>
               <label class="field">מודל</label>
-              <input type="text" id="gModel" placeholder="gemini-2.0-flash" oninput="saveGModel()">
-              <div class="hint">ברירת מחדל gemini-2.0-flash. אם מקבלים שגיאת מודל — נסה gemini-2.5-flash או gemini-1.5-flash.</div>
+              <input type="text" id="gModel" placeholder="gemini-2.5-flash" oninput="saveGModel()">
+              <div class="hint">ברירת מחדל gemini-2.5-flash. לדיוק מירבי אפשר gemini-2.5-pro; חלופה קלה gemini-2.5-flash-lite.</div>
             </div>
             <div id="tessOpts">
               <label class="field">מודל</label>
@@ -279,7 +279,9 @@ function load(){
   document.getElementById('rateInput').value = savedRate !== null ? savedRate : RATE_DEFAULT;
   document.getElementById('ocrKey').value = localStorage.getItem(LS_KEY) || DEFAULT_KEY;
   document.getElementById('gKey').value = localStorage.getItem(LS_GKEY) || DEFAULT_GKEY;
-  document.getElementById('gModel').value = localStorage.getItem(LS_GMODEL) || 'gemini-2.0-flash';
+  let gm = localStorage.getItem(LS_GMODEL);
+  if(!gm || /gemini-(2\.0|1\.5)/.test(gm)){ gm = 'gemini-2.5-flash'; localStorage.setItem(LS_GMODEL, gm); }  // מעבר ממודלים שהוצאו משימוש
+  document.getElementById('gModel').value = gm;
   document.getElementById('ocrEngine').value = localStorage.getItem(LS_ENGINE) || 'gemini';
   document.getElementById('ocrModel').value = localStorage.getItem(LS_MODEL) || 'ssd';
   toggleEngineOpts();
@@ -597,7 +599,7 @@ function buildVisionImage(){
 
 // ---- מנוע AI Vision: Google Gemini (ישירות מהדפדפן) ----
 async function geminiOCR(dataUrl, key){
-  const model = (localStorage.getItem(LS_GMODEL) || 'gemini-2.0-flash').trim();
+  const model = (localStorage.getItem(LS_GMODEL) || 'gemini-2.5-flash').trim();
   const b64 = dataUrl.split(',')[1];
   const mime = dataUrl.substring(5, dataUrl.indexOf(';'));
   const body = {
