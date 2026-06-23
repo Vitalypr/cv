@@ -232,9 +232,9 @@
       <label class="field">עלות לקוט"ש (₪)</label>
       <div class="rate-line">
         <input type="number" id="rateInput" inputmode="decimal" step="0.0001" value="0.6432" oninput="onRateChange()">
-        <button class="btn ghost" onclick="fetchRate()">🔄 רענן</button>
+        <button class="btn ghost" onclick="openTariffSite()">📄 תעריף חח"י</button>
       </div>
-      <div class="hint" id="rateHint">ערך נשמר אוטומטית. "רענן" מנסה לעדכן מהאינטרנט (לא תמיד זמין).</div>
+      <div class="hint" id="rateHint">לבדיקת התעריף העדכני: פתח "📄 תעריף חח"י" → קח את הערך <b>כולל מע"מ</b> באגורות (למשל 64.32) → הזן בשקלים (חלק ב-100: 0.6432).</div>
 
       <label class="field">תאריך עדכון התעריף (מופיע בהודעה)</label>
       <input type="text" id="rateDate" placeholder="1.02.26" oninput="saveRateDate()">
@@ -364,25 +364,9 @@ function onRateChange(){
   recalc();
 }
 
-async function fetchRate(){
-  toast('בודק מחיר מהאינטרנט…');
-  try{
-    // ניסיון best-effort. אין מקור ציבורי יציב לתעריף בדפדפן, לכן יש נפילה חיננית לערך הידני.
-    const ctrl = new AbortController();
-    const t = setTimeout(()=>ctrl.abort(), 6000);
-    const res = await fetch('https://api.exchangerate.host/lookup-electricity-il', {signal:ctrl.signal});
-    clearTimeout(t);
-    if(!res.ok) throw new Error('no source');
-    const data = await res.json();
-    const r = parseFloat(data && data.rate);
-    if(!r || isNaN(r)) throw new Error('bad');
-    document.getElementById('rateInput').value = r;
-    onRateChange();
-    toast('המחיר עודכן ל-' + r + ' ₪');
-  }catch(e){
-    toast('אין עדכון אוטומטי כרגע — עדכן ידנית את המחיר');
-  }
-}
+// פותח את עמוד התעריף הרשמי של חברת החשמל לבדיקה ועדכון ידני
+const IEC_TARIFF_URL = 'https://www.iec.co.il/content/tariffs/contentpages/businesselectricitytariff';
+function openTariffSite(){ window.open(IEC_TARIFF_URL, '_blank'); }
 
 // ===== תמונה + OCR =====
 const LS_KEY = 'elec_ocrkey_v1';
