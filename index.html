@@ -253,7 +253,7 @@ function load(){
   try{ history = JSON.parse(localStorage.getItem(LS_HIST)) || []; }catch(e){ history = []; }
   const savedRate = localStorage.getItem(LS_RATE);
   document.getElementById('rateInput').value = savedRate !== null ? savedRate : RATE_DEFAULT;
-  document.getElementById('ocrKey').value = localStorage.getItem(LS_KEY) || '';
+  document.getElementById('ocrKey').value = localStorage.getItem(LS_KEY) || DEFAULT_KEY;
   setupCropEvents();
   renderPrev();
   renderHist();
@@ -339,6 +339,7 @@ async function fetchRate(){
 
 // ===== תמונה + OCR =====
 const LS_KEY = 'elec_ocrkey_v1';
+const DEFAULT_KEY = 'K86913368388957';
 let srcImg = null;        // Image שנטען
 let rotation = 0;         // 0/90/180/270
 let workCanvas = null;    // קנבס ברזולוציה מלאה אחרי סיבוב
@@ -435,7 +436,7 @@ async function runOCR(){
   btn.innerHTML = 'קורא…<span class="spin"></span>'; btn.disabled = true;
   try{
     const dataUrl = buildOcrImage();
-    const key = (document.getElementById('ocrKey').value || 'helloworld').trim();
+    const key = (document.getElementById('ocrKey').value || DEFAULT_KEY).trim();
     const fd = new FormData();
     fd.append('base64Image', dataUrl);
     fd.append('OCREngine','2');
