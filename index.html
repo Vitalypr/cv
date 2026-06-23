@@ -193,9 +193,18 @@
             <summary>⚙️ הגדרות OCR</summary>
             <label class="field">מנוע זיהוי</label>
             <select id="ocrEngine" onchange="saveEngine()">
-              <option value="tesseract">מקומי — seven-segment (מומלץ)</option>
+              <option value="gemini">AI Vision — Google Gemini (מדויק, חינם)</option>
+              <option value="tesseract">מקומי — seven-segment</option>
               <option value="ocrspace">ענן — OCR.space</option>
             </select>
+            <div id="geminiOpts">
+              <label class="field">מפתח Gemini (חינמי)</label>
+              <input type="text" id="gKey" placeholder="הדבק מפתח מ-Google AI Studio" oninput="saveGKey()">
+              <div class="hint">מפתח חינמי תוך דקה ב-<a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com/apikey</a> (בלי כרטיס אשראי). הרובד החינמי מספיק בקלות לשימוש חודשי.</div>
+              <label class="field">מודל</label>
+              <input type="text" id="gModel" placeholder="gemini-2.0-flash" oninput="saveGModel()">
+              <div class="hint">ברירת מחדל gemini-2.0-flash. אם מקבלים שגיאת מודל — נסה gemini-2.5-flash או gemini-1.5-flash.</div>
+            </div>
             <div id="tessOpts">
               <label class="field">מודל</label>
               <select id="ocrModel" onchange="saveModel()">
@@ -269,7 +278,9 @@ function load(){
   const savedRate = localStorage.getItem(LS_RATE);
   document.getElementById('rateInput').value = savedRate !== null ? savedRate : RATE_DEFAULT;
   document.getElementById('ocrKey').value = localStorage.getItem(LS_KEY) || DEFAULT_KEY;
-  document.getElementById('ocrEngine').value = localStorage.getItem(LS_ENGINE) || 'tesseract';
+  document.getElementById('gKey').value = localStorage.getItem(LS_GKEY) || DEFAULT_GKEY;
+  document.getElementById('gModel').value = localStorage.getItem(LS_GMODEL) || 'gemini-2.0-flash';
+  document.getElementById('ocrEngine').value = localStorage.getItem(LS_ENGINE) || 'gemini';
   document.getElementById('ocrModel').value = localStorage.getItem(LS_MODEL) || 'ssd';
   toggleEngineOpts();
   setupCropEvents();
@@ -359,7 +370,10 @@ async function fetchRate(){
 const LS_KEY = 'elec_ocrkey_v1';
 const LS_ENGINE = 'elec_engine_v1';
 const LS_MODEL = 'elec_model_v1';
+const LS_GKEY = 'elec_gkey_v1';
+const LS_GMODEL = 'elec_gmodel_v1';
 const DEFAULT_KEY = 'K86913368388957';
+const DEFAULT_GKEY = '';  // לא נשמר בקוד (ציבורי) — מודבק פעם אחת בהגדרות ונשמר מקומית במכשיר
 let srcImg = null;        // Image שנטען
 let rotation = 0;         // 0/90/180/270
 let workCanvas = null;    // קנבס ברזולוציה מלאה אחרי סיבוב
@@ -492,15 +506,21 @@ async function runOCR(){
   const btn = document.getElementById('ocrBtn');
   btn.disabled = true;
   try{
-    const dataUrl = buildOcrImage();
-    const engine = localStorage.getItem(LS_ENGINE) || 'tesseract';
+    const engine = localStorage.getItem(LS_ENGINE) || 'gemini';
     let text;
-    if(engine === 'ocrspace'){
+    if(engine === 'gemini'){
+      btn.innerHTML = 'מזהה…<span class="spin"></span>';
+      const gkey = (document.getElementById('gKey').value || DEFAULT_GKEY).trim();
+      if(!gkey){ throw new Error('הדבק מפתח Gemini חינמי בהגדרות OCR (⚙️)'); }
+      text = await geminiOCR(buildVisionImage(), gkey);
+    }else if(engine === 'ocrspace'){
       btn.innerHTML = 'קורא…<span class="spin"></span>';
+      const dataUrl = buildOcrImage();
       const key = (document.getElementById('ocrKey').value || DEFAULT_KEY).trim();
       text = await ocrRequest(dataUrl, key, '2');
       if(!/\d/.test(text)){ const t1 = await ocrRequest(dataUrl, key, '1'); if(/\d/.test(t1)||!text) text = t1||text; }
     }else{
+      const dataUrl = buildOcrImage();
       const w = await getTessWorker(m=>{
         const pct = Math.round((m.progress||0)*100);
         const label = (m.status==='recognizing text') ? 'מזהה' : 'טוען מודל';
@@ -524,29 +544,36 @@ function saveModel(){
   localStorage.setItem(LS_MODEL, document.getElementById('ocrModel').value);
   if(tesseractWorker){ tesseractWorker.terminate(); tesseractWorker=null; }  // לטעון מחדש עם המודל החדש
 }
+function saveGKey(){ localStorage.setItem(LS_GKEY, document.getElementById('gKey').value); }
+function saveGModel(){ localStorage.setItem(LS_GMODEL, document.getElementById('gModel').value); }
 function toggleEngineOpts(){
   const eng = document.getElementById('ocrEngine').value;
+  document.getElementById('geminiOpts').style.display = (eng==='gemini')?'block':'none';
   document.getElementById('tessOpts').style.display = (eng==='tesseract')?'block':'none';
   document.getElementById('ocrspaceOpts').style.display = (eng==='ocrspace')?'block':'none';
 }
 
-// בונה תמונה לשליחה: חותך לאזור המסומן, מגדיל ומשפר ניגודיות
-function buildOcrImage(){
+// חותך לאזור המסומן ומגדיל; מחזיר קנבס צבעוני
+function buildRegionCanvas(targetH){
   let sx=0, sy=0, sw=workCanvas.width, sh=workCanvas.height;
   if(crop && crop.w>8 && crop.h>8){
     sx = crop.x/dispScale; sy = crop.y/dispScale;
     sw = crop.w/dispScale; sh = crop.h/dispScale;
   }
-  // הגדלה כך שגובה הספרות יהיה משמעותי (עוזר ל-OCR)
-  const targetH = 220;
   let k = targetH/sh;
-  k = Math.max(1.5, Math.min(k, 2400/sw));
+  k = Math.max(1.2, Math.min(k, 2400/sw));
   const out = document.createElement('canvas');
   out.width = Math.round(sw*k); out.height = Math.round(sh*k);
   const ctx = out.getContext('2d');
   ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
   ctx.drawImage(workCanvas, sx, sy, sw, sh, 0, 0, out.width, out.height);
-  // גווני אפור + מתיחת ניגודיות אדפטיבית (auto-levels לפי אחוזונים)
+  return out;
+}
+
+// תמונה מעובדת ל-OCR קלאסי: גווני אפור + מתיחת ניגודיות אדפטיבית
+function buildOcrImage(){
+  const out = buildRegionCanvas(220);
+  const ctx = out.getContext('2d');
   const im = ctx.getImageData(0,0,out.width,out.height);
   const d = im.data, n = out.width*out.height;
   const gray = new Float32Array(n);
@@ -561,6 +588,32 @@ function buildOcrImage(){
   }
   ctx.putImageData(im,0,0);
   return out.toDataURL('image/png');
+}
+
+// תמונה צבעונית באיכות טובה ל-AI Vision
+function buildVisionImage(){
+  return buildRegionCanvas(440).toDataURL('image/jpeg', 0.9);
+}
+
+// ---- מנוע AI Vision: Google Gemini (ישירות מהדפדפן) ----
+async function geminiOCR(dataUrl, key){
+  const model = (localStorage.getItem(LS_GMODEL) || 'gemini-2.0-flash').trim();
+  const b64 = dataUrl.split(',')[1];
+  const mime = dataUrl.substring(5, dataUrl.indexOf(';'));
+  const body = {
+    contents:[{ parts:[
+      { text: 'This image is a digital electricity meter with a seven-segment LCD. Read the number shown on the display. Reply with ONLY the number exactly as shown, including the decimal point if present. No spaces, no units, no words — only the number.' },
+      { inline_data:{ mime_type: mime, data: b64 } }
+    ]}],
+    generationConfig:{ temperature:0 }
+  };
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/'+model+':generateContent?key='+encodeURIComponent(key);
+  const res = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+  const data = await res.json();
+  if(data.error) throw new Error(data.error.message || 'Gemini error');
+  const c = data.candidates && data.candidates[0];
+  const t = c && c.content && c.content.parts && c.content.parts.map(p=>p.text||'').join('');
+  return (t||'').trim();
 }
 
 // המרת אותיות שמנוע ה-OCR מחזיר בטעות במקום ספרות שבע-מקטעים
