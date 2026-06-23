@@ -87,12 +87,36 @@
   .amount-box .amt{font-size:40px; font-weight:800; color:var(--green-d); line-height:1.1}
 
   .photo-wrap{margin-top:6px}
-  .photo-preview{
-    width:100%; border-radius:12px; border:1px solid var(--line); margin-top:8px; display:none;
-    touch-action:pinch-zoom;
-  }
-  .photo-preview.show{display:block}
   .hint{font-size:12px; color:var(--muted); margin-top:6px; text-align:center}
+
+  .canvas-box{position:relative; margin-top:8px; display:inline-block; width:100%; text-align:center}
+  #photoCanvas{
+    max-width:100%; border-radius:12px; border:1px solid var(--line);
+    touch-action:none; cursor:crosshair; background:#000;
+  }
+  .crop-rect{
+    position:absolute; border:2px dashed #ffeb3b; background:rgba(255,235,59,.15);
+    pointer-events:none; box-shadow:0 0 0 9999px rgba(0,0,0,.25);
+  }
+  .ocr-controls{display:flex; gap:8px; margin-top:8px}
+  .ocr-controls .btn{flex:1}
+  button.btn.primary-sm{background:var(--green); color:#fff; flex:1.4}
+  .ocr-result{
+    margin-top:10px; padding:12px; border-radius:12px; background:var(--green-l); text-align:center;
+  }
+  .ocr-result .detected{font-size:24px; font-weight:800; color:var(--green-d)}
+  .chips{display:flex; flex-wrap:wrap; gap:6px; justify-content:center; margin-top:8px}
+  .chip{
+    background:#fff; border:1px solid var(--green); color:var(--green-d); border-radius:20px;
+    padding:6px 12px; font-size:15px; font-weight:700; cursor:pointer;
+  }
+  .ocr-settings{margin-top:10px; font-size:13px; color:var(--muted)}
+  .ocr-settings summary{cursor:pointer; padding:6px 0}
+  .ocr-settings input{font-size:15px; padding:10px; text-align:right}
+  .ocr-settings a{color:var(--accent)}
+  .spin{display:inline-block; width:16px; height:16px; border:2px solid #fff; border-top-color:transparent;
+    border-radius:50%; animation:sp .7s linear infinite; vertical-align:-3px; margin-left:6px}
+  @keyframes sp{to{transform:rotate(360deg)}}
 
   table{width:100%; border-collapse:collapse; font-size:14px}
   th,td{padding:9px 6px; text-align:center; border-bottom:1px solid var(--line)}
@@ -152,8 +176,26 @@
       <div class="photo-wrap">
         <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none" onchange="loadPhoto(event)">
         <button class="btn ghost wide" onclick="document.getElementById('photoInput').click()">📷 צרף תמונת מונה</button>
-        <img id="photoPreview" class="photo-preview" alt="תמונת מונה">
-        <div class="hint" id="photoHint" style="display:none">הגדל באצבעות וקרא את המספר, ואז הקלד למעלה</div>
+
+        <div id="ocrArea" style="display:none">
+          <div class="canvas-box" id="canvasBox">
+            <canvas id="photoCanvas"></canvas>
+            <div id="cropRect" class="crop-rect" style="display:none"></div>
+          </div>
+          <div class="ocr-controls">
+            <button class="btn ghost" onclick="rotatePhoto()">⟳ סובב 90°</button>
+            <button class="btn ghost" onclick="clearCrop()">↺ בטל סימון</button>
+            <button class="btn primary-sm" id="ocrBtn" onclick="runOCR()">🔍 קרא אוטומטית</button>
+          </div>
+          <div class="hint">גרור על התמונה כדי לסמן <b>רק את המסך הדיגיטלי</b> (משפר דיוק מאוד). סובב אם המסך מוטה.</div>
+          <div id="ocrResult" class="ocr-result" style="display:none"></div>
+          <details class="ocr-settings">
+            <summary>⚙️ הגדרות OCR</summary>
+            <label class="field">מפתח OCR.space (חינמי)</label>
+            <input type="text" id="ocrKey" placeholder="helloworld" oninput="saveKey()">
+            <div class="hint">ברירת המחדל "helloworld" היא מפתח דמו מוגבל. כדאי מפתח חינמי משלך ב-<a href="https://ocr.space/ocrapi/freekey" target="_blank">ocr.space</a> (25,000 בקשות/חודש, בלי כרטיס אשראי).</div>
+          </details>
+        </div>
       </div>
 
       <div class="consume">
@@ -211,6 +253,8 @@ function load(){
   try{ history = JSON.parse(localStorage.getItem(LS_HIST)) || []; }catch(e){ history = []; }
   const savedRate = localStorage.getItem(LS_RATE);
   document.getElementById('rateInput').value = savedRate !== null ? savedRate : RATE_DEFAULT;
+  document.getElementById('ocrKey').value = localStorage.getItem(LS_KEY) || '';
+  setupCropEvents();
   renderPrev();
   renderHist();
   recalc();
@@ -293,17 +337,189 @@ async function fetchRate(){
   }
 }
 
+// ===== תמונה + OCR =====
+const LS_KEY = 'elec_ocrkey_v1';
+let srcImg = null;        // Image שנטען
+let rotation = 0;         // 0/90/180/270
+let workCanvas = null;    // קנבס ברזולוציה מלאה אחרי סיבוב
+let dispScale = 1;        // יחס הקטנה לתצוגה
+let crop = null;          // {x,y,w,h} בקואורדינטות תצוגה
+let dragStart = null;
+
 function loadPhoto(ev){
   const file = ev.target.files[0];
   if(!file) return;
   const reader = new FileReader();
   reader.onload = e=>{
-    const img = document.getElementById('photoPreview');
+    const img = new Image();
+    img.onload = ()=>{
+      srcImg = img; rotation = 0; crop = null;
+      document.getElementById('ocrArea').style.display = 'block';
+      document.getElementById('ocrResult').style.display = 'none';
+      rebuildWork();
+    };
     img.src = e.target.result;
-    img.classList.add('show');
-    document.getElementById('photoHint').style.display = 'block';
   };
   reader.readAsDataURL(file);
+}
+
+function rotatePhoto(){ if(!srcImg) return; rotation = (rotation+90)%360; crop=null; hideCrop(); rebuildWork(); }
+
+function rebuildWork(){
+  if(!srcImg) return;
+  const w = srcImg.naturalWidth, h = srcImg.naturalHeight;
+  workCanvas = document.createElement('canvas');
+  const swap = (rotation===90||rotation===270);
+  workCanvas.width = swap ? h : w;
+  workCanvas.height = swap ? w : h;
+  const ctx = workCanvas.getContext('2d');
+  ctx.save();
+  ctx.translate(workCanvas.width/2, workCanvas.height/2);
+  ctx.rotate(rotation*Math.PI/180);
+  ctx.drawImage(srcImg, -w/2, -h/2);
+  ctx.restore();
+  renderDisplay();
+}
+
+function renderDisplay(){
+  const cv = document.getElementById('photoCanvas');
+  const box = document.getElementById('canvasBox');
+  const maxW = box.clientWidth || 320;
+  const maxH = 340;
+  dispScale = Math.min(maxW/workCanvas.width, maxH/workCanvas.height, 1);
+  cv.width = Math.round(workCanvas.width*dispScale);
+  cv.height = Math.round(workCanvas.height*dispScale);
+  cv.getContext('2d').drawImage(workCanvas, 0, 0, cv.width, cv.height);
+}
+
+// ---- סימון אזור (חיתוך) במגע/עכבר ----
+function setupCropEvents(){
+  const cv = document.getElementById('photoCanvas');
+  const getXY = e=>{
+    const r = cv.getBoundingClientRect();
+    const p = e.touches ? e.touches[0] : e;
+    return {x: p.clientX - r.left, y: p.clientY - r.top};
+  };
+  const start = e=>{ if(!srcImg) return; e.preventDefault(); dragStart = getXY(e); };
+  const move = e=>{
+    if(!dragStart) return; e.preventDefault();
+    const p = getXY(e);
+    crop = {
+      x: Math.min(dragStart.x, p.x), y: Math.min(dragStart.y, p.y),
+      w: Math.abs(p.x-dragStart.x), h: Math.abs(p.y-dragStart.y)
+    };
+    drawCrop();
+  };
+  const end = ()=>{ dragStart = null; if(crop && (crop.w<8||crop.h<8)){ crop=null; hideCrop(); } };
+  cv.addEventListener('mousedown',start); cv.addEventListener('mousemove',move); window.addEventListener('mouseup',end);
+  cv.addEventListener('touchstart',start,{passive:false}); cv.addEventListener('touchmove',move,{passive:false}); cv.addEventListener('touchend',end);
+}
+
+function drawCrop(){
+  const el = document.getElementById('cropRect');
+  const cv = document.getElementById('photoCanvas');
+  if(!crop){ el.style.display='none'; return; }
+  el.style.display='block';
+  el.style.left = (cv.offsetLeft+crop.x)+'px';
+  el.style.top = (cv.offsetTop+crop.y)+'px';
+  el.style.width = crop.w+'px';
+  el.style.height = crop.h+'px';
+}
+function hideCrop(){ document.getElementById('cropRect').style.display='none'; }
+function clearCrop(){ crop=null; hideCrop(); }
+
+// ---- הפעלת OCR ----
+async function runOCR(){
+  if(!workCanvas){ toast('צרף תמונה קודם'); return; }
+  const btn = document.getElementById('ocrBtn');
+  btn.innerHTML = 'קורא…<span class="spin"></span>'; btn.disabled = true;
+  try{
+    const dataUrl = buildOcrImage();
+    const key = (document.getElementById('ocrKey').value || 'helloworld').trim();
+    const fd = new FormData();
+    fd.append('base64Image', dataUrl);
+    fd.append('OCREngine','2');
+    fd.append('scale','true');
+    fd.append('isOverlayRequired','false');
+    fd.append('detectOrientation','true');
+    const res = await fetch('https://api.ocr.space/parse/image', {method:'POST', headers:{apikey:key}, body:fd});
+    const data = await res.json();
+    if(data.IsErroredOnProcessing){ throw new Error((data.ErrorMessage&&data.ErrorMessage[0])||'OCR error'); }
+    const text = (data.ParsedResults && data.ParsedResults[0] && data.ParsedResults[0].ParsedText) || '';
+    showOcrResult(text);
+  }catch(e){
+    document.getElementById('ocrResult').style.display='block';
+    document.getElementById('ocrResult').innerHTML = '⚠️ שגיאת זיהוי: '+e.message+'<br><small>נסה מפתח OCR משלך בהגדרות, או הקלד ידנית.</small>';
+  }finally{
+    btn.innerHTML = '🔍 קרא אוטומטית'; btn.disabled = false;
+  }
+}
+
+// בונה תמונה לשליחה: חותך לאזור המסומן, מגדיל ומשפר ניגודיות
+function buildOcrImage(){
+  let sx=0, sy=0, sw=workCanvas.width, sh=workCanvas.height;
+  if(crop && crop.w>8 && crop.h>8){
+    sx = crop.x/dispScale; sy = crop.y/dispScale;
+    sw = crop.w/dispScale; sh = crop.h/dispScale;
+  }
+  const targetW = Math.min(1400, Math.max(700, sw*2));
+  const k = targetW/sw;
+  const out = document.createElement('canvas');
+  out.width = Math.round(sw*k); out.height = Math.round(sh*k);
+  const ctx = out.getContext('2d');
+  ctx.drawImage(workCanvas, sx, sy, sw, sh, 0, 0, out.width, out.height);
+  // שיפור: גווני אפור + מתיחת ניגודיות
+  const im = ctx.getImageData(0,0,out.width,out.height);
+  const d = im.data;
+  const C = 1.6, m = 128;
+  for(let i=0;i<d.length;i+=4){
+    let g = 0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];
+    g = Math.max(0, Math.min(255, (g-m)*C+m));
+    d[i]=d[i+1]=d[i+2]=g;
+  }
+  ctx.putImageData(im,0,0);
+  return out.toDataURL('image/png');
+}
+
+function showOcrResult(text){
+  const el = document.getElementById('ocrResult');
+  el.style.display='block';
+  const clean = (text||'').replace(/[^\d.,\s]/g,' ');
+  let nums = clean.match(/\d[\d.,]*\d|\d/g) || [];
+  nums = nums.map(n=>n.replace(/,/g,'.').replace(/\.+/g,'.')).filter(n=>n.replace(/\D/g,'').length>=2);
+  // ניקוד: מעדיף ארוך + עם נקודה עשרונית
+  nums.sort((a,b)=>{
+    const sa=(a.includes('.')?2:0)+a.replace(/\D/g,'').length;
+    const sb=(b.includes('.')?2:0)+b.replace(/\D/g,'').length;
+    return sb-sa;
+  });
+  const uniq = [...new Set(nums)];
+  if(!uniq.length){
+    el.innerHTML = '😕 לא זוהו ספרות. נסה לסמן רק את המסך, לסובב, או להקליד ידנית.<br><small>טקסט גולמי: '+(text||'(ריק)').trim()+'</small>';
+    return;
+  }
+  const best = uniq[0];
+  fillReading(best);
+  let chips = uniq.slice(0,6).map(n=>`<span class="chip" onclick="fillReading('${n}')">${n}</span>`).join('');
+  el.innerHTML = `זוהה אוטומטית (בדוק ותקן אם צריך):<div class="detected">${best}</div>`+
+                 `<div class="chips">${chips}</div>`+
+                 `<details style="margin-top:8px"><summary style="font-size:12px;color:var(--muted)">טקסט גולמי מה-OCR</summary><div style="font-size:12px;direction:ltr;text-align:left;white-space:pre-wrap">${(text||'').trim()}</div></details>`;
+}
+
+function fillReading(v){
+  document.getElementById('newInput').value = v;
+  recalc();
+  toast('הוזן: '+v);
+}
+
+function saveKey(){ localStorage.setItem(LS_KEY, document.getElementById('ocrKey').value); }
+
+function resetPhoto(){
+  srcImg=null; workCanvas=null; crop=null; rotation=0;
+  document.getElementById('ocrArea').style.display='none';
+  document.getElementById('ocrResult').style.display='none';
+  hideCrop();
+  document.getElementById('photoInput').value='';
 }
 
 function save(){
@@ -331,8 +547,7 @@ function save(){
   document.getElementById('newInput').value = '';
   document.getElementById('prevInput').value = '';
   prevEditOpen = false;
-  document.getElementById('photoPreview').classList.remove('show');
-  document.getElementById('photoHint').style.display = 'none';
+  resetPhoto();
   renderPrev();
   renderHist();
   recalc();
