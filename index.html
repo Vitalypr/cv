@@ -229,12 +229,13 @@
       </div>
       <div id="warnNeg" class="warn" style="display:none">⚠️ הקריאה החדשה קטנה מהקודמת — בדוק את המספר</div>
 
-      <label class="field">עלות לקוט"ש (₪)</label>
+      <label class="field">עלות לקוט"ש</label>
       <div class="rate-line">
-        <input type="number" id="rateInput" inputmode="decimal" step="0.0001" value="0.6432" oninput="onRateChange()">
-        <button class="btn ghost" onclick="openTariffSite()">📄 תעריף חח"י</button>
+        <input type="number" id="rateAgorot" inputmode="decimal" step="0.01" placeholder="אגורות" oninput="onAgorotChange()">
+        <input type="number" id="rateInput" inputmode="decimal" step="0.0001" placeholder="שקלים" value="0.6432" oninput="onRateChange()">
+        <button class="btn ghost" onclick="openTariffSite()">📄</button>
       </div>
-      <div class="hint" id="rateHint">לבדיקת התעריף העדכני: פתח "📄 תעריף חח"י" → קח את הערך <b>כולל מע"מ</b> באגורות (למשל 64.32) → הזן בשקלים (חלק ב-100: 0.6432).</div>
+      <div class="hint" id="rateHint">הקלד <b>אגורות</b> מהאתר (למשל 64.32, כולל מע"מ) והשקלים יתמלאו לבד (0.6432). 📄 = עמוד התעריף הרשמי של חח"י.</div>
 
       <label class="field">תאריך עדכון התעריף (מופיע בהודעה)</label>
       <input type="text" id="rateDate" placeholder="1.02.26" oninput="saveRateDate()">
@@ -292,6 +293,7 @@ function load(){
   try{ history = JSON.parse(localStorage.getItem(LS_HIST)) || []; }catch(e){ history = []; }
   const savedRate = localStorage.getItem(LS_RATE);
   document.getElementById('rateInput').value = savedRate !== null ? savedRate : RATE_DEFAULT;
+  syncAgorotFromShekel();
   document.getElementById('rateDate').value = localStorage.getItem(LS_RATEDATE) || '1.02.26';
   document.getElementById('ocrKey').value = localStorage.getItem(LS_KEY) || DEFAULT_KEY;
   document.getElementById('gKey').value = localStorage.getItem(LS_GKEY) || DEFAULT_GKEY;
@@ -361,7 +363,23 @@ function recalc(){
 function onRateChange(){
   const r = document.getElementById('rateInput').value;
   localStorage.setItem(LS_RATE, r);
+  syncAgorotFromShekel();
   recalc();
+}
+
+// אגורות → שקלים (חלוקה ב-100)
+function onAgorotChange(){
+  const a = parseFloat(document.getElementById('rateAgorot').value);
+  if(isNaN(a)) return;
+  const s = Math.round((a/100)*10000)/10000;   // עד 4 ספרות עשרוניות
+  document.getElementById('rateInput').value = s;
+  localStorage.setItem(LS_RATE, String(s));
+  recalc();
+}
+// שקלים → אגורות (לשמירה על סנכרון בשני הכיוונים)
+function syncAgorotFromShekel(){
+  const rv = parseFloat(document.getElementById('rateInput').value);
+  if(!isNaN(rv)) document.getElementById('rateAgorot').value = Math.round(rv*10000)/100;
 }
 
 // פותח את עמוד התעריף הרשמי של חברת החשמל לבדיקה ועדכון ידני
