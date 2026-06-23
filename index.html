@@ -112,7 +112,7 @@
   }
   .ocr-settings{margin-top:10px; font-size:13px; color:var(--muted)}
   .ocr-settings summary{cursor:pointer; padding:6px 0}
-  .ocr-settings input{font-size:15px; padding:10px; text-align:right}
+  .ocr-settings input,.ocr-settings select{font-size:15px; padding:10px; text-align:right; width:100%; border:2px solid var(--line); border-radius:10px; background:#fff}
   .ocr-settings a{color:var(--accent)}
   .spin{display:inline-block; width:16px; height:16px; border:2px solid #fff; border-top-color:transparent;
     border-radius:50%; animation:sp .7s linear infinite; vertical-align:-3px; margin-left:6px}
@@ -191,9 +191,24 @@
           <div id="ocrResult" class="ocr-result" style="display:none"></div>
           <details class="ocr-settings">
             <summary>⚙️ הגדרות OCR</summary>
-            <label class="field">מפתח OCR.space (חינמי)</label>
-            <input type="text" id="ocrKey" placeholder="helloworld" oninput="saveKey()">
-            <div class="hint">ברירת המחדל "helloworld" היא מפתח דמו מוגבל. כדאי מפתח חינמי משלך ב-<a href="https://ocr.space/ocrapi/freekey" target="_blank">ocr.space</a> (25,000 בקשות/חודש, בלי כרטיס אשראי).</div>
+            <label class="field">מנוע זיהוי</label>
+            <select id="ocrEngine" onchange="saveEngine()">
+              <option value="tesseract">מקומי — seven-segment (מומלץ)</option>
+              <option value="ocrspace">ענן — OCR.space</option>
+            </select>
+            <div id="tessOpts">
+              <label class="field">מודל</label>
+              <select id="ocrModel" onchange="saveModel()">
+                <option value="ssd">מדויק (~11MB, הורדה חד-פעמית)</option>
+                <option value="ssd_int">מהיר (~1.4MB)</option>
+              </select>
+              <div class="hint">בפעם הראשונה המודל יורד ונשמר במטמון; אחר כך עובד מהר וגם בלי אינטרנט.</div>
+            </div>
+            <div id="ocrspaceOpts" style="display:none">
+              <label class="field">מפתח OCR.space (חינמי)</label>
+              <input type="text" id="ocrKey" placeholder="helloworld" oninput="saveKey()">
+              <div class="hint">כדאי מפתח חינמי משלך ב-<a href="https://ocr.space/ocrapi/freekey" target="_blank">ocr.space</a> (25,000 בקשות/חודש).</div>
+            </div>
           </details>
         </div>
       </div>
@@ -254,6 +269,9 @@ function load(){
   const savedRate = localStorage.getItem(LS_RATE);
   document.getElementById('rateInput').value = savedRate !== null ? savedRate : RATE_DEFAULT;
   document.getElementById('ocrKey').value = localStorage.getItem(LS_KEY) || DEFAULT_KEY;
+  document.getElementById('ocrEngine').value = localStorage.getItem(LS_ENGINE) || 'tesseract';
+  document.getElementById('ocrModel').value = localStorage.getItem(LS_MODEL) || 'ssd';
+  toggleEngineOpts();
   setupCropEvents();
   renderPrev();
   renderHist();
@@ -339,6 +357,8 @@ async function fetchRate(){
 
 // ===== תמונה + OCR =====
 const LS_KEY = 'elec_ocrkey_v1';
+const LS_ENGINE = 'elec_engine_v1';
+const LS_MODEL = 'elec_model_v1';
 const DEFAULT_KEY = 'K86913368388957';
 let srcImg = null;        // Image שנטען
 let rotation = 0;         // 0/90/180/270
@@ -430,6 +450,7 @@ function hideCrop(){ document.getElementById('cropRect').style.display='none'; }
 function clearCrop(){ crop=null; hideCrop(); }
 
 // ---- הפעלת OCR ----
+// ---- מנוע ענן: OCR.space ----
 async function ocrRequest(dataUrl, key, engine){
   const fd = new FormData();
   fd.append('base64Image', dataUrl);
@@ -443,26 +464,70 @@ async function ocrRequest(dataUrl, key, engine){
   return (data.ParsedResults && data.ParsedResults[0] && data.ParsedResults[0].ParsedText) || '';
 }
 
+// ---- מנוע מקומי: Tesseract + מודל seven-segment ----
+let tesseractWorker = null;
+function loadScript(src){
+  return new Promise((res,rej)=>{
+    const s=document.createElement('script'); s.src=src; s.async=true;
+    s.onload=()=>res(); s.onerror=()=>rej(new Error('טעינת ספריית OCR נכשלה — בדוק חיבור לאינטרנט'));
+    document.head.appendChild(s);
+  });
+}
+async function getTessWorker(onProg){
+  if(tesseractWorker) return tesseractWorker;
+  if(!window.Tesseract) await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js');
+  const model = localStorage.getItem(LS_MODEL) || 'ssd';
+  const w = await Tesseract.createWorker(model, 1, {
+    langPath: 'https://cdn.jsdelivr.net/gh/Shreeshrii/tessdata_ssd@master',
+    gzip: false,
+    logger: onProg
+  });
+  await w.setParameters({ tessedit_char_whitelist:'0123456789.', tessedit_pageseg_mode:'13' });
+  tesseractWorker = w;
+  return w;
+}
+
 async function runOCR(){
   if(!workCanvas){ toast('צרף תמונה קודם'); return; }
   const btn = document.getElementById('ocrBtn');
-  btn.innerHTML = 'קורא…<span class="spin"></span>'; btn.disabled = true;
+  btn.disabled = true;
   try{
     const dataUrl = buildOcrImage();
-    const key = (document.getElementById('ocrKey').value || DEFAULT_KEY).trim();
-    // מנסה מנוע 2, ואם חזר ריק — מנסה מנוע 1
-    let text = await ocrRequest(dataUrl, key, '2');
-    if(!/\d/.test(text)){
-      const t1 = await ocrRequest(dataUrl, key, '1');
-      if(/\d/.test(t1) || !text) text = t1 || text;
+    const engine = localStorage.getItem(LS_ENGINE) || 'tesseract';
+    let text;
+    if(engine === 'ocrspace'){
+      btn.innerHTML = 'קורא…<span class="spin"></span>';
+      const key = (document.getElementById('ocrKey').value || DEFAULT_KEY).trim();
+      text = await ocrRequest(dataUrl, key, '2');
+      if(!/\d/.test(text)){ const t1 = await ocrRequest(dataUrl, key, '1'); if(/\d/.test(t1)||!text) text = t1||text; }
+    }else{
+      const w = await getTessWorker(m=>{
+        const pct = Math.round((m.progress||0)*100);
+        const label = (m.status==='recognizing text') ? 'מזהה' : 'טוען מודל';
+        btn.innerHTML = label+' '+pct+'%';
+      });
+      btn.innerHTML = 'מזהה…<span class="spin"></span>';
+      const { data } = await w.recognize(dataUrl);
+      text = data.text;
     }
     showOcrResult(text);
   }catch(e){
     document.getElementById('ocrResult').style.display='block';
-    document.getElementById('ocrResult').innerHTML = '⚠️ שגיאת זיהוי: '+e.message+'<br><small>נסה מפתח OCR משלך בהגדרות, או הקלד ידנית.</small>';
+    document.getElementById('ocrResult').innerHTML = '⚠️ שגיאת זיהוי: '+e.message+'<br><small>נסה שוב, החלף מנוע בהגדרות, או הקלד ידנית.</small>';
   }finally{
     btn.innerHTML = '🔍 קרא אוטומטית'; btn.disabled = false;
   }
+}
+
+function saveEngine(){ localStorage.setItem(LS_ENGINE, document.getElementById('ocrEngine').value); toggleEngineOpts(); }
+function saveModel(){
+  localStorage.setItem(LS_MODEL, document.getElementById('ocrModel').value);
+  if(tesseractWorker){ tesseractWorker.terminate(); tesseractWorker=null; }  // לטעון מחדש עם המודל החדש
+}
+function toggleEngineOpts(){
+  const eng = document.getElementById('ocrEngine').value;
+  document.getElementById('tessOpts').style.display = (eng==='tesseract')?'block':'none';
+  document.getElementById('ocrspaceOpts').style.display = (eng==='ocrspace')?'block':'none';
 }
 
 // בונה תמונה לשליחה: חותך לאזור המסומן, מגדיל ומשפר ניגודיות
