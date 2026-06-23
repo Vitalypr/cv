@@ -430,6 +430,19 @@ function hideCrop(){ document.getElementById('cropRect').style.display='none'; }
 function clearCrop(){ crop=null; hideCrop(); }
 
 // ---- הפעלת OCR ----
+async function ocrRequest(dataUrl, key, engine){
+  const fd = new FormData();
+  fd.append('base64Image', dataUrl);
+  fd.append('OCREngine', engine);
+  fd.append('scale','true');
+  fd.append('isOverlayRequired','false');
+  fd.append('detectOrientation','true');
+  const res = await fetch('https://api.ocr.space/parse/image', {method:'POST', headers:{apikey:key}, body:fd});
+  const data = await res.json();
+  if(data.IsErroredOnProcessing) throw new Error((data.ErrorMessage&&data.ErrorMessage[0])||'OCR error');
+  return (data.ParsedResults && data.ParsedResults[0] && data.ParsedResults[0].ParsedText) || '';
+}
+
 async function runOCR(){
   if(!workCanvas){ toast('צרף תמונה קודם'); return; }
   const btn = document.getElementById('ocrBtn');
@@ -437,16 +450,12 @@ async function runOCR(){
   try{
     const dataUrl = buildOcrImage();
     const key = (document.getElementById('ocrKey').value || DEFAULT_KEY).trim();
-    const fd = new FormData();
-    fd.append('base64Image', dataUrl);
-    fd.append('OCREngine','2');
-    fd.append('scale','true');
-    fd.append('isOverlayRequired','false');
-    fd.append('detectOrientation','true');
-    const res = await fetch('https://api.ocr.space/parse/image', {method:'POST', headers:{apikey:key}, body:fd});
-    const data = await res.json();
-    if(data.IsErroredOnProcessing){ throw new Error((data.ErrorMessage&&data.ErrorMessage[0])||'OCR error'); }
-    const text = (data.ParsedResults && data.ParsedResults[0] && data.ParsedResults[0].ParsedText) || '';
+    // מנסה מנוע 2, ואם חזר ריק — מנסה מנוע 1
+    let text = await ocrRequest(dataUrl, key, '2');
+    if(!/\d/.test(text)){
+      const t1 = await ocrRequest(dataUrl, key, '1');
+      if(/\d/.test(t1) || !text) text = t1 || text;
+    }
     showOcrResult(text);
   }catch(e){
     document.getElementById('ocrResult').style.display='block';
@@ -463,19 +472,26 @@ function buildOcrImage(){
     sx = crop.x/dispScale; sy = crop.y/dispScale;
     sw = crop.w/dispScale; sh = crop.h/dispScale;
   }
-  const targetW = Math.min(1400, Math.max(700, sw*2));
-  const k = targetW/sw;
+  // הגדלה כך שגובה הספרות יהיה משמעותי (עוזר ל-OCR)
+  const targetH = 220;
+  let k = targetH/sh;
+  k = Math.max(1.5, Math.min(k, 2400/sw));
   const out = document.createElement('canvas');
   out.width = Math.round(sw*k); out.height = Math.round(sh*k);
   const ctx = out.getContext('2d');
+  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
   ctx.drawImage(workCanvas, sx, sy, sw, sh, 0, 0, out.width, out.height);
-  // שיפור: גווני אפור + מתיחת ניגודיות
+  // גווני אפור + מתיחת ניגודיות אדפטיבית (auto-levels לפי אחוזונים)
   const im = ctx.getImageData(0,0,out.width,out.height);
-  const d = im.data;
-  const C = 2.1, m = 128;
-  for(let i=0;i<d.length;i+=4){
-    let g = 0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];
-    g = Math.max(0, Math.min(255, (g-m)*C+m));
+  const d = im.data, n = out.width*out.height;
+  const gray = new Float32Array(n);
+  for(let i=0,p=0;i<d.length;i+=4,p++) gray[p]=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];
+  const sorted = Float32Array.from(gray).sort();
+  const lo = sorted[Math.floor(n*0.05)], hi = sorted[Math.floor(n*0.95)];
+  const range = Math.max(1, hi-lo);
+  for(let i=0,p=0;i<d.length;i+=4,p++){
+    let g = (gray[p]-lo)/range*255;
+    g = g<0?0:(g>255?255:g);
     d[i]=d[i+1]=d[i+2]=g;
   }
   ctx.putImageData(im,0,0);
