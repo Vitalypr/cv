@@ -235,6 +235,9 @@
       </div>
       <div class="hint" id="rateHint">ערך נשמר אוטומטית. "רענן" מנסה לעדכן מהאינטרנט (לא תמיד זמין).</div>
 
+      <label class="field">תאריך עדכון התעריף (מופיע בהודעה)</label>
+      <input type="text" id="rateDate" placeholder="1.02.26" oninput="saveRateDate()">
+
       <div class="amount-box">
         <div class="cap">סכום לתשלום</div>
         <div class="amt"><span id="amountNum">0.00</span> ₪</div>
@@ -270,6 +273,7 @@
 const RATE_DEFAULT = 0.6432;
 const LS_HIST = 'elec_history_v1';
 const LS_RATE = 'elec_rate_v1';
+const LS_RATEDATE = 'elec_ratedate_v1';
 let history = [];
 let prevEditOpen = false;
 
@@ -277,6 +281,7 @@ function load(){
   try{ history = JSON.parse(localStorage.getItem(LS_HIST)) || []; }catch(e){ history = []; }
   const savedRate = localStorage.getItem(LS_RATE);
   document.getElementById('rateInput').value = savedRate !== null ? savedRate : RATE_DEFAULT;
+  document.getElementById('rateDate').value = localStorage.getItem(LS_RATEDATE) || '1.02.26';
   document.getElementById('ocrKey').value = localStorage.getItem(LS_KEY) || DEFAULT_KEY;
   document.getElementById('gKey').value = localStorage.getItem(LS_GKEY) || DEFAULT_GKEY;
   let gm = localStorage.getItem(LS_GMODEL);
@@ -709,17 +714,35 @@ function save(){
   toast('נשמר! סכום: ' + rec.amount.toFixed(2) + ' ₪');
 }
 
+// מספר נקי להודעה: עד 4 ספרות עשרוניות, בלי אפסים מיותרים ובלי פסיקי אלפים
+function num(n){ return parseFloat(Number(n).toFixed(4)).toString(); }
+
+function buildMessage(){
+  const prev = getPrevReading();
+  const nw = parseFloat(document.getElementById('newInput').value);
+  const rate = parseFloat(document.getElementById('rateInput').value);
+  if(prev===null || isNaN(nw) || isNaN(rate)) return null;
+  const consume = nw - prev;
+  const amount = Math.round(consume * rate);
+  const rateAgorot = num(rate*100);
+  const rateDate = (document.getElementById('rateDate').value||'').trim();
+  const since = rateDate ? ` (updated since ${rateDate})` : '';
+  return `Current count ${num(nw)} - Last count ${num(prev)}= *${num(consume)}kwh*\n\n`+
+         `Current rate is ${rateAgorot}${since} agorot per kwh.\n`+
+         `So its ${num(consume)}×${num(rate)}= *${amount} shekel*`;
+}
+
 function shareMsg(){
-  const consume = document.getElementById('consumeNum').textContent;
-  const amount = document.getElementById('amountNum').textContent;
-  const rate = document.getElementById('rateInput').value;
-  const msg = `שלום, צריכת החשמל שלך: ${consume} קוט"ש × ${rate} ₪ = ${amount} ₪ לתשלום. תודה!`;
+  const msg = buildMessage();
+  if(!msg){ toast('השלם קודם את החישוב (קריאה חדשה ותעריף)'); return; }
   if(navigator.share){
     navigator.share({text:msg}).catch(()=>{});
   }else{
     navigator.clipboard.writeText(msg).then(()=>toast('ההודעה הועתקה')).catch(()=>toast(msg));
   }
 }
+
+function saveRateDate(){ localStorage.setItem(LS_RATEDATE, document.getElementById('rateDate').value); }
 
 function renderHist(){
   const body = document.getElementById('histBody');
