@@ -127,6 +127,7 @@
 
   .toolbar{display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap}
   .toolbar button{flex:1; min-width:120px}
+  textarea#pasteArea{width:100%; border:2px solid var(--line); border-radius:10px; padding:10px; font-size:13px; direction:ltr; text-align:left; font-family:monospace}
 
   .toast{
     position:fixed; left:50%; bottom:90px; transform:translateX(-50%);
@@ -245,15 +246,23 @@
 
       <button class="btn primary" onclick="save()">✓ אישור ושמירה</button>
       <button class="btn ghost wide" style="margin-top:8px" onclick="shareMsg()">💬 העתק הודעה לשכן</button>
+      <button class="btn ghost wide" style="margin-top:8px" onclick="shareBackup()">💾 גבה היסטוריה (שלח לעצמך בוואטסאפ)</button>
     </div>
   </section>
 
   <!-- ===== היסטוריה ===== -->
   <section id="view-hist" class="view">
     <div class="toolbar">
-      <button class="btn ghost" onclick="exportData()">⬇️ ייצוא גיבוי</button>
-      <button class="btn ghost" onclick="document.getElementById('importInput').click()">⬆️ שחזור</button>
-      <input type="file" id="importInput" accept="application/json" style="display:none" onchange="importData(event)">
+      <button class="btn ghost" onclick="shareBackup()">💾 גבה לוואטסאפ</button>
+      <button class="btn ghost" onclick="exportData()">⬇️ הורדת JSON</button>
+      <button class="btn ghost" onclick="document.getElementById('importInput').click()">📂 שחזור מקובץ</button>
+      <button class="btn ghost" onclick="togglePaste()">📋 שחזור מהדבקה</button>
+      <input type="file" id="importInput" accept="application/json,.json,.txt,text/plain" style="display:none" onchange="importData(event)">
+    </div>
+    <div id="pasteBox" class="card" style="display:none">
+      <label class="field">הדבק כאן את ה-JSON מגיבוי קודם (למשל מהודעת וואטסאפ לעצמך):</label>
+      <textarea id="pasteArea" rows="5" placeholder='{"history":[...]}'></textarea>
+      <button class="btn primary" style="margin-top:8px" onclick="restoreFromText()">שחזר מההדבקה</button>
     </div>
     <div class="card" style="padding:6px">
       <table>
@@ -798,13 +807,56 @@ function delRec(i){
   toast('נמחק');
 }
 
+// גיבוי מלא: כל ההיסטוריה + התעריף + התאריך
+function buildBackup(){
+  return JSON.stringify({
+    app: 'electricity-splitter', version: 1,
+    history,
+    rate: localStorage.getItem(LS_RATE) || String(RATE_DEFAULT),
+    rateDate: localStorage.getItem(LS_RATEDATE) || '',
+    exportedAt: new Date().toISOString()
+  }, null, 2);
+}
+function backupName(){ return 'electricity-backup-'+todayStr().replace(/\//g,'-')+'.json'; }
+
+// שיתוף הגיבוי — מנסה כקובץ, נופל לטקסט, ואז להורדה
+async function shareBackup(){
+  const payload = buildBackup();
+  const fname = backupName();
+  try{
+    const file = new File([payload], fname, {type:'application/json'});
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      await navigator.share({files:[file], title:'גיבוי חשמל', text:'גיבוי היסטוריית חשמל'});
+      return;
+    }
+  }catch(e){ if(e && e.name==='AbortError') return; }
+  try{
+    if(navigator.share){ await navigator.share({title:'גיבוי חשמל', text:payload}); return; }
+  }catch(e){ if(e && e.name==='AbortError') return; }
+  exportData();  // נפילה אחרונה: הורדת קובץ
+  toast('שיתוף לא נתמך — הקובץ הורד למכשיר');
+}
+
 function exportData(){
-  const blob = new Blob([JSON.stringify({history, exportedAt:new Date().toISOString()}, null, 2)], {type:'application/json'});
+  const blob = new Blob([buildBackup()], {type:'application/json'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url; a.download = 'electricity-backup-'+todayStr().replace(/\//g,'-')+'.json';
+  a.href = url; a.download = backupName();
   a.click(); URL.revokeObjectURL(url);
-  toast('גיבוי נוצר');
+  toast('קובץ גיבוי נוצר');
+}
+
+// החלת גיבוי מאובייקט מפוענח. מחזיר true אם בוצע
+function applyBackup(data){
+  const arr = Array.isArray(data) ? data : (data && data.history);
+  if(!Array.isArray(arr)) throw new Error('format');
+  if(!confirm('שחזור יחליף את כל ההיסטוריה הנוכחית. להמשיך?')) return false;
+  history = arr;
+  localStorage.setItem(LS_HIST, JSON.stringify(history));
+  if(data && data.rate){ localStorage.setItem(LS_RATE, String(data.rate)); document.getElementById('rateInput').value = data.rate; }
+  if(data && data.rateDate){ localStorage.setItem(LS_RATEDATE, data.rateDate); document.getElementById('rateDate').value = data.rateDate; }
+  renderPrev(); renderHist(); recalc();
+  return true;
 }
 
 function importData(ev){
@@ -812,19 +864,27 @@ function importData(ev){
   if(!file) return;
   const reader = new FileReader();
   reader.onload = e=>{
-    try{
-      const data = JSON.parse(e.target.result);
-      const arr = Array.isArray(data) ? data : data.history;
-      if(!Array.isArray(arr)) throw new Error('format');
-      if(!confirm('שחזור יחליף את כל ההיסטוריה הנוכחית. להמשיך?')) return;
-      history = arr;
-      localStorage.setItem(LS_HIST, JSON.stringify(history));
-      renderPrev(); renderHist(); recalc();
-      toast('שוחזר בהצלחה');
-    }catch(err){ toast('קובץ גיבוי לא תקין'); }
+    try{ if(applyBackup(JSON.parse(e.target.result))) toast('שוחזר בהצלחה'); }
+    catch(err){ toast('קובץ גיבוי לא תקין'); }
   };
   reader.readAsText(file);
   ev.target.value='';
+}
+
+function togglePaste(){
+  const b = document.getElementById('pasteBox');
+  b.style.display = (b.style.display==='none') ? 'block' : 'none';
+}
+function restoreFromText(){
+  const txt = document.getElementById('pasteArea').value.trim();
+  if(!txt){ toast('הדבק קודם את ה-JSON'); return; }
+  try{
+    if(applyBackup(JSON.parse(txt))){
+      toast('שוחזר בהצלחה');
+      document.getElementById('pasteArea').value='';
+      document.getElementById('pasteBox').style.display='none';
+    }
+  }catch(err){ toast('הטקסט שהודבק אינו JSON תקין'); }
 }
 
 // עזרים
