@@ -472,7 +472,7 @@ function buildOcrImage(){
   // שיפור: גווני אפור + מתיחת ניגודיות
   const im = ctx.getImageData(0,0,out.width,out.height);
   const d = im.data;
-  const C = 1.6, m = 128;
+  const C = 2.1, m = 128;
   for(let i=0;i<d.length;i+=4){
     let g = 0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];
     g = Math.max(0, Math.min(255, (g-m)*C+m));
@@ -482,12 +482,30 @@ function buildOcrImage(){
   return out.toDataURL('image/png');
 }
 
+// המרת אותיות שמנוע ה-OCR מחזיר בטעות במקום ספרות שבע-מקטעים
+function digitize(s){
+  const map = {
+    O:'0',o:'0',D:'0',Q:'0',U:'0',C:'0',
+    I:'1',l:'1',i:'1','|':'1',L:'1','!':'1','/':'1','\\':'1',J:'1',T:'1','[':'1',']':'1',
+    Z:'2',z:'2',
+    E:'3',
+    A:'4',h:'4',H:'4',
+    S:'5',s:'5','$':'5',
+    G:'6',b:'6',
+    '?':'7',
+    B:'8','&':'8',
+    g:'9',q:'9',
+    '·':'.','•':'.',',':'.'
+  };
+  return s.replace(/[^\d.\s]/g, c => map[c] !== undefined ? map[c] : ' ');
+}
+
 function showOcrResult(text){
   const el = document.getElementById('ocrResult');
   el.style.display='block';
-  const clean = (text||'').replace(/[^\d.,\s]/g,' ');
-  let nums = clean.match(/\d[\d.,]*\d|\d/g) || [];
-  nums = nums.map(n=>n.replace(/,/g,'.').replace(/\.+/g,'.')).filter(n=>n.replace(/\D/g,'').length>=2);
+  const mapped = digitize(text||'');
+  let nums = mapped.match(/\d[\d.]*\d|\d/g) || [];
+  nums = nums.map(n=>n.replace(/\.+/g,'.').replace(/^\.|\.$/g,'')).filter(n=>n.replace(/\D/g,'').length>=2);
   // ניקוד: מעדיף ארוך + עם נקודה עשרונית
   nums.sort((a,b)=>{
     const sa=(a.includes('.')?2:0)+a.replace(/\D/g,'').length;
