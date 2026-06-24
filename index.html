@@ -118,6 +118,23 @@
     opacity:0; transition:opacity .25s, bottom .25s; pointer-events:none; z-index:50; max-width:90%; text-align:center;
   }
   .toast.show{opacity:.97; bottom:36px}
+
+  /* total paid box */
+  .totalbox{background:#fff; border-radius:22px; padding:18px; margin-top:13px; box-shadow:0 1px 3px rgba(20,24,35,.05); text-align:center}
+  .totalbox .cap{font-size:12.5px; color:var(--muted); font-weight:600}
+  .totalbox .sum{font-size:36px; font-weight:800; color:var(--ink); letter-spacing:-1px; margin-top:4px}
+  .totalbox .sum i{font-style:normal; font-size:18px; color:var(--muted2); font-weight:600}
+  .totalbox .sub{font-size:12px; color:var(--muted); margin-top:5px}
+
+  /* graph tab (תצוגת רוחב אוטומטית) */
+  .graphrot{position:fixed; inset:0; background:var(--bg); z-index:30; display:flex; flex-direction:column; padding:14px 16px}
+  .graphrot.rot{inset:auto; top:0; left:100vw; width:100vh; height:100vw; transform-origin:0 0; transform:rotate(90deg)}
+  .graphhead{display:flex; align-items:center; justify-content:space-between; margin-bottom:4px}
+  .graphhead .gt{font-size:15px; font-weight:700; color:var(--ink)}
+  .graphhead .gsub{font-size:12px; color:var(--muted); font-weight:500; margin-top:1px}
+  .graphhead button{border:none; background:#fff; width:34px;height:34px;border-radius:50%; font-size:16px; box-shadow:0 1px 3px rgba(0,0,0,.08); cursor:pointer; color:var(--ink)}
+  .charthost{flex:1; min-height:0}
+  .charthost svg{width:100%; height:100%; display:block}
 </style>
 </head>
 <body>
@@ -127,6 +144,7 @@
   <div class="seg">
     <span id="tab-calc" class="on" onclick="showView('calc')">חישוב</span>
     <span id="tab-hist" onclick="showView('hist')">היסטוריה</span>
+    <span id="tab-graph" onclick="showView('graph')">גרף</span>
   </div>
 
   <!-- ===== חישוב חדש ===== -->
@@ -249,6 +267,21 @@
         <tbody id="histBody"></tbody>
       </table>
       <div id="histEmpty" class="empty">עדיין אין רשומות. בצע חישוב ראשון בלשונית "חישוב חדש".</div>
+    </div>
+    <div class="totalbox" id="totalBox" style="display:none"></div>
+  </section>
+
+  <!-- ===== גרף ===== -->
+  <section id="view-graph" class="view">
+    <div id="graphRot" class="graphrot">
+      <div class="graphhead">
+        <div>
+          <div class="gt">צריכה לאורך זמן</div>
+          <div class="gsub" id="graphSub">לחץ על נקודה לפרטי התשלום</div>
+        </div>
+        <button onclick="showView('calc')">✕</button>
+      </div>
+      <div class="charthost" id="chartHost"></div>
     </div>
   </section>
 </main>
@@ -782,8 +815,9 @@ function saveRateDate(){ localStorage.setItem(LS_RATEDATE, document.getElementBy
 function renderHist(){
   const body = document.getElementById('histBody');
   const empty = document.getElementById('histEmpty');
+  const tb = document.getElementById('totalBox');
   body.innerHTML = '';
-  if(!history.length){ empty.style.display='block'; return; }
+  if(!history.length){ empty.style.display='block'; tb.style.display='none'; return; }
   empty.style.display='none';
   // החדש למעלה
   for(let i=history.length-1; i>=0; i--){
@@ -798,6 +832,13 @@ function renderHist(){
       <td><button class="del" onclick="delRec(${i})">🗑</button></td>`;
     body.appendChild(tr);
   }
+  // סה"כ ששולם
+  const sumNis = history.reduce((s,r)=>s+Math.round(r.amount),0);
+  const sumKwh = history.reduce((s,r)=>s+(r.consumption||0),0);
+  tb.style.display='block';
+  tb.innerHTML = `<div class="cap">סה"כ שולם</div>`+
+                 `<div class="sum">${fmt(sumNis)}<i> ₪</i></div>`+
+                 `<div class="sub">${history.length} תשלומים · ${fmt(Math.round(sumKwh))} קוט"ש</div>`;
 }
 
 function delRec(i){
@@ -903,11 +944,59 @@ function todayStr(){
   return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();
 }
 function showView(v){
-  document.getElementById('view-calc').classList.toggle('active', v==='calc');
-  document.getElementById('view-hist').classList.toggle('active', v==='hist');
-  document.getElementById('tab-calc').classList.toggle('on', v==='calc');
-  document.getElementById('tab-hist').classList.toggle('on', v==='hist');
+  ['calc','hist','graph'].forEach(x=>{
+    document.getElementById('view-'+x).classList.toggle('active', v===x);
+    document.getElementById('tab-'+x).classList.toggle('on', v===x);
+  });
+  if(v==='graph') layoutGraph();
 }
+
+// ---- גרף צריכה לאורך זמן (תצוגת רוחב) ----
+function layoutGraph(){
+  const rot = window.innerHeight >= window.innerWidth;  // אם הטלפון במצב לאורך — מסובבים לרוחב
+  document.getElementById('graphRot').classList.toggle('rot', rot);
+  renderChart();
+}
+function pickPoint(i){
+  const h = history[i];
+  document.getElementById('graphSub').textContent = h.date + ' · ' + fmt(h.consumption) + ' קוט"ש · ' + Math.round(h.amount) + ' ₪';
+}
+function renderChart(){
+  const host = document.getElementById('chartHost');
+  if(!history.length){ host.innerHTML = '<div class="empty">אין נתונים להצגה</div>'; return; }
+  const W=880, H=470, m={l:60,r:22,t:16,b:50};
+  const d = history.map(h=>({t:h.ts, y:h.consumption||0, amount:h.amount, date:h.date}));
+  const n = d.length;
+  const minT=Math.min(...d.map(p=>p.t)), maxT=Math.max(...d.map(p=>p.t));
+  const maxY=Math.max(...d.map(p=>p.y), 1);
+  const yTop=Math.max(500, Math.ceil(maxY/500)*500);
+  const X=t=> m.l + (maxT===minT?0.5:(t-minT)/(maxT-minT))*(W-m.l-m.r);
+  const Y=y=> H-m.b - (y/yTop)*(H-m.t-m.b);
+  let g='';
+  const steps=4;
+  for(let i=0;i<=steps;i++){ const yv=Math.round(yTop*i/steps); const yy=Y(yv);
+    g+=`<line x1="${m.l}" y1="${yy}" x2="${W-m.r}" y2="${yy}" stroke="#e7eaee" stroke-width="1"/>`;
+    g+=`<text x="${m.l-8}" y="${yy+4}" text-anchor="end" font-size="13" fill="#8b9199">${yv}</text>`;
+  }
+  const k=Math.max(1,Math.round(n/6));
+  const idx=[]; for(let i=0;i<n;i+=k) idx.push(i); if(idx[idx.length-1]!==n-1) idx.push(n-1);
+  idx.forEach(i=>{ const p=d[i], xx=X(p.t);
+    g+=`<text x="${xx}" y="${H-m.b+19}" text-anchor="middle" font-size="12" fill="#8b9199">${p.date.slice(0,5)}</text>`;
+    g+=`<text x="${xx}" y="${H-m.b+34}" text-anchor="middle" font-size="11" fill="#a2a8b0">${p.date.slice(6)}</text>`;
+  });
+  let line='', area=`M ${X(d[0].t)} ${H-m.b} `;
+  d.forEach((p,i)=>{ const xx=X(p.t), yy=Y(p.y); line+=(i?'L ':'M ')+xx+' '+yy+' '; area+='L '+xx+' '+yy+' '; });
+  area += `L ${X(d[n-1].t)} ${H-m.b} Z`;
+  g+=`<path d="${area}" fill="rgba(47,107,255,.10)"/>`;
+  g+=`<path d="${line}" fill="none" stroke="#2f6bff" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`;
+  d.forEach((p,i)=>{ const xx=X(p.t), yy=Y(p.y);
+    g+=`<circle cx="${xx}" cy="${yy}" r="5.5" fill="#fff" stroke="#2f6bff" stroke-width="2.5" style="cursor:pointer" onclick="pickPoint(${i})"/>`;
+  });
+  g+=`<text x="${m.l-46}" y="${m.t+6}" font-size="12" fill="#a2a8b0">קוט"ש</text>`;
+  host.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">${g}</svg>`;
+}
+window.addEventListener('resize', ()=>{ if(document.getElementById('view-graph').classList.contains('active')) layoutGraph(); });
+window.addEventListener('orientationchange', ()=>{ setTimeout(()=>{ if(document.getElementById('view-graph').classList.contains('active')) layoutGraph(); }, 200); });
 let toastT;
 function toast(msg){
   const el = document.getElementById('toast');
