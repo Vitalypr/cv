@@ -27,6 +27,9 @@
   .appbar{display:flex; align-items:center; justify-content:space-between; padding:8px 2px 14px}
   .appbar .title{font-size:18px; font-weight:700}
   .appbar .ava{width:38px;height:38px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-size:17px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+  .gear{border:none; background:#fff; width:38px; height:38px; border-radius:50%; font-size:16px; box-shadow:0 2px 8px rgba(0,0,0,.06); cursor:pointer; padding:0}
+  .setrow{display:flex; align-items:center; justify-content:space-between; margin-bottom:6px}
+  .setrow b{font-size:15px; color:var(--ink)}
   .installbtn{border:none; background:#2f6bff; color:#fff; font-size:13px; font-weight:700; padding:9px 13px; border-radius:999px; cursor:pointer; box-shadow:0 3px 10px rgba(47,107,255,.3)}
 
   .seg{display:flex; background:#e3e6ea; border-radius:14px; padding:4px; margin-bottom:16px}
@@ -154,7 +157,12 @@
 <body>
 
 <main>
-  <div class="appbar"><span class="title">חישוב חשמל</span><span class="ava">⚡</span></div>
+  <div class="appbar"><span class="title">חישוב חשמל</span>
+    <div style="display:flex; gap:8px; align-items:center">
+      <button class="gear" onclick="toggleSettings()">⚙️</button>
+      <span class="ava">⚡</span>
+    </div>
+  </div>
   <div class="seg">
     <span id="tab-calc" class="on" onclick="showView('calc')">חישוב</span>
     <span id="tab-hist" onclick="showView('hist')">היסטוריה</span>
@@ -163,6 +171,37 @@
 
   <!-- ===== חישוב חדש ===== -->
   <section id="view-calc" class="view active">
+
+    <div id="settingsCard" class="card ocr-settings" style="display:none">
+      <div class="setrow"><b>⚙️ הגדרות זיהוי (OCR)</b><button class="linkbtn" onclick="toggleSettings()">סגור</button></div>
+      <label class="field">מנוע זיהוי</label>
+      <select id="ocrEngine" onchange="saveEngine()">
+        <option value="gemini">AI Vision — Google Gemini (מדויק, חינם)</option>
+        <option value="tesseract">מקומי — seven-segment</option>
+        <option value="ocrspace">ענן — OCR.space</option>
+      </select>
+      <div id="geminiOpts">
+        <label class="field">מפתח Gemini (חינמי)</label>
+        <input type="text" id="gKey" placeholder="הדבק מפתח מ-Google AI Studio" oninput="saveGKey()">
+        <div class="hint">מפתח חינמי תוך דקה ב-<a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com/apikey</a> (בלי כרטיס אשראי).</div>
+        <label class="field">מודל</label>
+        <input type="text" id="gModel" placeholder="gemini-2.5-flash" oninput="saveGModel()">
+        <div class="hint">ברירת מחדל gemini-2.5-flash. לדיוק מירבי gemini-2.5-pro; חלופה קלה gemini-2.5-flash-lite.</div>
+      </div>
+      <div id="tessOpts">
+        <label class="field">מודל</label>
+        <select id="ocrModel" onchange="saveModel()">
+          <option value="ssd">מדויק (~11MB, הורדה חד-פעמית)</option>
+          <option value="ssd_int">מהיר (~1.4MB)</option>
+        </select>
+        <div class="hint">בפעם הראשונה המודל יורד ונשמר במטמון; אחר כך מהיר וגם בלי אינטרנט.</div>
+      </div>
+      <div id="ocrspaceOpts" style="display:none">
+        <label class="field">מפתח OCR.space (חינמי)</label>
+        <input type="text" id="ocrKey" placeholder="helloworld" oninput="saveKey()">
+        <div class="hint">מפתח חינמי ב-<a href="https://ocr.space/ocrapi/freekey" target="_blank">ocr.space</a>.</div>
+      </div>
+    </div>
 
     <div class="card amtcard">
       <div class="caplbl">סכום לתשלום</div>
@@ -204,36 +243,6 @@
           <button class="clearsel" id="clearSel" onclick="clearCrop()">✕ נקה סימון</button>
           <div class="hint">סובב לכיוון הנכון ואז 🔍 קרא. "בחר אזור" — לסימון המסך בלבד (אופציונלי).</div>
           <div id="ocrResult" class="ocr-result" style="display:none"></div>
-          <details class="ocr-settings">
-            <summary>⚙️ הגדרות OCR</summary>
-            <label class="field">מנוע זיהוי</label>
-            <select id="ocrEngine" onchange="saveEngine()">
-              <option value="gemini">AI Vision — Google Gemini (מדויק, חינם)</option>
-              <option value="tesseract">מקומי — seven-segment</option>
-              <option value="ocrspace">ענן — OCR.space</option>
-            </select>
-            <div id="geminiOpts">
-              <label class="field">מפתח Gemini (חינמי)</label>
-              <input type="text" id="gKey" placeholder="הדבק מפתח מ-Google AI Studio" oninput="saveGKey()">
-              <div class="hint">מפתח חינמי תוך דקה ב-<a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com/apikey</a> (בלי כרטיס אשראי).</div>
-              <label class="field">מודל</label>
-              <input type="text" id="gModel" placeholder="gemini-2.5-flash" oninput="saveGModel()">
-              <div class="hint">ברירת מחדל gemini-2.5-flash. לדיוק מירבי gemini-2.5-pro; חלופה קלה gemini-2.5-flash-lite.</div>
-            </div>
-            <div id="tessOpts">
-              <label class="field">מודל</label>
-              <select id="ocrModel" onchange="saveModel()">
-                <option value="ssd">מדויק (~11MB, הורדה חד-פעמית)</option>
-                <option value="ssd_int">מהיר (~1.4MB)</option>
-              </select>
-              <div class="hint">בפעם הראשונה המודל יורד ונשמר במטמון; אחר כך מהיר וגם בלי אינטרנט.</div>
-            </div>
-            <div id="ocrspaceOpts" style="display:none">
-              <label class="field">מפתח OCR.space (חינמי)</label>
-              <input type="text" id="ocrKey" placeholder="helloworld" oninput="saveKey()">
-              <div class="hint">מפתח חינמי ב-<a href="https://ocr.space/ocrapi/freekey" target="_blank">ocr.space</a>.</div>
-            </div>
-          </details>
         </div>
       </div>
 
@@ -655,13 +664,17 @@ function saveModel(){
   localStorage.setItem(LS_MODEL, document.getElementById('ocrModel').value);
   if(tesseractWorker){ tesseractWorker.terminate(); tesseractWorker=null; }  // לטעון מחדש עם המודל החדש
 }
-function saveGKey(){ localStorage.setItem(LS_GKEY, document.getElementById('gKey').value); updateSettingsVisibility(); }
-// מסתיר את תפריט הגדרות ה-OCR כשכבר יש מפתח Gemini; מציג רק כשאין מפתח
+function saveGKey(){ localStorage.setItem(LS_GKEY, document.getElementById('gKey').value); }
+// בטעינה: מציג את כרטיס ההגדרות רק כשאין מפתח Gemini; אם יש מפתח — מוסתר (ונגיש דרך ⚙️)
 function updateSettingsVisibility(){
-  const det = document.querySelector('.ocr-settings');
-  if(!det) return;
+  const c = document.getElementById('settingsCard');
+  if(!c) return;
   const hasKey = ((document.getElementById('gKey').value || DEFAULT_GKEY).trim().length > 0);
-  det.style.display = hasKey ? 'none' : 'block';
+  c.style.display = hasKey ? 'none' : 'block';
+}
+function toggleSettings(){
+  const c = document.getElementById('settingsCard');
+  if(c) c.style.display = (c.style.display === 'none' || !c.style.display) ? 'block' : 'none';
 }
 function saveGModel(){ localStorage.setItem(LS_GMODEL, document.getElementById('gModel').value); }
 function toggleEngineOpts(){
