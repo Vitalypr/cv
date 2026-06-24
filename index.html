@@ -847,8 +847,8 @@ function renderHist(){
   sr.style.display='grid';
   sr.innerHTML =
     `<div class="stat"><div class="t">ממוצע / חודש</div><div class="v">${s.avgMonthP?fmt(Math.round(s.avgMonthP)):'—'}<small> ₪</small></div></div>`+
-    `<div class="stat"><div class="t">תשלום מקסימלי</div><div class="v">${fmt(s.maxP)}<small> ₪</small></div></div>`+
-    `<div class="stat"><div class="t">תשלום מינימלי</div><div class="v">${fmt(s.minP)}<small> ₪</small></div></div>`;
+    `<div class="stat"><div class="t">מקסימום / חודש</div><div class="v">${s.maxPM?fmt(Math.round(s.maxPM)):'—'}<small> ₪</small></div></div>`+
+    `<div class="stat"><div class="t">מינימום / חודש</div><div class="v">${s.minPM?fmt(Math.round(s.minPM)):'—'}<small> ₪</small></div></div>`;
   // סה"כ ששולם
   tb.style.display='block';
   tb.innerHTML = `<div class="cap">סה"כ שולם</div>`+
@@ -977,14 +977,16 @@ function computeStats(){
   if(!history.length) return null;
   const toTs=d=>{ const p=String(d).split('/').map(Number); return new Date(p[2],p[1]-1,p[0]).getTime(); };
   const recs=history.map(r=>({date:r.date, consumption:r.consumption||0, amount:Math.round(r.amount||0), ts:toTs(r.date)})).sort((x,y)=>x.ts-y.ts);
-  const amts=recs.map(r=>r.amount);
-  const out={ count:recs.length, recs, totalP:amts.reduce((s,a)=>s+a,0), maxP:Math.max(...amts), minP:Math.min(...amts), avgMonthP:0, avgMonthC:0 };
+  const out={ count:recs.length, recs, totalP:recs.reduce((s,r)=>s+r.amount,0), avgMonthP:0, avgMonthC:0, maxPM:0, minPM:0 };
   if(recs.length>=2){
-    const months=(recs[recs.length-1].ts-recs[0].ts)/(30.4375*86400000);
-    if(months>0){
-      out.avgMonthP=amts.slice(1).reduce((s,a)=>s+a,0)/months;                 // תשלומים בתוך הטווח / חודשים
-      out.avgMonthC=recs.slice(1).reduce((s,r)=>s+r.consumption,0)/months;     // צריכה בתוך הטווח / חודשים
+    const MS=30.4375*86400000; let paid=0, cons=0, months=0; const pm=[];
+    for(let i=1;i<recs.length;i++){                       // מדלגים על הרשומה הפותחת (תקופתה לא ידועה)
+      const mo=(recs[i].ts-recs[i-1].ts)/MS;              // אורך התקופה בחודשים
+      months+=mo; paid+=recs[i].amount; cons+=recs[i].consumption;
+      if(mo>0) pm.push(recs[i].amount/mo);                // תשלום מנורמל לחודש עבור אותה תקופה
     }
+    if(months>0){ out.avgMonthP=paid/months; out.avgMonthC=cons/months; }
+    if(pm.length){ out.maxPM=Math.max(...pm); out.minPM=Math.min(...pm); }
   }
   return out;
 }
