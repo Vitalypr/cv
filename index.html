@@ -860,10 +860,9 @@ function exportData(){
 function applyBackup(data){
   const arr = Array.isArray(data) ? data : (data && data.history);
   if(!Array.isArray(arr)) throw new Error('format');
-  if(!confirm('שחזור יחליף את כל ההיסטוריה הנוכחית. להמשיך?')) return false;
   history = arr;
-  localStorage.setItem(LS_HIST, JSON.stringify(history));
-  if(data && data.rate){ localStorage.setItem(LS_RATE, String(data.rate)); document.getElementById('rateInput').value = data.rate; }
+  localStorage.setItem(LS_HIST, JSON.stringify(history));   // נשמר במכשיר מיד
+  if(data && data.rate){ localStorage.setItem(LS_RATE, String(data.rate)); document.getElementById('rateInput').value = data.rate; syncAgorotFromShekel(); }
   if(data && data.rateDate){ localStorage.setItem(LS_RATEDATE, data.rateDate); document.getElementById('rateDate').value = data.rateDate; }
   renderPrev(); renderHist(); recalc();
   return true;
@@ -874,7 +873,7 @@ function importData(ev){
   if(!file) return;
   const reader = new FileReader();
   reader.onload = e=>{
-    try{ if(applyBackup(JSON.parse(e.target.result))) toast('שוחזר בהצלחה'); }
+    try{ if(applyBackup(JSON.parse(e.target.result))) toast('שוחזר ונשמר במכשיר · ' + history.length + ' רשומות'); }
     catch(err){ toast('קובץ גיבוי לא תקין'); }
   };
   reader.readAsText(file);
@@ -890,7 +889,7 @@ function restoreFromText(){
   if(!txt){ toast('הדבק קודם את ה-JSON'); return; }
   try{
     if(applyBackup(JSON.parse(txt))){
-      toast('שוחזר בהצלחה');
+      toast('שוחזר ונשמר במכשיר · ' + history.length + ' רשומות');
       document.getElementById('pasteArea').value='';
       document.getElementById('pasteBox').style.display='none';
     }
