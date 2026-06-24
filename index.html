@@ -11,6 +11,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
 <style>
   :root{
     --bg:#eef0f3; --card:#ffffff; --ink:#11151b; --muted:#8b9199; --muted2:#a2a8b0;
@@ -25,6 +27,7 @@
   .appbar{display:flex; align-items:center; justify-content:space-between; padding:8px 2px 14px}
   .appbar .title{font-size:18px; font-weight:700}
   .appbar .ava{width:38px;height:38px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-size:17px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+  .installbtn{border:none; background:#2f6bff; color:#fff; font-size:13px; font-weight:700; padding:9px 13px; border-radius:999px; cursor:pointer; box-shadow:0 3px 10px rgba(47,107,255,.3)}
 
   .seg{display:flex; background:#e3e6ea; border-radius:14px; padding:4px; margin-bottom:16px}
   .seg span{flex:1; text-align:center; padding:10px; border-radius:10px; font-size:14px; font-weight:600; color:#7a818b; cursor:pointer}
@@ -151,7 +154,13 @@
 <body>
 
 <main>
-  <div class="appbar"><span class="title">חישוב חשמל</span><span class="ava">⚡</span></div>
+  <div class="appbar">
+    <span class="title">חישוב חשמל</span>
+    <div style="display:flex; gap:8px; align-items:center">
+      <button id="installBtn" class="installbtn" style="display:none" onclick="installApp()">📲 התקן</button>
+      <span class="ava">⚡</span>
+    </div>
+  </div>
   <div class="seg">
     <span id="tab-calc" class="on" onclick="showView('calc')">חישוב</span>
     <span id="tab-hist" onclick="showView('hist')">היסטוריה</span>
@@ -1023,6 +1032,16 @@ async function renderChart(){
   const avgLine = Math.round(pay ? s.avgMonthP : s.avgMonthC);
   document.getElementById('graphSub').textContent = 'ממוצע חודשי · ' + fmt(avgLine) + (pay ? ' ₪' : ' קוט"ש');
   const chH = host.clientHeight || Math.round(window.innerWidth*0.78);
+  // קו אנכי מקווקו בהיר לכל חודש
+  const monthAnns=[];
+  if(data.length){
+    const t0=data[0].x, t1=data[data.length-1].x;
+    let yy=new Date(t0).getFullYear(), mm=new Date(t0).getMonth();
+    for(let cur=new Date(yy,mm,1).getTime(); cur<=t1; ){
+      if(cur>=t0) monthAnns.push({ x:cur, borderColor:'#e6e9ee', strokeDashArray:3, opacity:0.85 });
+      mm++; if(mm>11){ mm=0; yy++; } cur=new Date(yy,mm,1).getTime();
+    }
+  }
   const options={
     chart:{ type:'area', height:chH, width:'100%', fontFamily:'Inter, sans-serif', foreColor:'#8b9199', toolbar:{show:false}, zoom:{enabled:false}, animations:{enabled:true, speed:600} },
     colors:['#2f6bff'],
@@ -1032,8 +1051,8 @@ async function renderChart(){
     markers:{ size:4, colors:['#ffffff'], strokeColors:'#2f6bff', strokeWidth:2.5, hover:{ size:6 } },
     dataLabels:{ enabled:false },
     grid:{ borderColor:'#eceef1', strokeDashArray:0, padding:{ left:8, right:10, top:0 } },
-    xaxis:{ type:'datetime', axisBorder:{ show:false }, axisTicks:{ show:false },
-      labels:{ datetimeUTC:false, style:{ colors:'#8b9199', fontSize:'12px' }, datetimeFormatter:{ year:'yyyy', month:"MMM ''yy", day:'dd/MM' } } },
+    xaxis:{ type:'datetime', axisBorder:{ show:true, color:'#dfe3e8' }, axisTicks:{ show:true, color:'#dfe3e8', height:5 }, tickPlacement:'on',
+      labels:{ datetimeUTC:false, rotate:0, hideOverlappingLabels:true, style:{ colors:'#8b9199', fontSize:'12px' }, datetimeFormatter:{ year:'yyyy', month:"MMM ''yy", day:'dd/MM' } } },
     yaxis:{ labels:{ style:{ colors:'#8b9199', fontSize:'12px' }, formatter:v=>Math.round(v) },
       title:{ text: pay?'₪ לחודש':'קוט"ש לתקופה', style:{ color:'#a2a8b0', fontSize:'12px', fontWeight:600 } } },
     tooltip:{ custom:function(o){ const r=rows[o.dataPointIndex];
@@ -1042,7 +1061,7 @@ async function renderChart(){
         ? '<div style="color:#2f6bff;font-weight:700;margin-top:2px">'+fmt(Math.round(r.pmPay))+' ₪/חודש</div><div style="color:#5b626b">'+fmt(r.amount)+' ₪ · '+r.months.toFixed(1)+' חודשים</div>'
         : '<div style="color:#2f6bff;font-weight:700;margin-top:2px">'+fmt(r.consumption)+' קוט"ש</div><div style="color:#5b626b">'+fmt(r.amount)+' ₪</div>';
       return '<div style="padding:8px 11px;font-family:Inter">'+head+body+'</div>'; } },
-    annotations:{ yaxis: avgLine>0 ? [{ y:avgLine, borderColor:'#11151b', strokeDashArray:6, borderWidth:1.5 }] : [] }
+    annotations:{ xaxis: monthAnns, yaxis: avgLine>0 ? [{ y:avgLine, borderColor:'#11151b', strokeDashArray:6, borderWidth:1.5 }] : [] }
   };
   if(apexChart){ apexChart.destroy(); apexChart=null; }
   host.innerHTML='';
@@ -1058,7 +1077,26 @@ function toast(msg){
   clearTimeout(toastT); toastT = setTimeout(()=>el.classList.remove('show'), 2600);
 }
 
+// ===== PWA: התקנה + מטמון =====
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{ navigator.serviceWorker.register('service-worker.js').catch(()=>{}); });
+}
+let deferredPrompt=null;
+window.addEventListener('beforeinstallprompt', e=>{ e.preventDefault(); deferredPrompt=e; });
+window.addEventListener('appinstalled', ()=>{ const b=document.getElementById('installBtn'); if(b) b.style.display='none'; toast('האפליקציה הותקנה ✓'); });
+function isStandalone(){ return window.matchMedia('(display-mode: standalone)').matches || navigator.standalone===true; }
+function initInstall(){
+  const b=document.getElementById('installBtn');
+  if(b && !isStandalone()) b.style.display='block';
+}
+async function installApp(){
+  if(deferredPrompt){ deferredPrompt.prompt(); await deferredPrompt.userChoice; deferredPrompt=null; }
+  else{ const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
+    toast(ios ? 'באייפון: שתף ⬆️ ← "הוסף למסך הבית"' : 'בכרום: תפריט ⋮ ← "התקן אפליקציה"'); }
+}
+
 load();
+initInstall();
 </script>
 </body>
 </html>
