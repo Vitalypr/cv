@@ -136,6 +136,34 @@
   }
   .toast.show{opacity:.96; bottom:100px}
   .warn{color:var(--danger); font-size:13px; text-align:center; margin-top:6px; font-weight:600}
+
+  /* ---- מסך ראשי קומפקטי (עיצוב A) ---- */
+  .prevline{display:flex; align-items:center; justify-content:space-between; font-size:13px; color:var(--muted)}
+  .prevline b{color:var(--txt); font-weight:700}
+  .linkbtn{border:none; background:none; color:var(--accent); font-size:13px; font-weight:700; cursor:pointer; padding:2px 4px}
+  .lbl{font-size:12px; color:var(--muted); font-weight:700; margin:12px 0 5px}
+  .bigfield{position:relative}
+  .bigfield input{width:100%; padding:14px 14px 14px 54px; font-size:26px; font-weight:800; text-align:center; border:2px solid var(--line); border-radius:13px; background:#fff}
+  .bigfield input:focus{outline:none; border-color:var(--green)}
+  .cam{position:absolute; left:8px; top:50%; transform:translateY(-50%); width:40px; height:40px; border-radius:10px; background:var(--green-l); color:var(--green-d); display:flex; align-items:center; justify-content:center; font-size:20px; border:none; cursor:pointer}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:9px; margin-top:11px}
+  .mini{background:#f7f9fa; border:1px solid var(--line); border-radius:12px; padding:9px 10px; text-align:center}
+  .mini .t{font-size:11px; color:var(--muted); font-weight:700}
+  .mini .v{font-size:18px; font-weight:800; color:var(--txt); margin-top:1px}
+  .mini.rate{display:flex; flex-direction:column; align-items:center}
+  .rate-row{display:flex; align-items:center; gap:6px; justify-content:center; margin-top:1px}
+  .rate-row input{width:74px; font-size:18px; font-weight:800; text-align:center; border:none; background:transparent; color:var(--txt); padding:0}
+  .rate-row input:focus{outline:none}
+  .doc{color:var(--accent); font-size:18px; cursor:pointer}
+  .ratedate{display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted); margin-top:9px}
+  .ratedate input{flex:1; border:1px solid var(--line); border-radius:8px; padding:6px 8px; font-size:13px; text-align:center}
+  .hero{background:linear-gradient(135deg,#ffffff,#eef9f0); border:2px solid var(--green); border-radius:15px; padding:12px; text-align:center; margin-top:11px}
+  .hero .cap{font-size:12px; color:var(--muted); font-weight:700}
+  .hero .amt{font-size:38px; font-weight:900; color:var(--green-d); line-height:1.05}
+  .btns{display:grid; grid-template-columns:1fr 1fr; gap:9px; margin-top:11px}
+  .btns .btn{margin:0; width:100%; padding:13px; font-size:16px; border-radius:12px}
+  .btns .btn.primary{padding:13px; font-size:16px; margin:0}
+  .btns .btn.full{grid-column:1 / -1}
 </style>
 </head>
 <body>
@@ -155,28 +183,22 @@
   <section id="view-calc" class="view active">
 
     <div class="card">
-      <div class="row">
-        <span class="label">קריאת מונה קודמת</span>
-        <span class="val" id="prevDisplay">—</span>
+      <div class="prevline">
+        <span>קודם <b id="prevDisplay">—</b> · <span id="prevDate">—</span></span>
+        <button class="linkbtn" onclick="togglePrevEdit()">✎ תיקון</button>
       </div>
-      <div class="row">
-        <span class="label">תאריך קריאה קודמת</span>
-        <span class="val" id="prevDate" style="font-size:15px">—</span>
+      <div id="prevEditWrap" style="display:none; margin-top:8px">
+        <input type="number" id="prevInput" inputmode="decimal" placeholder="קריאת מונה התחלתית" oninput="recalc()">
       </div>
-      <div id="prevEditWrap" style="margin-top:8px; display:none">
-        <label class="field">אין נתון קודם — הזן קריאת מונה התחלתית:</label>
-        <input type="number" id="prevInput" inputmode="decimal" placeholder="לדוגמה 3522" oninput="recalc()">
-      </div>
-      <button class="btn ghost wide" style="margin-top:10px" onclick="togglePrevEdit()">✎ תיקון קריאה קודמת</button>
-    </div>
 
-    <div class="card">
-      <label class="field">קריאת מונה חדשה (מה שהשכן שלח)</label>
-      <input type="number" id="newInput" inputmode="decimal" placeholder="הזן מספר מהמונה" oninput="recalc()">
+      <label class="lbl">קריאה חדשה</label>
+      <div class="bigfield">
+        <input type="number" id="newInput" inputmode="decimal" placeholder="—" oninput="recalc()">
+        <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="loadPhoto(event)">
+        <button class="cam" onclick="document.getElementById('photoInput').click()">📷</button>
+      </div>
 
       <div class="photo-wrap">
-        <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="loadPhoto(event)">
-        <button class="btn ghost wide" onclick="document.getElementById('photoInput').click()">📷 צרף תמונת מונה</button>
 
         <div id="ocrArea" style="display:none">
           <div class="canvas-box" id="canvasBox">
@@ -188,7 +210,7 @@
             <button class="btn ghost" onclick="clearCrop()">↺ בטל סימון</button>
             <button class="btn primary-sm" id="ocrBtn" onclick="runOCR()">🔍 קרא אוטומטית</button>
           </div>
-          <div class="hint">צרף תמונה — Gemini מזהה אוטומטית את מסך המונה וקורא אותו, גם בתמונה מלאה ומוטה. הסיבוב/הסימון אופציונליים, רק אם הזיהוי שגוי ורוצים לעזור לו.</div>
+          <div class="hint">זיהוי אוטומטי. סובב/סמן רק אם הזיהוי שגוי.</div>
           <div id="ocrResult" class="ocr-result" style="display:none"></div>
           <details class="ocr-settings">
             <summary>⚙️ הגדרות OCR</summary>
@@ -223,31 +245,27 @@
         </div>
       </div>
 
-      <div class="consume">
-        <div class="num"><span id="consumeNum">0</span> <span class="unit">קוט"ש</span></div>
-        <div class="unit">צריכה (חדשה − קודמת)</div>
+      <div class="grid2">
+        <div class="mini"><div class="t">צריכה</div><div class="v"><span id="consumeNum">0</span> קוט"ש</div></div>
+        <div class="mini rate">
+          <div class="t">עלות (אג')</div>
+          <div class="rate-row">
+            <input type="number" id="rateAgorot" inputmode="decimal" step="0.01" oninput="onAgorotChange()">
+            <span class="doc" onclick="openTariffSite()">📄</span>
+          </div>
+        </div>
       </div>
-      <div id="warnNeg" class="warn" style="display:none">⚠️ הקריאה החדשה קטנה מהקודמת — בדוק את המספר</div>
+      <div id="warnNeg" class="warn" style="display:none">⚠️ הקריאה החדשה קטנה מהקודמת</div>
+      <input type="hidden" id="rateInput" value="0.6432">
+      <div class="ratedate">תעריף עודכן: <input type="text" id="rateDate" placeholder="1.02.26" oninput="saveRateDate()"></div>
 
-      <label class="field">עלות לקוט"ש</label>
-      <div class="rate-line">
-        <input type="number" id="rateAgorot" inputmode="decimal" step="0.01" placeholder="אגורות" oninput="onAgorotChange()">
-        <input type="number" id="rateInput" inputmode="decimal" step="0.0001" placeholder="שקלים" value="0.6432" oninput="onRateChange()">
-        <button class="btn ghost" onclick="openTariffSite()">📄</button>
+      <div class="hero"><div class="cap">לתשלום</div><div class="amt"><span id="amountNum">0</span> ₪</div></div>
+
+      <div class="btns">
+        <button class="btn primary" onclick="save()">✓ אישור</button>
+        <button class="btn ghost" onclick="shareMsg()">💬 לשכן</button>
+        <button class="btn full" onclick="shareBackup()">💾 גיבוי לוואטסאפ</button>
       </div>
-      <div class="hint" id="rateHint">הקלד <b>אגורות</b> מהאתר (למשל 64.32, כולל מע"מ) והשקלים יתמלאו לבד (0.6432). 📄 = עמוד התעריף הרשמי של חח"י.</div>
-
-      <label class="field">תאריך עדכון התעריף (מופיע בהודעה)</label>
-      <input type="text" id="rateDate" placeholder="1.02.26" oninput="saveRateDate()">
-
-      <div class="amount-box">
-        <div class="cap">סכום לתשלום</div>
-        <div class="amt"><span id="amountNum">0.00</span> ₪</div>
-      </div>
-
-      <button class="btn primary" onclick="save()">✓ אישור ושמירה</button>
-      <button class="btn ghost wide" style="margin-top:8px" onclick="shareMsg()">💬 העתק הודעה לשכן</button>
-      <button class="btn ghost wide" style="margin-top:8px" onclick="shareBackup()">💾 גבה היסטוריה (שלח לעצמך בוואטסאפ)</button>
     </div>
   </section>
 
