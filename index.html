@@ -139,6 +139,9 @@
   .graphhead{display:flex; align-items:center; justify-content:space-between; margin-bottom:4px}
   .graphhead .gt{font-size:15px; font-weight:700; color:var(--ink)}
   .graphhead .gsub{font-size:12px; color:var(--muted); font-weight:500; margin-top:1px}
+  .gtoggle{display:inline-flex; background:#e3e6ea; border-radius:10px; padding:3px}
+  .gtoggle span{padding:6px 13px; border-radius:8px; font-size:12.5px; font-weight:700; color:#7a818b; cursor:pointer}
+  .gtoggle span.on{background:#fff; color:var(--ink); box-shadow:0 1px 3px rgba(0,0,0,.08)}
   .graphhead button{border:none; background:#fff; width:34px;height:34px;border-radius:50%; font-size:16px; box-shadow:0 1px 3px rgba(0,0,0,.08); cursor:pointer; color:var(--ink)}
   .charthost{flex:1; min-height:0}
   .charthost svg{width:100%; height:100%; display:block}
@@ -284,8 +287,11 @@
     <div id="graphRot" class="graphrot">
       <div class="graphhead">
         <div>
-          <div class="gt">צריכה לאורך זמן</div>
-          <div class="gsub" id="graphSub">לחץ על נקודה לפרטי התשלום</div>
+          <div class="gtoggle">
+            <span id="gm-cons" class="on" onclick="setMetric('cons')">צריכה</span>
+            <span id="gm-pay" onclick="setMetric('pay')">תשלום/חודש</span>
+          </div>
+          <div class="gsub" id="graphSub" style="margin-top:5px">גע בנקודה לפרטים</div>
         </div>
         <button onclick="showView('calc')">✕</button>
       </div>
@@ -982,8 +988,10 @@ function computeStats(){
     const MS=30.4375*86400000; let paid=0, cons=0, months=0; const pm=[];
     for(let i=1;i<recs.length;i++){                       // מדלגים על הרשומה הפותחת (תקופתה לא ידועה)
       const mo=(recs[i].ts-recs[i-1].ts)/MS;              // אורך התקופה בחודשים
+      recs[i].months=mo;
+      recs[i].pmPay = mo>0 ? recs[i].amount/mo : null;    // תשלום מנורמל לחודש עבור אותה תקופה
       months+=mo; paid+=recs[i].amount; cons+=recs[i].consumption;
-      if(mo>0) pm.push(recs[i].amount/mo);                // תשלום מנורמל לחודש עבור אותה תקופה
+      if(mo>0) pm.push(recs[i].amount/mo);
     }
     if(months>0){ out.avgMonthP=paid/months; out.avgMonthC=cons/months; }
     if(pm.length){ out.maxPM=Math.max(...pm); out.minPM=Math.min(...pm); }
@@ -991,8 +999,15 @@ function computeStats(){
   return out;
 }
 
-// גרף מקצועי עם ApexCharts (נטען מ-CDN) — שטח חלק עם גרדיאנט, tooltip, וקו ממוצע מקווקו
+// גרף מקצועי עם ApexCharts — שני מצבים: צריכה לתקופה / תשלום לחודש
 let apexChart=null;
+let graphMetric='cons';
+function setMetric(m){
+  graphMetric=m;
+  document.getElementById('gm-cons').classList.toggle('on', m==='cons');
+  document.getElementById('gm-pay').classList.toggle('on', m==='pay');
+  renderChart();
+}
 async function renderChart(){
   const host=document.getElementById('chartHost');
   if(!history.length){ host.innerHTML='<div class="empty">אין נתונים להצגה</div>'; return; }
@@ -1001,12 +1016,16 @@ async function renderChart(){
     catch(e){ host.innerHTML='<div class="empty">טעינת ספריית הגרף נכשלה — בדוק חיבור לאינטרנט</div>'; return; }
   }
   const s=computeStats();
-  const avgC=Math.round(s.avgMonthC);
+  const pay = graphMetric==='pay';
+  const rows = pay ? s.recs.filter(r=>r.pmPay!=null) : s.recs;   // לתשלום חודשי מדלגים על הרשומה הפותחת
+  const data = rows.map(r=>({ x:r.ts, y: pay ? Math.round(r.pmPay) : r.consumption }));
+  const avgLine = Math.round(pay ? s.avgMonthP : s.avgMonthC);
+  document.getElementById('graphSub').textContent = 'ממוצע חודשי · ' + fmt(avgLine) + (pay ? ' ₪' : ' קוט"ש');
   const chH = host.clientHeight || Math.round(window.innerWidth*0.78);
   const options={
     chart:{ type:'area', height:chH, width:'100%', fontFamily:'Inter, sans-serif', foreColor:'#8b9199', toolbar:{show:false}, zoom:{enabled:false}, animations:{enabled:true, speed:600} },
     colors:['#2f6bff'],
-    series:[{ name:'צריכה', data: s.recs.map(r=>({ x:r.ts, y:r.consumption })) }],
+    series:[{ name: pay?'תשלום לחודש':'צריכה', data }],
     stroke:{ curve:'smooth', width:3 },
     fill:{ type:'gradient', gradient:{ shadeIntensity:1, opacityFrom:0.42, opacityTo:0.03, stops:[0,95] } },
     markers:{ size:4, colors:['#ffffff'], strokeColors:'#2f6bff', strokeWidth:2.5, hover:{ size:6 } },
@@ -1015,15 +1034,14 @@ async function renderChart(){
     xaxis:{ type:'datetime', axisBorder:{ show:false }, axisTicks:{ show:false },
       labels:{ datetimeUTC:false, style:{ colors:'#8b9199', fontSize:'12px' }, datetimeFormatter:{ year:'yyyy', month:"MMM ''yy", day:'dd/MM' } } },
     yaxis:{ labels:{ style:{ colors:'#8b9199', fontSize:'12px' }, formatter:v=>Math.round(v) },
-      title:{ text:'קוט"ש לתקופה', style:{ color:'#a2a8b0', fontSize:'12px', fontWeight:600 } } },
-    tooltip:{ custom:function(o){ const r=s.recs[o.dataPointIndex];
-      return '<div style="padding:8px 11px;font-family:Inter">'
-        +'<div style="font-weight:700;color:#11151b">'+r.date+'</div>'
-        +'<div style="color:#2f6bff;font-weight:700;margin-top:2px">'+fmt(r.consumption)+' קוט"ש</div>'
-        +'<div style="color:#5b626b">'+fmt(r.amount)+' ₪</div></div>'; } },
-    annotations:{ yaxis: avgC>0 ? [{ y:avgC, borderColor:'#11151b', strokeDashArray:6, borderWidth:1.5,
-      label:{ text:'ממוצע חודשי · '+fmt(avgC)+' קוט"ש', position:'left', textAnchor:'start',
-        style:{ background:'#11151b', color:'#ffffff', fontSize:'11px', fontWeight:600, padding:{ left:7, right:7, top:3, bottom:3 } } } }] : [] }
+      title:{ text: pay?'₪ לחודש':'קוט"ש לתקופה', style:{ color:'#a2a8b0', fontSize:'12px', fontWeight:600 } } },
+    tooltip:{ custom:function(o){ const r=rows[o.dataPointIndex];
+      const head='<div style="font-weight:700;color:#11151b">'+r.date+'</div>';
+      const body = pay
+        ? '<div style="color:#2f6bff;font-weight:700;margin-top:2px">'+fmt(Math.round(r.pmPay))+' ₪/חודש</div><div style="color:#5b626b">'+fmt(r.amount)+' ₪ · '+r.months.toFixed(1)+' חודשים</div>'
+        : '<div style="color:#2f6bff;font-weight:700;margin-top:2px">'+fmt(r.consumption)+' קוט"ש</div><div style="color:#5b626b">'+fmt(r.amount)+' ₪</div>';
+      return '<div style="padding:8px 11px;font-family:Inter">'+head+body+'</div>'; } },
+    annotations:{ yaxis: avgLine>0 ? [{ y:avgLine, borderColor:'#11151b', strokeDashArray:6, borderWidth:1.5 }] : [] }
   };
   if(apexChart){ apexChart.destroy(); apexChart=null; }
   host.innerHTML='';
