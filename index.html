@@ -1027,8 +1027,28 @@ async function renderChart(){
   }
   const s=computeStats();
   const pay = graphMetric==='pay';
-  const rows = pay ? s.recs.filter(r=>r.pmPay!=null) : s.recs;   // לתשלום חודשי מדלגים על הרשומה הפותחת
-  const data = rows.map(r=>({ x:r.ts, y: pay ? Math.round(r.pmPay) : r.consumption }));
+  let rows, data, curve;
+  if(pay){
+    // נקודה לכל חודש; הגובה = הממוצע החודשי של התקופה שהחודש שייך אליה (אותו גובה לכל חודשי אותה תקופה)
+    curve='stepline';
+    const periods=[];
+    for(let i=1;i<s.recs.length;i++){ const r=s.recs[i]; if(r.pmPay==null) continue;
+      periods.push({ start:s.recs[i-1].ts, end:r.ts, rate:Math.round(r.pmPay), date:r.date, amount:r.amount, months:r.months }); }
+    rows=[]; data=[];
+    if(periods.length){
+      let yy=new Date(periods[0].start).getFullYear(), mm=new Date(periods[0].start).getMonth();
+      const endT=periods[periods.length-1].end;
+      for(let cur=new Date(yy,mm,1).getTime(); cur<=endT; ){
+        const p=periods.find(pp=>cur>=pp.start&&cur<pp.end) || periods.find(pp=>cur<pp.end) || periods[periods.length-1];
+        data.push({ x:cur, y:p.rate }); rows.push({ month:cur, p });
+        mm++; if(mm>11){ mm=0; yy++; } cur=new Date(yy,mm,1).getTime();
+      }
+    }
+  }else{
+    curve='smooth';
+    rows=s.recs;
+    data=rows.map(r=>({ x:r.ts, y:r.consumption }));
+  }
   const avgLine = Math.round(pay ? s.avgMonthP : s.avgMonthC);
   document.getElementById('graphSub').textContent = 'ממוצע חודשי · ' + fmt(avgLine) + (pay ? ' ₪' : ' קוט"ש');
   const chH = host.clientHeight || Math.round(window.innerWidth*0.78);
@@ -1046,7 +1066,7 @@ async function renderChart(){
     chart:{ type:'area', height:chH, width:'100%', fontFamily:'Inter, sans-serif', foreColor:'#8b9199', toolbar:{show:false}, zoom:{enabled:false}, animations:{enabled:true, speed:600} },
     colors:['#2f6bff'],
     series:[{ name: pay?'תשלום לחודש':'צריכה', data }],
-    stroke:{ curve:'smooth', width:3 },
+    stroke:{ curve:curve, width:3 },
     fill:{ type:'gradient', gradient:{ shadeIntensity:1, opacityFrom:0.42, opacityTo:0.03, stops:[0,95] } },
     markers:{ size:4, colors:['#ffffff'], strokeColors:'#2f6bff', strokeWidth:2.5, hover:{ size:6 } },
     dataLabels:{ enabled:false },
@@ -1056,11 +1076,13 @@ async function renderChart(){
     yaxis:{ labels:{ style:{ colors:'#8b9199', fontSize:'12px' }, formatter:v=>Math.round(v) },
       title:{ text: pay?'₪ לחודש':'קוט"ש לתקופה', style:{ color:'#a2a8b0', fontSize:'12px', fontWeight:600 } } },
     tooltip:{ custom:function(o){ const r=rows[o.dataPointIndex];
-      const head='<div style="font-weight:700;color:#11151b">'+r.date+'</div>';
-      const body = pay
-        ? '<div style="color:#2f6bff;font-weight:700;margin-top:2px">'+fmt(Math.round(r.pmPay))+' ₪/חודש</div><div style="color:#5b626b">'+fmt(r.amount)+' ₪ · '+r.months.toFixed(1)+' חודשים</div>'
-        : '<div style="color:#2f6bff;font-weight:700;margin-top:2px">'+fmt(r.consumption)+' קוט"ש</div><div style="color:#5b626b">'+fmt(r.amount)+' ₪</div>';
-      return '<div style="padding:8px 11px;font-family:Inter">'+head+body+'</div>'; } },
+      if(pay){ const d=new Date(r.month); const mon=String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();
+        return '<div style="padding:8px 11px;font-family:Inter"><div style="font-weight:700;color:#11151b">'+mon+'</div>'
+          +'<div style="color:#2f6bff;font-weight:700;margin-top:2px">'+fmt(r.p.rate)+' ₪/חודש</div>'
+          +'<div style="color:#5b626b">תקופה '+r.p.date+' · '+fmt(r.p.amount)+' ₪ · '+r.p.months.toFixed(1)+' חד\'</div></div>'; }
+      return '<div style="padding:8px 11px;font-family:Inter"><div style="font-weight:700;color:#11151b">'+r.date+'</div>'
+        +'<div style="color:#2f6bff;font-weight:700;margin-top:2px">'+fmt(r.consumption)+' קוט"ש</div>'
+        +'<div style="color:#5b626b">'+fmt(r.amount)+' ₪</div></div>'; } },
     annotations:{ xaxis: monthAnns, yaxis: avgLine>0 ? [{ y:avgLine, borderColor:'#11151b', strokeDashArray:6, borderWidth:1.5 }] : [] }
   };
   if(apexChart){ apexChart.destroy(); apexChart=null; }
