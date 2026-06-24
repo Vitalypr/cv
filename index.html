@@ -313,11 +313,42 @@ const READING_DESC = '6 ספרות, נקודה, וספרה אחת (למשל 0330
 const LS_HIST = 'elec_history_v1';
 const LS_RATE = 'elec_rate_v1';
 const LS_RATEDATE = 'elec_ratedate_v1';
+
+// היסטוריה מוטמעת (seed) — נטענת אוטומטית בריצה ראשונה בלבד, ואז נשמרת מקומית
+const SEED_HISTORY = [
+  {date:"16/01/2023",ts:1673827200000,prevReading:0,newReading:1236.1,consumption:1236.1,rate:0.574,amount:725},
+  {date:"31/03/2023",ts:1680220800000,prevReading:1236.1,newReading:3411.4,consumption:2175.3,rate:0.6155,amount:1322},
+  {date:"20/06/2023",ts:1687219200000,prevReading:3411.4,newReading:4475.8,consumption:1064.4,rate:0.6007,amount:640},
+  {date:"20/08/2023",ts:1692489600000,prevReading:4475.8,newReading:5730.9,consumption:1255.1,rate:0.6007,amount:762},
+  {date:"19/09/2023",ts:1695081600000,prevReading:5730.9,newReading:6404.9,consumption:674,rate:0.6007,amount:404},
+  {date:"26/11/2023",ts:1700956800000,prevReading:6404.9,newReading:7624.1,consumption:1219.2,rate:0.6007,amount:732},
+  {date:"22/01/2024",ts:1705881600000,prevReading:7624.1,newReading:9530.1,consumption:1906,rate:0.6007,amount:1145},
+  {date:"28/03/2024",ts:1711584000000,prevReading:9530.1,newReading:12463.6,consumption:2933.5,rate:0.6145,amount:1800},
+  {date:"23/06/2024",ts:1719100800000,prevReading:12463.6,newReading:14087.3,consumption:1623.7,rate:0.6145,amount:998},
+  {date:"01/08/2024",ts:1722470400000,prevReading:14087.3,newReading:15044.9,consumption:957.6,rate:0.6145,amount:588},
+  {date:"09/10/2024",ts:1728432000000,prevReading:15044.9,newReading:17044.2,consumption:1999.3,rate:0.6145,amount:1228},
+  {date:"19/12/2024",ts:1734566400000,prevReading:17044.2,newReading:18677.2,consumption:1633,rate:0.6145,amount:1033},
+  {date:"03/02/2025",ts:1738540800000,prevReading:18677.2,newReading:20362.8,consumption:1685.6,rate:0.6402,amount:1080},
+  {date:"06/04/2025",ts:1743897600000,prevReading:20362.8,newReading:22592.5,consumption:2229.7,rate:0.6402,amount:1427},
+  {date:"22/05/2025",ts:1747872000000,prevReading:22592.5,newReading:23298.6,consumption:706.1,rate:0.6402,amount:452},
+  {date:"04/08/2025",ts:1754265600000,prevReading:23298.6,newReading:25245.9,consumption:1947.3,rate:0.6402,amount:1246},
+  {date:"15/10/2025",ts:1760486400000,prevReading:25245.9,newReading:27062,consumption:1816.1,rate:0.6402,amount:1162},
+  {date:"19/11/2025",ts:1763510400000,prevReading:27062,newReading:27610,consumption:548,rate:0.6402,amount:350},
+  {date:"19/01/2026",ts:1768780800000,prevReading:27610,newReading:29504.3,consumption:1894.3,rate:0.6402,amount:1210},
+  {date:"19/03/2026",ts:1773878400000,prevReading:29504.3,newReading:31240.2,consumption:1735.9,rate:0.6432,amount:1116},
+  {date:"14/06/2026",ts:1781395200000,prevReading:31240.2,newReading:33095.1,consumption:1854.9,rate:0.6432,amount:1193}
+];
 let history = [];
 let prevEditOpen = false;
 
 function load(){
-  try{ history = JSON.parse(localStorage.getItem(LS_HIST)) || []; }catch(e){ history = []; }
+  const stored = localStorage.getItem(LS_HIST);
+  if(stored === null && SEED_HISTORY.length){          // ריצה ראשונה — טוענים את ההיסטוריה המוטמעת ושומרים
+    history = SEED_HISTORY.slice();
+    localStorage.setItem(LS_HIST, JSON.stringify(history));
+  }else{
+    try{ history = JSON.parse(stored) || []; }catch(e){ history = []; }
+  }
   const savedRate = localStorage.getItem(LS_RATE);
   document.getElementById('rateInput').value = savedRate !== null ? savedRate : RATE_DEFAULT;
   syncAgorotFromShekel();
