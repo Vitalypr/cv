@@ -134,16 +134,17 @@
   .stat .v small{font-size:11px; color:var(--muted2); font-weight:600}
 
   /* graph tab (תצוגת רוחב אוטומטית) */
-  .graphrot{position:fixed; inset:0; background:var(--bg); z-index:30; display:flex; flex-direction:column; padding:14px 16px}
-  .graphrot.rot{inset:auto; top:0; left:100vw; width:100vh; height:100vw; transform-origin:0 0; transform:rotate(90deg)}
-  .graphhead{display:flex; align-items:center; justify-content:space-between; margin-bottom:4px}
-  .graphhead .gt{font-size:15px; font-weight:700; color:var(--ink)}
-  .graphhead .gsub{font-size:12px; color:var(--muted); font-weight:500; margin-top:1px}
-  .gtoggle{display:inline-flex; background:#e3e6ea; border-radius:10px; padding:3px}
-  .gtoggle span{padding:6px 13px; border-radius:8px; font-size:12.5px; font-weight:700; color:#7a818b; cursor:pointer}
-  .gtoggle span.on{background:#fff; color:var(--ink); box-shadow:0 1px 3px rgba(0,0,0,.08)}
-  .graphhead button{border:none; background:#fff; width:34px;height:34px;border-radius:50%; font-size:16px; box-shadow:0 1px 3px rgba(0,0,0,.08); cursor:pointer; color:var(--ink)}
-  .charthost{flex:1; min-height:0}
+  .graphbar{position:fixed; top:10px; left:12px; right:12px; z-index:40; display:flex; align-items:flex-start; justify-content:space-between; gap:10px; pointer-events:none}
+  .graphbar>*{pointer-events:auto}
+  .gleft{display:flex; flex-direction:column; gap:6px; align-items:flex-start}
+  .gtoggle{display:inline-flex; background:#fff; border-radius:12px; padding:4px; box-shadow:0 3px 14px rgba(0,0,0,.15)}
+  .gtoggle span{padding:8px 15px; border-radius:9px; font-size:13px; font-weight:700; color:#7a818b; cursor:pointer}
+  .gtoggle span.on{background:#2f6bff; color:#fff}
+  .gsub{font-size:11.5px; color:#5b626b; font-weight:600; background:rgba(255,255,255,.92); padding:5px 11px; border-radius:999px; box-shadow:0 2px 8px rgba(0,0,0,.1)}
+  .gclose{border:none; background:#fff; width:40px; height:40px; border-radius:50%; font-size:17px; box-shadow:0 3px 14px rgba(0,0,0,.15); cursor:pointer; color:var(--ink); flex:none}
+  .graphrot{position:fixed; inset:0; background:var(--bg); z-index:30; padding:66px 14px 16px}
+  .graphrot.rot{inset:auto; top:0; left:100vw; width:100vh; height:100vw; transform-origin:0 0; transform:rotate(90deg); padding:18px 16px}
+  .charthost{width:100%; height:100%}
   .charthost svg{width:100%; height:100%; display:block}
 </style>
 </head>
@@ -284,17 +285,17 @@
 
   <!-- ===== גרף ===== -->
   <section id="view-graph" class="view">
-    <div id="graphRot" class="graphrot">
-      <div class="graphhead">
-        <div>
-          <div class="gtoggle">
-            <span id="gm-cons" class="on" onclick="setMetric('cons')">צריכה</span>
-            <span id="gm-pay" onclick="setMetric('pay')">תשלום/חודש</span>
-          </div>
-          <div class="gsub" id="graphSub" style="margin-top:5px">גע בנקודה לפרטים</div>
+    <div class="graphbar">
+      <div class="gleft">
+        <div class="gtoggle">
+          <span id="gm-cons" class="on" onclick="setMetric('cons')">צריכה</span>
+          <span id="gm-pay" onclick="setMetric('pay')">תשלום/חודש</span>
         </div>
-        <button onclick="showView('calc')">✕</button>
+        <span class="gsub" id="graphSub">גע בנקודה לפרטים</span>
       </div>
+      <button class="gclose" onclick="showView('calc')">✕</button>
+    </div>
+    <div id="graphRot" class="graphrot">
       <div class="charthost" id="chartHost"></div>
     </div>
   </section>
