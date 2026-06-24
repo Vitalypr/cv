@@ -210,7 +210,7 @@
             <button class="btn ghost" onclick="clearCrop()">↺ בטל סימון</button>
             <button class="btn primary-sm" id="ocrBtn" onclick="runOCR()">🔍 קרא אוטומטית</button>
           </div>
-          <div class="hint">זיהוי אוטומטי. סובב/סמן רק אם הזיהוי שגוי.</div>
+          <div class="hint">סובב את התמונה לכיוון הנכון, ואז לחץ 🔍 קרא.</div>
           <div id="ocrResult" class="ocr-result" style="display:none"></div>
           <details class="ocr-settings">
             <summary>⚙️ הגדרות OCR</summary>
@@ -428,17 +428,9 @@ function loadPhoto(ev){
     img.onload = ()=>{
       srcImg = img; rotation = 0; crop = null;
       document.getElementById('ocrArea').style.display = 'block';
-      const res = document.getElementById('ocrResult');
-      res.style.display = 'none';
+      document.getElementById('ocrResult').style.display = 'none';
       rebuildWork();
-      // זיהוי אוטומטי בעת צירוף התמונה (Gemini מזהה את המסך גם בתמונה מלאה ומוטה)
-      const engine = localStorage.getItem(LS_ENGINE) || 'gemini';
-      if(engine === 'gemini'){
-        res.style.display = 'block';
-        res.style.border = '1px solid var(--line)'; res.style.background = 'var(--green-l)';
-        res.innerHTML = 'מזהה אוטומטית…<span class="spin" style="border-color:var(--green-d);border-top-color:transparent"></span>';
-        setTimeout(runOCR, 60);
-      }
+      // אין קריאה אוטומטית — המשתמש מסובב לכיוון הנכון ואז לוחץ "קרא"
     };
     img.src = e.target.result;
   };
