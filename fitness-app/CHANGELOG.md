@@ -26,3 +26,10 @@ All notable changes to the fitness app. Newest first. Keep entries terse and use
 - A11y: tablist/tab roles + aria-selected, checkbox role/aria-checked on exercise toggles,
   toast as aria-live status, aria-labels on icon buttons.
 - Search: exercise-guide search is now case-insensitive.
+
+### Phase 1 — PWA
+- Installable + truly offline: web app manifest, cache-first service worker with offline
+  navigation fallback, generated app icons (192/512/maskable + apple-touch), iOS meta tags,
+  `theme-color`, and a dismissible iOS "Add to Home Screen" hint.
+- Architecture: ADR-0002 — stay buildless (single file + assets + vendored libs), keep
+  localStorage, wrap with Capacitor; roadmap re-sequenced.

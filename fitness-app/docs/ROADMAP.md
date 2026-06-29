@@ -1,5 +1,9 @@
 # ROADMAP
 
+> **Revised by ADR-0002 (buildless).** We stay single-file + `assets/` + vendored libs and
+> wrap with Capacitor; no Vite/Preact/TS. `localStorage` retained (IDB deferred). The phase
+> list below reflects the revised sequence.
+
 Phases run in order. Each phase follows the dev loop (`DEV_LOOP.md`) and is not "done"
 until its **acceptance criteria** pass via tests/evals and `PROGRESS.md` is updated.
 
@@ -30,23 +34,25 @@ Acceptance:
 - Typing notes then logging a set preserves the notes (regression eval passes).
 - Charts position points proportional to date gaps (unit test on scale mapping).
 
-## Phase 1 — Foundation (Vite + modules + uPlot + IndexedDB)
+## Phase 1 — PWA (installable + truly offline)  [revised per ADR-0002]
 
-Goal: convert the hardened single file into a typed, modular, build-based app with the
-target rendering/storage/chart stack — behavior-preserving.
+Goal: make the offline/add-to-home-screen promise real, without a build step.
 
 Scope:
-- Scaffold Vite + TypeScript; `vite-plugin-singlefile` web target still emits one HTML.
-- Port to `src/` per `ARCHITECTURE.md` layers; introduce Preact + signals.
-- Move state to IndexedDB (`idb-keyval`) with one-time localStorage→IDB migration.
-- Replace canvas charts with uPlot (date-scaled).
-- Add PWA manifest + service worker + iOS meta tags.
-- Wire Vitest + Playwright; port Phase 0 evals; add unit tests for domain layer.
+- `assets/manifest.webmanifest` (name, short_name, start_url ".", display standalone,
+  theme/background color, 192 + 512 + maskable icons).
+- `assets/icons/*` PNG app icons (generated).
+- `sw.js` cache-first service worker precaching the app shell + icons; offline navigation
+  fallback to the cached app.
+- iOS meta tags (`apple-mobile-web-app-*`, `apple-touch-icon`) + `theme-color`.
+- SW registration in the page (guarded; skipped on `file://`).
+- Dismissible iOS install hint (Safari has no `beforeinstallprompt`).
 
 Acceptance:
-- All Phase 0 golden flows still pass against the new build.
-- `npm run build` emits a working offline single HTML; Lighthouse PWA installable.
-- Domain layer unit-test coverage for nutrition math, day/week calc, migrations.
+- Manifest is linked + parseable; `theme-color` present.
+- Service worker registers and controls the page after reload (`@eval` PWA-SW).
+- App still renders after going offline and reloading (precache works) (`@eval` PWA-OFFLINE).
+- All Phase 0 evals remain green.
 
 ## Phase 2 — Logging UX (the core loop)
 

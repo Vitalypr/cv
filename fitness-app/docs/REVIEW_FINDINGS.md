@@ -20,7 +20,7 @@ Status: ⬜ open · 🔄 in progress · ✅ fixed (test id) · 🚫 won't-fix (r
 |----|----------|---------|-------|--------|
 | F5 | 🟡 | `startDate`/`dayNames` dead code; app never computes today's workout/week | P0 | ✅ G1 (auto-select today + "שבוע N · יום M") |
 | F6 | 🟡 | Silent overwrite of same-date body entry; duplicate meal-day stacking; one-way complete | P0 | ✅ overwrite/dup confirms + complete toggle |
-| F7 | 🟡 | No PWA manifest/SW though UI promises offline/add-to-home-screen | P1 | ⬜ |
+| F7 | 🟡 | No PWA manifest/SW though UI promises offline/add-to-home-screen | P1 | ✅ PWA-SW / PWA-OFFLINE (manifest, SW, iOS meta + hint) |
 | F8 | 🟡 | No ARIA (tabs/checkbox/labels/live-region); re-render destroys focus for AT | P0 (basics) / P1 | 🔄 basics done (tablist/tab, checkbox role, toast live region, icon aria-labels); label-for + focus restore → P1 |
 | F9 | 🟡 | Shallow import validation; bad-but-shaped file can corrupt persisted state, no undo | P0 | ✅ E-IMPORT-GUARD (type coercion, clamp, `_prev` snapshot, size/onerror) |
 

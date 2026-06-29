@@ -4,6 +4,14 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>תוכנית חיטוב וכוח 8 שבועות</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <meta name="theme-color" content="#070b12" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="אימונים" />
+  <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png" />
+  <link rel="icon" href="assets/icons/icon-192.png" />
   <style>
     :root{
       --bg:#070b12; --panel:#0f1724; --panel2:#121d2e; --soft:#1a2940; --line:#27364d;
@@ -640,6 +648,29 @@
   // Open straight to today's scheduled workout (override still available via the day picker).
   state.selectedDay = programPosition().dayIndex;
   render();
+})();
+</script>
+<script>
+// PWA: register the service worker (skip on file:// where SW is unavailable).
+(function(){
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(()=>{ /* offline-only is still fine */ });
+    });
+  }
+  // iOS install hint: Safari has no beforeinstallprompt. Show a one-time tip.
+  try {
+    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    const standalone = window.navigator.standalone || matchMedia('(display-mode: standalone)').matches;
+    if (isIOS && !standalone && !localStorage.getItem('ios_install_hint_dismissed')) {
+      const bar = document.createElement('div');
+      bar.setAttribute('role','note');
+      bar.style.cssText = 'position:fixed;left:12px;right:12px;bottom:calc(var(--tabH) + 14px);z-index:60;background:#13233a;border:1px solid #27364d;color:#f3f7ff;border-radius:14px;padding:10px 12px;font:13px -apple-system,Arial;box-shadow:0 10px 30px rgba(0,0,0,.35)';
+      bar.innerHTML = 'להתקנה: שתף ▸ הוסף למסך הבית <button id="iosHintX" style="float:left;background:transparent;border:0;color:#64d2ff;font-weight:800">סגור</button>';
+      document.body.appendChild(bar);
+      bar.querySelector('#iosHintX').onclick = () => { localStorage.setItem('ios_install_hint_dismissed','1'); bar.remove(); };
+    }
+  } catch (e) { /* noop */ }
 })();
 </script>
 </body>

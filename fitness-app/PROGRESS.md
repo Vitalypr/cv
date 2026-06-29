@@ -7,15 +7,22 @@ Legend: ⬜ not started · 🔄 in progress · ✅ done · ⚠️ done-with-cave
 
 ## Current focus
 
-**Phase 1 — Foundation** (next: Vite + TS + Preact + uPlot + IndexedDB).
+**Phase 2 — Logging UX** (next: per-exercise history, rest timer, previous-session hints, overload).
+
+## Architecture note
+
+ADR-0002 supersedes ADR-0001's build/stack: we stay **buildless** (single `index.html` +
+`assets/` + vendored libs), keep `localStorage`, and wrap with Capacitor (webDir = folder).
+Roadmap re-sequenced accordingly.
 
 ## Phase status
 
 | Phase | Title | Status | Notes |
 |-------|-------|--------|-------|
-| Docs | CLAUDE.md + docs set | ✅ | CLAUDE.md, CONOPS, ARCHITECTURE, ROADMAP, TOOLING, TESTING, TDD, EVAL, DEV_LOOP, REVIEW_FINDINGS, ADR-0001 |
-| 0 | Hardening | ✅ | 12/12 evals green. XSS, clone fallback, notes/focus mitigation, id-keyed done, today-calc, date charts, import guard, a11y basics, search. See eval report below. |
-| 1 | Foundation (Vite/Preact/uPlot/IDB/PWA) | ⬜ | |
+| Docs | CLAUDE.md + docs set | ✅ | + ADR-0002 (buildless pivot) |
+| 0 | Hardening | ✅ | 12/12 evals green. See eval report below. |
+| 1 | PWA (manifest + SW + offline + iOS) | ✅ | 14/14 evals green (added PWA-SW, PWA-OFFLINE). F7 closed. |
+| 2 | Logging UX (history, rest timer, prev hints, overload) | ⬜ | |
 | 2 | Logging UX (in-place, rest timer, history, overload) | ⬜ | |
 | 3 | Exercise media | ⬜ | |
 | 4 | Stats | ⬜ | |
@@ -62,3 +69,23 @@ Gaps/deferred: F4 (P2 history), F7 (P1 PWA), F14 (P1 typed validation), F15 (P1 
 Caveat: visual sanity confirmed via screenshot (daily + tracking); no Android runtime in this phase.
 
 RCA: none required — no failing criteria after implementation; all evals were RED pre-fix and GREEN post-fix as designed.
+
+### Phase 1 — PWA (2026-06-29) — ✅
+
+Decision: ADR-0002 (stay buildless; PWA instead of Vite/Preact/TS port).
+Verification: `npx playwright test` → **14 passed**.
+
+| Criterion | Proof | Result |
+|-----------|-------|--------|
+| Manifest linked + valid; theme-color present | PWA-SW | PASS |
+| Service worker registers and controls the page | PWA-SW | PASS |
+| App shell loads with network fully offline | PWA-OFFLINE | PASS |
+| All Phase 0 evals still green | G1–G7, E-* | PASS |
+
+Added: `manifest.webmanifest`, `sw.js` (cache-first + navigation fallback), generated app
+icons (192/512/maskable/apple-touch), iOS meta tags + dismissible install hint, SW
+registration (guarded for `file://`). Findings closed: F7.
+RCA: SVG-stroke icon generation produced blank glyphs (gradient stroke not rendering in the
+headless SVG path); root cause — relied on inline-SVG `<line>` stroke rendering quirk.
+Fixed by drawing the icon on a `<canvas>` and exporting via `toDataURL` (deterministic).
+Prevention: icon generation now uses Canvas; verified by visual read of the output PNG.
