@@ -7,7 +7,8 @@ Legend: ⬜ not started · 🔄 in progress · ✅ done · ⚠️ done-with-cave
 
 ## Current focus
 
-**Phase 4 — Stats** (next: interactive per-exercise charts, streaks, PRs).
+**Phase 5 — Samsung Health (Health Connect)** — Capacitor wrapper, code-complete + handoff
+(no Android SDK in this container).
 
 ## Architecture note
 
@@ -24,7 +25,7 @@ Roadmap re-sequenced accordingly.
 | 1 | PWA (manifest + SW + offline + iOS) | ✅ | 14/14 evals green (added PWA-SW, PWA-OFFLINE). F7 closed. |
 | 2 | Logging UX (history, rest timer, prev hints, overload) | ✅ | 18/18 evals green (P2-PREVHINT, P2-HISTORY, P2-OVERLOAD, P2-RESTTIMER). F4 closed. |
 | 3 | Exercise media (bundled images) | ✅ | 22/22 evals green (P3-IMAGE, P3-ATTRIB, P3-FALLBACK + E-NOOVERFLOW). 31 CC BY-SA photos bundled. |
-| 4 | Stats (uPlot interactive, streaks, PRs) | ⬜ | |
+| 4 | Stats (uPlot interactive, streaks, PRs) | ✅ | 25/25 evals green (P4-1RM, P4-STREAK, P4-PR). uPlot vendored. |
 | 5 | Samsung Health (Health Connect) | ⬜ | code-complete + handoff only (no Android SDK here) |
 | 2 | Logging UX (in-place, rest timer, history, overload) | ⬜ | |
 | 3 | Exercise media | ⬜ | |
@@ -138,3 +139,19 @@ eval asserting `scrollWidth <= clientWidth` on every tab.
 Note: a few photo matches are approximate (e.g. pushup → a kettlebell-pushup variant);
 acceptable representative illustrations, refinable later. Photos runtime-cached by the SW
 (not in the precache shell), so they're available offline after first view.
+
+### Phase 4 — Stats (2026-06-29) — ✅
+
+Verification: `npx playwright test` → **25 passed**.
+
+| Criterion | Proof | Result |
+|-----------|-------|--------|
+| Per-exercise estimated-1RM series computed + charted (uPlot canvas) | P4-1RM | PASS |
+| Current streak (single-day forgiveness) + workouts-this-week | P4-STREAK | PASS |
+| Personal-records table lists best lift per exercise | P4-PR | PASS |
+
+Added: vendored uPlot (MIT, `assets/vendor/`), Epley `est1RM`, `sessionSeriesFor`,
+`prList`, `activeDateSet`, `currentStreak` (tolerates today-not-done + one mid-streak gap),
+`workoutsThisWeek`; a tracking-tab Stats card with an exercise selector + interactive 1RM
+chart, streak/this-week metrics, and a PRs table. uPlot credited in the attribution card.
+RCA: none — evals passed on first implementation run.

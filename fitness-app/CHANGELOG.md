@@ -50,3 +50,9 @@ All notable changes to the fitness app. Newest first. Keep entries terse and use
 - Attribution/license card in settings.
 - Fixed a horizontal-overflow layout bug (RTL) via `minmax(0,1fr)` grid tracks; added a
   no-overflow regression guard across all tabs.
+
+### Phase 4 — Stats
+- Interactive per-exercise estimated-1RM progression chart (vendored uPlot, MIT) with an
+  exercise picker in the tracking tab.
+- Workout streak (with single-day forgiveness), workouts-this-week metric, and a
+  personal-records table (best lift + estimated 1RM per exercise).

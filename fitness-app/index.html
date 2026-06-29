@@ -12,6 +12,8 @@
   <meta name="apple-mobile-web-app-title" content="אימונים" />
   <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png" />
   <link rel="icon" href="assets/icons/icon-192.png" />
+  <link rel="stylesheet" href="assets/vendor/uPlot.min.css" />
+  <script src="assets/vendor/uPlot.iife.min.js"></script>
   <style>
     :root{
       --bg:#070b12; --panel:#0f1724; --panel2:#121d2e; --soft:#1a2940; --line:#27364d;
@@ -309,6 +311,19 @@
   // A set beats the previous session if it's heavier, or equal weight for more reps.
   function isOverload(weight, reps, best){ if(!best) return false; const w=safeNum(weight), r=safeNum(reps), bw=safeNum(best.weight), br=safeNum(best.reps); return w>bw || (w===bw && r>br); }
 
+  // ---- Stats: estimated 1RM, per-exercise series, PRs, streaks (with forgiveness) ----
+  function est1RM(w,r){ w=safeNum(w); r=safeNum(r); if(!w) return 0; if(r<=1) return w; return w*(1+r/30); } // Epley
+  function sessionSeriesFor(ex){ const byDate={}; for(const s of historyFor(ex)){ const e=est1RM(s.weight,s.reps); if(!byDate[s.date] || e>byDate[s.date]) byDate[s.date]=e; } return Object.entries(byDate).sort((a,b)=>a[0].localeCompare(b[0])).map(([date,v])=>({date, e:Math.round(v*10)/10})); }
+  function exercisesWithHistory(){ const m=new Map(); for(const s of allWorkoutSets()){ const key=s.exerciseId||s.exercise; if(!m.has(key)) m.set(key,{id:s.exerciseId||key, name:s.exercise}); } return [...m.values()]; }
+  function prList(){ const best={}; for(const s of allWorkoutSets()){ const k=s.exercise; const w=safeNum(s.weight); if(!w) continue; const e=Math.round(est1RM(s.weight,s.reps)*10)/10; if(!best[k] || w>best[k].weight){ best[k]={name:s.exercise, weight:w, reps:safeNum(s.reps), date:s.date, e}; } } return Object.values(best).sort((a,b)=>b.e-a.e); }
+  function activeDateSet(){ const s=new Set(); for(const [k,w] of Object.entries(state.logs.workouts||{})){ if(w && (w.completed||w.cardioDone)) s.add(String(k).split('_')[0]); } return s; }
+  function currentStreak(){ const s=activeDateSet(); const d=new Date(todayIso()); let streak=0, miss=0; for(let i=0;i<400;i++){ const iso=d.toISOString().slice(0,10); if(s.has(iso)){ streak++; miss=0; } else if(i!==0){ miss++; if(miss>1) break; } d.setDate(d.getDate()-1); } return streak; }
+  function workoutsThisWeek(){ const s=activeDateSet(); const d=new Date(todayIso()); let n=0; for(let i=0;i<7;i++){ if(s.has(d.toISOString().slice(0,10))) n++; d.setDate(d.getDate()-1); } return n; }
+
+  let _uplot=null;
+  function drawStatChart(ex){ const el=document.getElementById('statChart'); if(!el) return; const series=ex?sessionSeriesFor(ex):[]; window.__stat={exercise:ex?ex.name:null, points:series}; el.innerHTML=''; if(_uplot){ try{_uplot.destroy();}catch(e){} _uplot=null; } if(!window.uPlot || !series.length){ el.innerHTML='<div class="muted small" style="padding:12px">אין מספיק נתונים לתרגיל זה. רשום סטים כדי לראות התקדמות.</div>'; return; } const xs=series.map(p=>Math.round(Date.parse(p.date)/1000)); const ys=series.map(p=>p.e); const w=el.clientWidth||320; _uplot=new uPlot({ width:w, height:200, scales:{x:{time:true}}, legend:{show:true}, series:[{}, {label:'1RM משוער (ק״ג)', stroke:'#64d2ff', width:2, fill:'rgba(100,210,255,.12)', points:{show:true}}], axes:[{stroke:'#a9b7cc',grid:{stroke:'#1a2940'}},{stroke:'#a9b7cc',grid:{stroke:'#1a2940'}}] }, [xs, ys], el); }
+  function drawStatsCurrent(){ const sel=document.getElementById('statExercise'); if(!sel) return; const list=exercisesWithHistory(); const ex=list[+sel.value]||list[0]||null; drawStatChart(ex); }
+
   // ---- Rest timer (auto-starts on each logged set; native haptics/notifications added in the Android wrapper) ----
   const _rest = { remaining:0, id:null };
   function fmtTime(s){ s=Math.max(0,Math.round(s)); const m=Math.floor(s/60), ss=s%60; return `${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`; }
@@ -520,7 +535,18 @@
             <div class="metric"><div class="label">היקף בטן</div><div class="value">${lastBody.waist||'—'}</div><div class="hint">ס״מ</div></div>
             <div class="metric"><div class="label">אימונים הושלמו</div><div class="value">${completed}</div></div>
             <div class="metric"><div class="label">קרדיו בוצע</div><div class="value">${cardio}</div></div>
+            <div class="metric"><div class="label">רצף ימים</div><div class="value" data-testid="streak">${currentStreak()}</div><div class="hint">כולל "הקפאה" ליום מנוחה</div></div>
+            <div class="metric"><div class="label">השבוע</div><div class="value" data-testid="week-count">${workoutsThisWeek()}</div><div class="hint">ימים פעילים ב‑7 ימים</div></div>
           </div>
+        </div>
+        <div class="card">
+          <h2>התקדמות בתרגיל (1RM משוער)</h2>
+          ${exercisesWithHistory().length ? `<select id="statExercise" class="input" aria-label="בחר תרגיל">${exercisesWithHistory().map((e,i)=>`<option value="${i}">${esc(e.name)}</option>`).join('')}</select>
+          <div id="statChart" data-testid="stat-chart" style="margin-top:10px"></div>` : '<p class="muted small">רשום סטים באימון כדי לראות גרף התקדמות לפי 1RM משוער.</p>'}
+        </div>
+        <div class="card">
+          <h2>שיאים אישיים</h2>
+          <table class="table" data-testid="pr-list"><thead><tr><th>תרגיל</th><th>משקל מיטבי</th><th>1RM משוער</th><th>תאריך</th></tr></thead><tbody>${prList().slice(0,12).map(p=>`<tr><td>${esc(p.name)}</td><td>${esc(p.weight)} ק״ג × ${esc(p.reps)}</td><td>${esc(p.e)}</td><td>${esc(p.date)}</td></tr>`).join('') || '<tr><td colspan="4" class="muted">אין שיאים עדיין</td></tr>'}</tbody></table>
         </div>
         <div class="card">
           <h2>הזן מדדי גוף</h2>
@@ -552,7 +578,8 @@
     root.querySelector('#saveBody').onclick=()=>{ const date=val('bodyDate'); if(!date){ alert('חסר תאריך'); return; } if(state.logs.body[date] && !confirm('כבר קיימת מדידה לתאריך הזה. להחליף?')) return; state.logs.body[date]={weight:val('bodyWeight'),waist:val('bodyWaist'),steps:val('bodySteps'),sleep:val('bodySleep'),energy:val('bodyEnergy'),savedAt:new Date().toISOString()}; saveState(); toast('מדדים נשמרו'); renderTracking(); };
     root.querySelector('#savePerf').onclick=()=>{ state.logs.performance={pullups:val('perfPullups'),pushups:val('perfPushups'),dips:val('perfDips'),savedAt:new Date().toISOString()}; saveState(); toast('ביצועים נשמרו'); renderTracking(); };
     root.querySelectorAll('[data-delbody]').forEach(b=>b.onclick=()=>{ delete state.logs.body[b.dataset.delbody]; saveState(); renderTracking(); });
-    setTimeout(drawCharts,0);
+    const statSel=root.querySelector('#statExercise'); if(statSel) statSel.onchange=drawStatsCurrent;
+    setTimeout(()=>{ drawCharts(); drawStatsCurrent(); },0);
   }
 
   function drawCharts(){
@@ -681,6 +708,7 @@
         <div class="card" data-testid="attribution"><h2>קרדיטים ורישיון תמונות</h2>
           <p class="muted small">איורי התרגילים (תמונות) מקורם במאגר הפתוח <strong>Free Exercise DB</strong> (yuhonas), המבוסס על פרויקט <strong>Everkinetic</strong>, ברישיון <strong>CC BY-SA</strong> (ייחוס + שיתוף זהה). איורי הקו (SVG) נוצרו עבור האפליקציה.</p>
           <p class="muted small">מקור: <span class="kbd">github.com/yuhonas/free-exercise-db</span></p>
+          <p class="muted small">גרפים אינטראקטיביים: ספריית uPlot (רישיון MIT).</p>
         </div>
         <div class="card"><h2>מגבלות חשובות</h2><p class="muted">localStorage יכול להימחק אם מנקים נתוני אתר/דפדפן. לכן הגיבוי חשוב. אם בעתיד תרצה הרבה תמונות/קבצים או נפח גדול, נכון לעבור ל־IndexedDB.</p></div>
       </div>`;
@@ -690,7 +718,7 @@
     root.querySelector('#resetData').onclick=()=>{ if(confirm('לאפס את כל הנתונים המקומיים? כדאי לייצא גיבוי קודם.')){ state=clone(defaultState); state.selectedDay=programPosition().dayIndex; saveState(); render(); toast('אופס'); } };
   }
 
-  document.querySelectorAll('.tab').forEach(tab=>tab.onclick=()=>{ document.querySelectorAll('.tab').forEach(t=>{t.classList.remove('active'); t.setAttribute('aria-selected','false');}); tab.classList.add('active'); tab.setAttribute('aria-selected','true'); document.querySelectorAll('.view').forEach(v=>v.classList.remove('active')); document.getElementById(tab.dataset.view).classList.add('active'); if(tab.dataset.view==='tracking') setTimeout(drawCharts,0); window.scrollTo({top:0,behavior:'smooth'}); });
+  document.querySelectorAll('.tab').forEach(tab=>tab.onclick=()=>{ document.querySelectorAll('.tab').forEach(t=>{t.classList.remove('active'); t.setAttribute('aria-selected','false');}); tab.classList.add('active'); tab.setAttribute('aria-selected','true'); document.querySelectorAll('.view').forEach(v=>v.classList.remove('active')); document.getElementById(tab.dataset.view).classList.add('active'); if(tab.dataset.view==='tracking') setTimeout(()=>{ drawCharts(); drawStatsCurrent(); },0); window.scrollTo({top:0,behavior:'smooth'}); });
 
   // Redraw charts on resize/orientation change (only when the tracking tab is visible).
   let _rsz=null;
