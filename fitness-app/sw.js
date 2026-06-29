@@ -1,6 +1,6 @@
 /* Service worker: cache-first app shell for true offline use.
    Bump CACHE on any shell change so clients pick up the new version. */
-const CACHE = 'fitness-app-v1';
+const CACHE = 'fitness-app-v2';
 const SHELL = [
   './',
   './index.html',

@@ -64,6 +64,17 @@ test('@eval E-OFFLINE logging works offline', async ({ page }) => {
   await expect(page.getByTestId('set-row')).toHaveCount(1);
 });
 
+// E-NOOVERFLOW — no horizontal overflow on any tab at a phone width (RTL layout integrity).
+test('@eval E-NOOVERFLOW no horizontal overflow on any tab', async ({ page }) => {
+  await page.setViewportSize({ width: 412, height: 915 });
+  await gotoApp(page, { date: `${START_DATE}T08:00:00` });
+  for (const v of ['daily', 'weekly', 'nutrition', 'tracking', 'exercises', 'settings']) {
+    await switchTab(page, v);
+    const m = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth }));
+    expect(m.sw, `tab ${v} overflows`).toBeLessThanOrEqual(m.cw + 1);
+  }
+});
+
 // E-IMPORT-GUARD — a malformed-but-JSON backup must not crash or corrupt; prev snapshot kept.
 test('@eval E-IMPORT-GUARD malformed import is handled safely', async ({ page }) => {
   await gotoApp(page, { date: `${START_DATE}T08:00:00` });

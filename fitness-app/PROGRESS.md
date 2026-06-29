@@ -7,7 +7,7 @@ Legend: ⬜ not started · 🔄 in progress · ✅ done · ⚠️ done-with-cave
 
 ## Current focus
 
-**Phase 3 — Exercise media** (next: bundle real exercise images, lazy-load, attribution).
+**Phase 4 — Stats** (next: interactive per-exercise charts, streaks, PRs).
 
 ## Architecture note
 
@@ -23,7 +23,7 @@ Roadmap re-sequenced accordingly.
 | 0 | Hardening | ✅ | 12/12 evals green. See eval report below. |
 | 1 | PWA (manifest + SW + offline + iOS) | ✅ | 14/14 evals green (added PWA-SW, PWA-OFFLINE). F7 closed. |
 | 2 | Logging UX (history, rest timer, prev hints, overload) | ✅ | 18/18 evals green (P2-PREVHINT, P2-HISTORY, P2-OVERLOAD, P2-RESTTIMER). F4 closed. |
-| 3 | Exercise media (bundled images) | ⬜ | |
+| 3 | Exercise media (bundled images) | ✅ | 22/22 evals green (P3-IMAGE, P3-ATTRIB, P3-FALLBACK + E-NOOVERFLOW). 31 CC BY-SA photos bundled. |
 | 4 | Stats (uPlot interactive, streaks, PRs) | ⬜ | |
 | 5 | Samsung Health (Health Connect) | ⬜ | code-complete + handoff only (no Android SDK here) |
 | 2 | Logging UX (in-place, rest timer, history, overload) | ⬜ | |
@@ -115,3 +115,26 @@ reordering of digits around ×; values are correct. Will wrap in an LTR span in 
 RCA: rest-timer eval initially failed — container lacked `data-testid="rest-timer"`.
 Root cause: testid added to children but not the wrapper. Fix: add it. Prevention: eval
 asserts the container visibility, which now guards the hook.
+
+### Phase 3 — Exercise media (2026-06-29) — ✅
+
+Verification: `npx playwright test` → **22 passed**.
+
+| Criterion | Proof | Result |
+|-----------|-------|--------|
+| Exercise guide + daily rows show bundled photos (loaded, not broken) | P3-IMAGE | PASS |
+| Media attribution + CC BY-SA license shown in settings | P3-ATTRIB | PASS |
+| Icons without a photo fall back to SVG line-art | P3-FALLBACK | PASS |
+| No horizontal overflow on any tab (regression guard) | E-NOOVERFLOW | PASS |
+
+Added: 31 curated exercise photos from Free Exercise DB (CC BY-SA) under
+`assets/exercises/` (+ `credits.json`), `mediaFor()` (photo with SVG fallback via
+`onerror`), daily-row thumbnails, exercise-guide photos, settings attribution card.
+RCA: a horizontal-overflow regression appeared after adding row thumbnails + history —
+root cause was `grid-template-columns:1fr` letting a card's min-content stretch the track
+past the viewport (RTL pushed content left, off-screen). Fix: `minmax(0,1fr)` on `.grid`
+and `.exercise`, plus `min-width:0` on `.card`/`.exBody`. Prevention: added E-NOOVERFLOW
+eval asserting `scrollWidth <= clientWidth` on every tab.
+Note: a few photo matches are approximate (e.g. pushup → a kettlebell-pushup variant);
+acceptable representative illustrations, refinable later. Photos runtime-cached by the SW
+(not in the precache shell), so they're available offline after first view.

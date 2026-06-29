@@ -1,0 +1,157 @@
+{
+  "bench": {
+    "name": "Barbell Bench Press - Medium Grip",
+    "id": "Barbell_Bench_Press_-_Medium_Grip",
+    "image": "Barbell_Bench_Press_-_Medium_Grip/0.jpg"
+  },
+  "closebench": {
+    "name": "Close-Grip Barbell Bench Press",
+    "id": "Close-Grip_Barbell_Bench_Press",
+    "image": "Close-Grip_Barbell_Bench_Press/0.jpg"
+  },
+  "incline": {
+    "name": "Incline Dumbbell Press",
+    "id": "Incline_Dumbbell_Press",
+    "image": "Incline_Dumbbell_Press/0.jpg"
+  },
+  "dips": {
+    "name": "Dips - Chest Version",
+    "id": "Dips_-_Chest_Version",
+    "image": "Dips_-_Chest_Version/0.jpg"
+  },
+  "pushup": {
+    "name": "Plyo Kettlebell Pushups",
+    "id": "Plyo_Kettlebell_Pushups",
+    "image": "Plyo_Kettlebell_Pushups/0.jpg"
+  },
+  "dbpress": {
+    "name": "Dumbbell Shoulder Press",
+    "id": "Dumbbell_Shoulder_Press",
+    "image": "Dumbbell_Shoulder_Press/0.jpg"
+  },
+  "lateral": {
+    "name": "Seated Side Lateral Raise",
+    "id": "Seated_Side_Lateral_Raise",
+    "image": "Seated_Side_Lateral_Raise/0.jpg"
+  },
+  "pullup": {
+    "name": "Pullups",
+    "id": "Pullups",
+    "image": "Pullups/0.jpg"
+  },
+  "row": {
+    "name": "One-Arm Dumbbell Row",
+    "id": "One-Arm_Dumbbell_Row",
+    "image": "One-Arm_Dumbbell_Row/0.jpg"
+  },
+  "row2": {
+    "name": "Bent Over Two-Dumbbell Row",
+    "id": "Bent_Over_Two-Dumbbell_Row",
+    "image": "Bent_Over_Two-Dumbbell_Row/0.jpg"
+  },
+  "pullover": {
+    "name": "Bent-Arm Dumbbell Pullover",
+    "id": "Bent-Arm_Dumbbell_Pullover",
+    "image": "Bent-Arm_Dumbbell_Pullover/0.jpg"
+  },
+  "yraise": {
+    "name": "Face Pull",
+    "id": "Face_Pull",
+    "image": "Face_Pull/0.jpg"
+  },
+  "curl": {
+    "name": "Dumbbell Alternate Bicep Curl",
+    "id": "Dumbbell_Alternate_Bicep_Curl",
+    "image": "Dumbbell_Alternate_Bicep_Curl/0.jpg"
+  },
+  "hammercurl": {
+    "name": "Alternate Hammer Curl",
+    "id": "Alternate_Hammer_Curl",
+    "image": "Alternate_Hammer_Curl/0.jpg"
+  },
+  "triceps": {
+    "name": "Decline Dumbbell Triceps Extension",
+    "id": "Decline_Dumbbell_Triceps_Extension",
+    "image": "Decline_Dumbbell_Triceps_Extension/0.jpg"
+  },
+  "squat": {
+    "name": "Goblet Squat",
+    "id": "Goblet_Squat",
+    "image": "Goblet_Squat/0.jpg"
+  },
+  "stepup": {
+    "name": "Dumbbell Step Ups",
+    "id": "Dumbbell_Step_Ups",
+    "image": "Dumbbell_Step_Ups/0.jpg"
+  },
+  "rdl": {
+    "name": "Romanian Deadlift",
+    "id": "Romanian_Deadlift",
+    "image": "Romanian_Deadlift/0.jpg"
+  },
+  "glute": {
+    "name": "Barbell Glute Bridge",
+    "id": "Barbell_Glute_Bridge",
+    "image": "Barbell_Glute_Bridge/0.jpg"
+  },
+  "calves": {
+    "name": "Standing Calf Raises",
+    "id": "Standing_Calf_Raises",
+    "image": "Standing_Calf_Raises/0.jpg"
+  },
+  "plank": {
+    "name": "Plank",
+    "id": "Plank",
+    "image": "Plank/0.jpg"
+  },
+  "sideplank": {
+    "name": "Side Bridge",
+    "id": "Side_Bridge",
+    "image": "Side_Bridge/0.jpg"
+  },
+  "deadbug": {
+    "name": "Dead Bug",
+    "id": "Dead_Bug",
+    "image": "Dead_Bug/0.jpg"
+  },
+  "legraise": {
+    "name": "Hanging Leg Raise",
+    "id": "Hanging_Leg_Raise",
+    "image": "Hanging_Leg_Raise/0.jpg"
+  },
+  "reverse": {
+    "name": "Cable Reverse Crunch",
+    "id": "Cable_Reverse_Crunch",
+    "image": "Cable_Reverse_Crunch/0.jpg"
+  },
+  "carry": {
+    "name": "Farmer's Walk",
+    "id": "Farmers_Walk",
+    "image": "Farmers_Walk/0.jpg"
+  },
+  "farmer": {
+    "name": "Farmer's Walk",
+    "id": "Farmers_Walk",
+    "image": "Farmers_Walk/0.jpg"
+  },
+  "arms": {
+    "name": "Dumbbell Alternate Bicep Curl",
+    "id": "Dumbbell_Alternate_Bicep_Curl",
+    "image": "Dumbbell_Alternate_Bicep_Curl/0.jpg"
+  },
+  "stretch": {
+    "name": "Hamstring Stretch",
+    "id": "Hamstring_Stretch",
+    "image": "Hamstring_Stretch/0.jpg"
+  },
+  "stretch2": {
+    "name": "Behind Head Chest Stretch",
+    "id": "Behind_Head_Chest_Stretch",
+    "image": "Behind_Head_Chest_Stretch/0.jpg"
+  },
+  "walk": {
+    "name": "Barbell Walking Lunge",
+    "id": "Barbell_Walking_Lunge",
+    "image": "Barbell_Walking_Lunge/0.jpg"
+  }
+}

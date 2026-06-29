@@ -31,7 +31,7 @@ test('@eval PWA-OFFLINE app shell loads with network offline', async ({ page, co
   // Wait until the shell is actually cached.
   await page.waitForFunction(async () => (await caches.keys()).length > 0);
   await page.evaluate(async () => {
-    const c = await caches.open('fitness-app-v1');
+    const c = await caches.open('fitness-app-v2');
     return c.match('./index.html');
   });
 

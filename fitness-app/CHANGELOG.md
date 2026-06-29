@@ -43,3 +43,10 @@ All notable changes to the fitness app. Newest first. Keep entries terse and use
 - Rest timer: auto-starts when a set is logged; −15/+15 adjust, skip dismisses, with an
   end-of-rest beep + vibration (Android web). Default rest duration configurable in settings.
 - Faster entry: `inputmode` hints on numeric fields for better mobile keypads.
+
+### Phase 3 — Exercise media
+- Real exercise photos (31, from the open Free Exercise DB, CC BY-SA) in the exercise guide
+  and as thumbnails on each daily exercise row; SVG line-art remains the offline fallback.
+- Attribution/license card in settings.
+- Fixed a horizontal-overflow layout bug (RTL) via `minmax(0,1fr)` grid tracks; added a
+  no-overflow regression guard across all tabs.
