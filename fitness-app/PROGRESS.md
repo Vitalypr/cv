@@ -7,9 +7,10 @@ Legend: ⬜ not started · 🔄 in progress · ✅ done · ⚠️ done-with-cave
 
 ## Current focus
 
-**All phases complete.** Phases 0–4 fully built + browser-tested (26 evals green). Phase 5
-(Samsung Health / Health Connect) is code-complete + scaffolded; on-device build/runtime is a
-documented handoff (`docs/ANDROID_HEALTH_CONNECT.md`) since this container has no Android SDK.
+**Phases 0–4 complete** (26 web evals green). **Phase 5**: Android wrapper committed
+(Capacitor 7 + `@devmaxime/capacitor-health-connect`, read steps/weight), with a **GitHub
+Actions workflow that builds an installable APK** (`.github/workflows/android.yml`). On-device
+runtime still ⚠️ until confirmed on a phone. Watching the CI build for failures to iterate.
 
 ## Architecture note
 

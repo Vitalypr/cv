@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">אימונים</string>
+    <string name="title_activity_main">אימונים</string>
+    <string name="package_name">com.vitaly.fitness</string>
+    <string name="custom_url_scheme">com.vitaly.fitness</string>
+</resources>

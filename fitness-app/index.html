@@ -325,50 +325,52 @@
   function drawStatsCurrent(){ const sel=document.getElementById('statExercise'); if(!sel) return; const list=exercisesWithHistory(); const ex=list[+sel.value]||list[0]||null; drawStatChart(ex); }
 
   // ---- Samsung Health / Health Connect bridge (active only inside the Capacitor Android app) ----
-  // On the web this no-ops gracefully. In the Android wrapper it talks to a Health Connect
-  // Capacitor plugin. The plugin's exact method names may differ — see
-  // docs/ANDROID_HEALTH_CONNECT.md for the adapter mapping and setup.
+  // On the web this no-ops gracefully. In the Android wrapper it talks to the
+  // @devmaxime/capacitor-health-connect plugin (read-only: Steps, Weight). See
+  // docs/ANDROID_HEALTH_CONNECT.md. Health Connect aggregates Samsung Health data.
   const Health = {
     isNative(){ try{ return !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()); }catch(e){ return false; } },
-    plugin(){ try{ return (window.Capacitor && window.Capacitor.Plugins && (window.Capacitor.Plugins.HealthConnect || window.Capacitor.Plugins.Health)) || null; }catch(e){ return null; } },
+    plugin(){ try{ return (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.HealthConnect) || null; }catch(e){ return null; } },
   };
   function healthStatus(msg){ const el=document.getElementById('healthStatus'); if(el) el.textContent=msg; }
+  function isoStart(daysAgo){ return new Date(getDate(-daysAgo)+'T00:00:00').toISOString(); }
   async function healthAction(action){
-    if(!Health.isNative()){ healthStatus('חיבור ל‑Samsung Health / Health Connect פעיל רק באפליקציית האנדרואיד (Capacitor). ראה docs/ANDROID_HEALTH_CONNECT.md.'); toast('זמין באפליקציית האנדרואיד'); return; }
+    if(!Health.isNative()){ healthStatus('חיבור ל‑Samsung Health / Health Connect פעיל רק באפליקציית האנדרואיד. ראה docs/ANDROID_HEALTH_CONNECT.md.'); toast('זמין באפליקציית האנדרואיד'); return; }
     const hc=Health.plugin();
     if(!hc){ healthStatus('תוסף Health Connect לא מותקן בבילד. ראה docs/ANDROID_HEALTH_CONNECT.md.'); return; }
     try{
       if(action==='connect'){
-        await hc.requestHealthPermissions({ read:['Steps','Weight','SleepSession'], write:['ExerciseSession'] });
+        const avail = await hc.checkAvailability().catch(()=>null);
+        if(avail && avail.availability && avail.availability!=='Available'){ healthStatus('Health Connect לא זמין/לא מותקן במכשיר ('+avail.availability+').'); return; }
+        await hc.requestPermissions({ read:['Steps','Weight'], write:[] });
         healthStatus('מחובר ל‑Health Connect.'); toast('מחובר');
       } else if(action==='in'){
-        // Pull the last 14 days of steps + latest weight into the body log.
-        const since=getDate(-14), until=todayIso();
-        const steps=await hc.readRecords({ type:'Steps', startDate:since, endDate:until }).catch(()=>null);
-        const weight=await hc.readRecords({ type:'Weight', startDate:since, endDate:until }).catch(()=>null);
-        mergeHealthIn(steps, weight);
-        saveState(); renderTracking(); healthStatus('נמשכו נתונים מ‑Health Connect.'); toast('נתונים נמשכו');
+        const start=isoStart(14), end=new Date().toISOString();
+        const steps=await hc.readRecords({ type:'Steps', start, end }).catch(()=>null);
+        const weight=await hc.readRecords({ type:'Weight', start, end }).catch(()=>null);
+        const n=mergeHealthIn(steps, weight);
+        saveState(); renderTracking(); healthStatus(`עודכנו ${n} ימים מ‑Health Connect (צעדים/משקל).`); toast('נתונים נמשכו');
       } else if(action==='out'){
-        // Write completed workouts as exercise sessions.
-        let n=0;
-        for(const [k,w] of Object.entries(state.logs.workouts||{})){ if(!w || !w.completed || w.syncedOut) continue; const date=String(k).split('_')[0]; try{ await hc.insertRecords({ records:[{ type:'ExerciseSession', startDate:date+'T18:00:00', endDate:date+'T19:00:00', exerciseType:'STRENGTH_TRAINING', title:'אימון' }] }); w.syncedOut=true; n++; }catch(e){} }
-        saveState(); healthStatus(`נשלחו ${n} אימונים ל‑Health Connect.`); toast('אימונים נשלחו');
+        healthStatus('כתיבת אימונים ל‑Health Connect אינה נתמכת בתוסף הנוכחי (קריאה בלבד). אפשר להוסיף תוסף כתיבה בעתיד.');
       }
     }catch(e){ healthStatus('שגיאה: '+((e&&e.message)||e)); }
   }
-  // Map plugin records → body log (defensive; adapt field paths to the chosen plugin's shape).
+  // Map plugin records → body log. The plugin returns { records: [...] }; Steps records carry
+  // { count, startTime }, Weight records carry { weight: { value, unit } / inKilograms, time }.
   function mergeHealthIn(steps, weight){
+    let touched=0;
     try{
-      const recs = (steps&&(steps.records||steps.result||steps))||[];
+      const recs = (steps&&steps.records)||[];
       const byDate={};
-      for(const r of (Array.isArray(recs)?recs:[])){ const d=(r.startDate||r.date||r.time||'').slice(0,10); if(!d) continue; byDate[d]=(byDate[d]||0)+safeNum(r.count||r.value||r.steps); }
-      for(const [d,v] of Object.entries(byDate)){ state.logs.body[d]=Object.assign({weight:'',waist:'',steps:'',sleep:'',energy:''}, state.logs.body[d]||{}, {steps:String(Math.round(v))}); }
+      for(const r of (Array.isArray(recs)?recs:[])){ const d=String(r.startTime||r.time||r.startDate||'').slice(0,10); if(!d) continue; byDate[d]=(byDate[d]||0)+safeNum(r.count!=null?r.count:(r.value||r.steps)); }
+      for(const [d,v] of Object.entries(byDate)){ state.logs.body[d]=Object.assign({weight:'',waist:'',steps:'',sleep:'',energy:''}, state.logs.body[d]||{}, {steps:String(Math.round(v))}); touched++; }
     }catch(e){}
     try{
-      const wr=(weight&&(weight.records||weight.result||weight))||[];
-      const list=(Array.isArray(wr)?wr:[]).map(r=>({d:(r.startDate||r.date||r.time||'').slice(0,10), kg:safeNum((r.weight&&(r.weight.inKilograms||r.weight.value))||r.value||r.kg)})).filter(x=>x.d&&x.kg);
-      if(list.length){ const last=list[list.length-1]; state.logs.body[last.d]=Object.assign({weight:'',waist:'',steps:'',sleep:'',energy:''}, state.logs.body[last.d]||{}, {weight:String(last.kg)}); }
+      const wr=(weight&&weight.records)||[];
+      const list=(Array.isArray(wr)?wr:[]).map(r=>({ d:String(r.time||r.startTime||r.startDate||'').slice(0,10), kg:safeNum((r.weight&&(r.weight.inKilograms!=null?r.weight.inKilograms:r.weight.value))||r.inKilograms||r.value) })).filter(x=>x.d&&x.kg);
+      if(list.length){ const last=list[list.length-1]; state.logs.body[last.d]=Object.assign({weight:'',waist:'',steps:'',sleep:'',energy:''}, state.logs.body[last.d]||{}, {weight:String(last.kg)}); touched++; }
     }catch(e){}
+    return touched;
   }
 
   // ---- Rest timer (auto-starts on each logged set; native haptics/notifications added in the Android wrapper) ----

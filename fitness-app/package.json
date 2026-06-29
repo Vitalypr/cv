@@ -19,5 +19,11 @@
   "devDependencies": {
     "@playwright/test": "1.56.1"
   },
-  "comment:capacitor": "Android wrapper deps are installed on a machine with the Android SDK during the handoff (see docs/ANDROID_HEALTH_CONNECT.md): @capacitor/core @capacitor/cli @capacitor/android, plus a Health Connect plugin. They are intentionally NOT pinned here so `npm install` stays lightweight in CI/web dev."
+  "comment:capacitor": "Capacitor 7 + @devmaxime/capacitor-health-connect (read-only: Steps, Weight) power the Android wrapper. The APK is built in CI by .github/workflows/android.yml (download from the run's Artifacts and sideload). To build locally, see docs/ANDROID_HEALTH_CONNECT.md.",
+  "dependencies": {
+    "@capacitor/android": "^7.6.7",
+    "@capacitor/cli": "^7.6.7",
+    "@capacitor/core": "^7.6.7",
+    "@devmaxime/capacitor-health-connect": "^1.1.0"
+  }
 }

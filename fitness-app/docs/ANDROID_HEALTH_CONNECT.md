@@ -1,9 +1,28 @@
-# Android wrapper + Samsung Health (Health Connect) — handoff
+# Android wrapper + Samsung Health (Health Connect)
 
-This phase is **code-complete in the web app** (a feature-detected `Health` bridge + a
-Settings card) and **scaffolded for Capacitor** (`capacitor.config.json`, `build:web`,
-scripts). The Android project itself must be generated and built on a machine with the
-**Android SDK**, which this dev container does not have. Follow the steps below there.
+The Android project is **committed** (`fitness-app/android/`, Capacitor 7) with the
+`@devmaxime/capacitor-health-connect` plugin (read-only: **Steps**, **Weight** — Health
+Connect aggregates Samsung Health data) and the manifest wired for Health Connect. There are
+two ways to get an installable APK.
+
+## Easiest: download the CI-built APK (no Android Studio)
+
+1. Push to the `claude/training-app-review-ykzrgo` branch (already done) — the
+   **Build Android APK** GitHub Actions workflow (`.github/workflows/android.yml`) runs, or
+   trigger it manually from the repo's **Actions** tab → *Build Android APK* → *Run workflow*.
+2. Open the finished run → **Artifacts** → download **fitness-app-debug-apk**, unzip to get
+   `app-debug.apk`.
+3. On your Samsung phone: copy the APK over, enable **Install unknown apps** for your file
+   manager/browser, tap the APK to install.
+4. Open the app → Settings (גיבוי) → **חיבור ל‑Samsung Health** → **התחבר**, grant the
+   Health Connect permissions, then **משוך צעדים/משקל** to import.
+
+This APK is debug-signed (fine for personal sideloading). For Play Store distribution you'd
+add a release signing config.
+
+## Alternative: build locally (Android Studio)
+
+Requires Android Studio + SDK (API 35), JDK 21, a device/emulator with Health Connect.
 
 ## Why this shape
 
@@ -19,78 +38,44 @@ scripts). The Android project itself must be generated and built on a machine wi
   (pre-installed on Android 14+; installable from Play on 9–13).
 - Samsung Health installed and set to share data with Health Connect (for Samsung data).
 
-## 1. Install Capacitor + Android platform
-
 ```bash
 cd fitness-app
-npm install            # existing dev deps (Playwright)
-npm install @capacitor/core @capacitor/cli @capacitor/android
-npm run build:web      # assembles dist-web/ (the webDir Capacitor copies)
-npx cap init "אימונים" com.vitaly.fitness --web-dir dist-web   # config already provided; this is a no-op if present
-npx cap add android
-npm run cap:sync       # build:web + cap sync
+npm install
+npm run cap:sync       # build:web + cap sync android
+npm run cap:open       # opens Android Studio; let Gradle sync, then Run on device
 ```
 
-`capacitor.config.json` is already set (`appId: com.vitaly.fitness`, `webDir: dist-web`).
+The project is already configured:
+- `capacitor.config.json` → `appId: com.vitaly.fitness`, `webDir: dist-web`.
+- Plugin `@devmaxime/capacitor-health-connect` installed (Capacitor 7).
+- `android/variables.gradle` → `minSdkVersion = 26` (Health Connect requirement).
 
-## 2. Install a Health Connect plugin
+### What's already wired in the manifest
 
-Pick a maintained Capacitor Health Connect plugin, e.g. `capacitor-health-connect`
-(community) — verify the latest name/version on npm before installing:
+`android/app/src/main/AndroidManifest.xml` already declares:
+- `READ_STEPS` + `READ_WEIGHT` health permissions,
+- the `<queries>` entry for `com.google.android.apps.healthdata`,
+- the permissions-rationale intent filters on `MainActivity` (Android 13- and 14+).
 
-```bash
-npm install capacitor-health-connect
-npm run cap:sync
-```
+### The web bridge
 
-The web bridge (`Health` in `index.html`) calls a plugin exposed as
-`Capacitor.Plugins.HealthConnect` (or `.Health`) with these methods:
+`index.html` (`healthAction()` + `mergeHealthIn()`) calls the plugin via
+`Capacitor.Plugins.HealthConnect`: `checkAvailability()`, `requestPermissions({read:['Steps','Weight'], write:[]})`,
+`readRecords({type, start, end})`. The plugin is **read-only**, so "send workouts" is shown
+as not-supported; to write exercise sessions, add a write-capable plugin (e.g.
+`@flomentumsolutions/capacitor-health-extended`) and extend `healthAction('out')`.
 
-- `requestHealthPermissions({ read:['Steps','Weight','SleepSession'], write:['ExerciseSession'] })`
-- `readRecords({ type:'Steps'|'Weight', startDate, endDate })`
-- `insertRecords({ records:[{ type:'ExerciseSession', startDate, endDate, exerciseType, title }] })`
-
-If your chosen plugin uses different method/field names, adapt the thin adapter in
-`index.html` (`healthAction()` + `mergeHealthIn()`) — they are isolated and commented for
-exactly this. Keep the read/merge field-path fallbacks defensive.
-
-## 3. AndroidManifest — permissions + privacy policy
-
-Health Connect requires declaring each data type permission and a privacy-policy intent.
-In `android/app/src/main/AndroidManifest.xml`:
-
-```xml
-<uses-permission android:name="android.permission.health.READ_STEPS"/>
-<uses-permission android:name="android.permission.health.READ_WEIGHT"/>
-<uses-permission android:name="android.permission.health.READ_SLEEP"/>
-<uses-permission android:name="android.permission.health.WRITE_EXERCISE"/>
-
-<!-- Health Connect permission-rationale activity (required) -->
-<activity android:name=".PermissionsRationaleActivity" android:exported="true">
-  <intent-filter>
-    <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE"/>
-  </intent-filter>
-</activity>
-<!-- For Android 14+, also handle the new ViewPermissionUsageActivity alias per Health Connect docs. -->
-```
-
-Set `minSdkVersion` to what the plugin requires (Health Connect SDK supports API 26+; the
-Health Connect app needs API 28+) in `android/variables.gradle`.
-
-## 4. Run + verify on device
-
-```bash
-npm run cap:open      # opens Android Studio; let Gradle sync, then Run
-```
+## Run + verify on device
 
 In the app → Settings (גיבוי) → "חיבור ל‑Samsung Health":
 1. **התחבר** → grant the Health Connect permissions prompt.
 2. **משוך צעדים/משקל** → recent steps + latest weight populate the body-metrics log
    (verify on the Tracking tab + charts).
-3. **שלח אימונים** → completed workouts are written as exercise sessions (verify in the
-   Health Connect app → app data, and in Samsung Health if installed).
 
-## 5. Update status
+For Samsung data: install Samsung Health and enable its Health Connect sharing, so its steps
+and weight appear in Health Connect (and therefore in this app).
+
+## Update status
 
 After on-device verification, flip Phase 5 in `PROGRESS.md` from ⚠️ to ✅ and note what was
 confirmed (which data types read/wrote, device + Android version).

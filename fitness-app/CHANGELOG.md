@@ -65,3 +65,13 @@ All notable changes to the fitness app. Newest first. Keep entries terse and use
   `build:web`/`cap:sync`/`cap:open` scripts, and `docs/ANDROID_HEALTH_CONNECT.md` handoff
   (plugin, manifest permissions, privacy-policy activity, run + verify on device).
 - On-device build/runtime not performed in CI (no Android SDK); marked done-with-caveat.
+
+### Android build (installable APK)
+- Committed the Capacitor 7 Android project (`fitness-app/android/`) with
+  `@devmaxime/capacitor-health-connect` (reads Steps + Weight via Health Connect, which
+  aggregates Samsung Health); manifest wired with health permissions, the healthdata
+  `<queries>` entry, and permission-rationale intent filters; `minSdk = 26`.
+- Re-wired the web health bridge to the plugin's real API (`checkAvailability`,
+  `requestPermissions`, `readRecords`); "send workouts" shown as unsupported (read-only plugin).
+- Added `.github/workflows/android.yml` — builds a debug APK on push and uploads it as an
+  artifact for sideloading (no Android Studio required).
