@@ -39,26 +39,26 @@
     </header>
 
     <main>
-      <section id="daily" class="view active"></section>
-      <section id="weekly" class="view"></section>
-      <section id="nutrition" class="view"></section>
-      <section id="tracking" class="view"></section>
-      <section id="exercises" class="view"></section>
-      <section id="settings" class="view"></section>
+      <section id="daily" class="view active" role="tabpanel" aria-label="יומי"></section>
+      <section id="weekly" class="view" role="tabpanel" aria-label="שבועי"></section>
+      <section id="nutrition" class="view" role="tabpanel" aria-label="תזונה"></section>
+      <section id="tracking" class="view" role="tabpanel" aria-label="מעקב"></section>
+      <section id="exercises" class="view" role="tabpanel" aria-label="מקרא"></section>
+      <section id="settings" class="view" role="tabpanel" aria-label="גיבוי"></section>
     </main>
   </div>
 
   <nav class="tabs" aria-label="ניווט">
-    <div class="tabbar">
-      <button class="tab active" data-view="daily"><span class="ico">🏋️</span><span>יומי</span></button>
-      <button class="tab" data-view="weekly"><span class="ico">📅</span><span>שבועי</span></button>
-      <button class="tab" data-view="nutrition"><span class="ico">🍽️</span><span>תזונה</span></button>
-      <button class="tab" data-view="tracking"><span class="ico">📈</span><span>מעקב</span></button>
-      <button class="tab" data-view="exercises"><span class="ico">📚</span><span>מקרא</span></button>
-      <button class="tab" data-view="settings"><span class="ico">⚙️</span><span>גיבוי</span></button>
+    <div class="tabbar" role="tablist">
+      <button class="tab active" role="tab" aria-selected="true" aria-controls="daily" data-view="daily"><span class="ico" aria-hidden="true">🏋️</span><span>יומי</span></button>
+      <button class="tab" role="tab" aria-selected="false" aria-controls="weekly" data-view="weekly"><span class="ico" aria-hidden="true">📅</span><span>שבועי</span></button>
+      <button class="tab" role="tab" aria-selected="false" aria-controls="nutrition" data-view="nutrition"><span class="ico" aria-hidden="true">🍽️</span><span>תזונה</span></button>
+      <button class="tab" role="tab" aria-selected="false" aria-controls="tracking" data-view="tracking"><span class="ico" aria-hidden="true">📈</span><span>מעקב</span></button>
+      <button class="tab" role="tab" aria-selected="false" aria-controls="exercises" data-view="exercises"><span class="ico" aria-hidden="true">📚</span><span>מקרא</span></button>
+      <button class="tab" role="tab" aria-selected="false" aria-controls="settings" data-view="settings"><span class="ico" aria-hidden="true">⚙️</span><span>גיבוי</span></button>
     </div>
   </nav>
-  <div id="toast" class="toast">נשמר</div>
+  <div id="toast" class="toast" role="status" aria-live="polite">נשמר</div>
 
 <script>
 (function(){
@@ -155,7 +155,13 @@
 
   function ex(name, muscle, sets, reps, note, icon){ return {name,muscle,sets,reps,note,icon}; }
   function esc(v){ return String(v ?? '').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-  function getDayExercises(day){ return [...day.exercises, ...((state?.customExercises?.[day.id]) || [])]; }
+  // Every exercise gets a STABLE id (base: `${dayId}:bN` by definition order; custom: its own uid),
+  // so done-flags and history key off identity, not array position.
+  function getDayExercises(day){
+    const base = day.exercises.map((e,i)=>({ ...e, id: e.id || `${day.id}:b${i}` }));
+    const custom = ((state?.customExercises?.[day.id]) || []).map(e=>({ ...e, id: e.id || uid() }));
+    return [...base, ...custom];
+  }
   function customExerciseFromForm(root){
     return {
       id: uid(), custom:true, icon:'custom',
@@ -226,24 +232,46 @@
   let state = loadState();
 
   function ensureStateShape(raw){
-    const base = structuredClone(defaultState);
-    const merged = Object.assign(base, raw || {});
-    merged.logs = Object.assign(structuredClone(defaultState.logs), raw?.logs || {});
-    merged.logs.workouts = raw?.logs?.workouts || {};
-    merged.logs.nutrition = raw?.logs?.nutrition || {};
-    merged.logs.body = raw?.logs?.body || {};
-    merged.logs.performance = raw?.logs?.performance || {};
-    merged.customExercises = raw?.customExercises || {};
-    merged.settings = Object.assign(structuredClone(defaultState.settings), raw?.settings || {});
+    raw = isObj(raw) ? raw : {};
+    const base = clone(defaultState);
+    const merged = Object.assign(base, raw);
+    // Coerce containers to safe types so a malformed/corrupt backup can't crash a renderer.
+    merged.logs = isObj(raw.logs) ? Object.assign(clone(defaultState.logs), raw.logs) : clone(defaultState.logs);
+    merged.logs.workouts = isObj(merged.logs.workouts) ? merged.logs.workouts : {};
+    merged.logs.nutrition = isObj(merged.logs.nutrition) ? merged.logs.nutrition : {};
+    merged.logs.body = isObj(merged.logs.body) ? merged.logs.body : {};
+    merged.logs.performance = isObj(merged.logs.performance) ? merged.logs.performance : {};
+    merged.customExercises = isObj(raw.customExercises) ? raw.customExercises : {};
+    merged.settings = Object.assign(clone(defaultState.settings), isObj(raw.settings) ? raw.settings : {});
+    // Numeric settings must be numbers.
+    for(const k of ['calorieTarget','proteinTarget','carbTarget','fatTarget','waterTarget']){
+      const n = parseFloat(merged.settings[k]); merged.settings[k] = Number.isFinite(n) ? n : defaultState.settings[k];
+    }
+    // selectedDay must be a valid index.
+    const sd = parseInt(merged.selectedDay, 10);
+    merged.selectedDay = Number.isInteger(sd) ? Math.min(Math.max(0, sd), plan.days.length-1) : 0;
     return merged;
   }
   function loadState(){
     try{ return ensureStateShape(JSON.parse(localStorage.getItem(APP_KEY) || '{}')); }
-    catch(e){ return structuredClone(defaultState); }
+    catch(e){ return clone(defaultState); }
   }
   function saveState(){ localStorage.setItem(APP_KEY, JSON.stringify(state)); }
   function toast(msg='נשמר'){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),1600); }
   function uid(){ return Math.random().toString(36).slice(2)+Date.now().toString(36); }
+  function clone(o){ return JSON.parse(JSON.stringify(o)); } // JSON-safe state; avoids structuredClone (unavailable on old WebView/Safari<15.4)
+  function isObj(v){ return !!v && typeof v==='object' && !Array.isArray(v); }
+  let _saveTimer=null;
+  function saveStateDebounced(){ clearTimeout(_saveTimer); _saveTimer=setTimeout(saveState,300); }
+  function ensureLog(key){ return state.logs.workouts[key] ||= {done:{},sets:[],notes:'',cardioDone:false,completed:false}; }
+  // Position within the 8-week program, computed from startDate and today.
+  function programPosition(){
+    const ms = new Date(todayIso()).getTime() - new Date(startDate).getTime();
+    const days = Math.floor(ms/86400000);
+    const dayIndex = (((days % 7) + 7) % 7);
+    const week = Math.max(1, Math.floor(days/7) + 1);
+    return { dayIndex, week, days };
+  }
   function getDate(offset=0){ const d=new Date(); d.setDate(d.getDate()+offset); return d.toISOString().slice(0,10); }
   function safeNum(v){ const n=parseFloat(v); return Number.isFinite(n)?n:0; }
 
@@ -256,25 +284,28 @@
     const customForDay = state.customExercises[d.id] || [];
     const logKey = todayIso()+'_'+d.id;
     const dayLog = state.logs.workouts[logKey] || { done:{}, sets:[], notes:'', cardioDone:false, completed:false };
+    const pos = programPosition();
+    const doneCount = exercises.filter(e=>dayLog.done[e.id]).length;
     root.innerHTML = `
       <div class="grid">
         <div class="card">
-          <div class="sectionTitle"><h2>אימון יומי</h2><span class="tag">${todayIso()}</span></div>
-          <div class="dayPicker">${plan.days.map((x,i)=>`<button class="dayChip ${i===state.selectedDay?'active':''}" data-day="${i}">${i+1}. ${x.title.split('—')[0].trim()}</button>`).join('')}</div>
-          <h2>${d.title}</h2>
-          <p class="muted">${d.focus}</p>
+          <div class="sectionTitle"><h2>אימון יומי</h2><span class="tag">${esc(todayIso())}</span></div>
+          <div class="muted small" data-testid="week-day-label">שבוע ${pos.week} · יום ${state.selectedDay+1}</div>
+          <div class="dayPicker">${plan.days.map((x,i)=>`<button class="dayChip ${i===state.selectedDay?'active':''}" data-day="${i}">${i+1}. ${esc(x.title.split('—')[0].trim())}</button>`).join('')}</div>
+          <h2>${esc(d.title)}</h2>
+          <p class="muted">${esc(d.focus)}</p>
           <div class="metricGrid">
             <div class="metric"><div class="label">קרדיו</div><div class="value" style="font-size:16px">${d.cardio}</div></div>
             <div class="metric"><div class="label">דגש</div><div class="value" style="font-size:16px">${d.notes}</div></div>
           </div>
           <div class="btnRow">
-            <button class="btn" id="completeWorkout">סמן אימון הושלם</button>
+            <button class="btn" id="completeWorkout">${dayLog.completed?'בטל סימון הושלם':'סמן אימון הושלם'}</button>
             <button class="btn secondary" id="copyToday">העתק סיכום יום</button>
           </div>
         </div>
         <div class="card">
-          <h2>תרגילים</h2>
-          ${exercises.map((e,idx)=>exerciseRow(e,idx,dayLog.done[idx])).join('')}
+          <h2>תרגילים <span class="muted small" data-testid="exercise-progress">(${doneCount}/${exercises.length})</span></h2>
+          ${exercises.map(e=>exerciseRow(e,dayLog.done[e.id])).join('')}
         </div>
         <div class="card">
           <h2>הוסף / ערוך תרגיל ידני לאימון הזה</h2>
@@ -305,7 +336,7 @@
           </div>
           <button class="btn" id="addSet" style="margin-top:10px;width:100%">הוסף סט</button>
           <div class="divider"></div>
-          <table class="table"><thead><tr><th>תרגיל</th><th>משקל</th><th>חזרות</th><th>RPE</th><th></th></tr></thead><tbody>${(dayLog.sets||[]).map((s,i)=>`<tr><td>${s.exercise}</td><td>${s.weight||''}</td><td>${s.reps||''}</td><td>${s.rpe||''}</td><td><button class="iconBtn" data-delset="${i}">×</button></td></tr>`).join('') || '<tr><td colspan="5" class="muted">אין סטים היום עדיין</td></tr>'}</tbody></table>
+          <table class="table" data-testid="sets-table"><thead><tr><th>תרגיל</th><th>משקל</th><th>חזרות</th><th>RPE</th><th></th></tr></thead><tbody>${(Array.isArray(dayLog.sets)?dayLog.sets:[]).map((s,i)=>`<tr data-testid="set-row"><td>${esc(s.exercise)}</td><td>${esc(s.weight)}</td><td>${esc(s.reps)}</td><td>${esc(s.rpe)}</td><td><button class="iconBtn" data-delset="${i}" aria-label="מחק סט">×</button></td></tr>`).join('') || '<tr><td colspan="5" class="muted">אין סטים היום עדיין</td></tr>'}</tbody></table>
         </div>
         <div class="card">
           <h2>הערות אימון</h2>
@@ -314,8 +345,11 @@
         </div>
       </div>`;
     root.querySelectorAll('.dayChip').forEach(b=>b.onclick=()=>{state.selectedDay=+b.dataset.day; saveState(); renderDaily();});
-    root.querySelectorAll('.check').forEach(b=>b.onclick=()=>{ const key=todayIso()+'_'+d.id; const l=state.logs.workouts[key] ||= {done:{},sets:[],notes:'',cardioDone:false,completed:false}; const idx=b.dataset.idx; l.done[idx]=!l.done[idx]; saveState(); renderDaily(); });
-    root.querySelector('#addSet').onclick=()=>{ const key=todayIso()+'_'+d.id; const l=state.logs.workouts[key] ||= {done:{},sets:[],notes:'',cardioDone:false,completed:false}; const sel=root.querySelector('#setExercise'); const e=exercises[+sel.value]; l.sets.push({id:uid(), date:todayIso(), exercise:e.name, weight:root.querySelector('#setWeight').value, reps:root.querySelector('#setReps').value, rpe:root.querySelector('#setRpe').value}); saveState(); toast('סט נוסף'); renderDaily(); renderTracking(); };
+    // Toggle done IN PLACE (no full re-render) -> never loses focus/notes; keyed by stable id.
+    root.querySelectorAll('.check').forEach(b=>b.onclick=()=>{ const l=ensureLog(logKey); const id=b.dataset.id; l.done[id]=!l.done[id]; const on=!!l.done[id]; saveState(); b.classList.toggle('done',on); b.setAttribute('aria-checked', on?'true':'false'); const dc=exercises.filter(e=>l.done[e.id]).length; const p=root.querySelector('[data-testid="exercise-progress"]'); if(p) p.textContent=`(${dc}/${exercises.length})`; });
+    // Persist notes as you type so any later re-render can't discard them.
+    const notesEl=root.querySelector('#workoutNotes'); if(notesEl) notesEl.oninput=()=>{ ensureLog(logKey).notes=notesEl.value; saveStateDebounced(); };
+    root.querySelector('#addSet').onclick=()=>{ const l=ensureLog(logKey); const sel=root.querySelector('#setExercise'); const e=exercises[+sel.value]; l.sets.push({id:uid(), date:todayIso(), exerciseId:e.id, exercise:e.name, weight:root.querySelector('#setWeight').value, reps:root.querySelector('#setReps').value, rpe:root.querySelector('#setRpe').value}); saveState(); toast('סט נוסף'); renderDaily(); renderTracking(); };
     root.querySelector('#addCustomExercise').onclick=()=>{
       const item = customExerciseFromForm(root);
       if(!item.name){ alert('חסר שם תרגיל'); return; }
@@ -328,10 +362,10 @@
     root.querySelector('#clearCustomForm').onclick=()=>setCustomForm(root,null,'');
     root.querySelectorAll('[data-editcustom]').forEach(b=>b.onclick=()=>{ const item=(state.customExercises[d.id]||[])[+b.dataset.editcustom]; setCustomForm(root,item,b.dataset.editcustom); root.querySelector('#customName').focus(); });
     root.querySelectorAll('[data-delcustom]').forEach(b=>b.onclick=()=>{ if(confirm('למחוק את התרגיל הידני מהאימון הזה? הלוגים שכבר נרשמו לא יימחקו.')){ (state.customExercises[d.id]||[]).splice(+b.dataset.delcustom,1); saveState(); renderDaily(); renderWeekly(); renderExercises(); } });
-    root.querySelectorAll('[data-delset]').forEach(b=>b.onclick=()=>{ const key=todayIso()+'_'+d.id; state.logs.workouts[key].sets.splice(+b.dataset.delset,1); saveState(); renderDaily(); renderTracking(); });
-    root.querySelector('#saveWorkoutNotes').onclick=()=>{ const key=todayIso()+'_'+d.id; const l=state.logs.workouts[key] ||= {done:{},sets:[],notes:'',cardioDone:false,completed:false}; l.notes=root.querySelector('#workoutNotes').value; saveState(); toast(); };
-    root.querySelector('#toggleCardio').onclick=()=>{ const key=todayIso()+'_'+d.id; const l=state.logs.workouts[key] ||= {done:{},sets:[],notes:'',cardioDone:false,completed:false}; l.cardioDone=!l.cardioDone; saveState(); renderDaily(); renderTracking(); };
-    root.querySelector('#completeWorkout').onclick=()=>{ const key=todayIso()+'_'+d.id; const l=state.logs.workouts[key] ||= {done:{},sets:[],notes:'',cardioDone:false,completed:false}; l.completed=true; l.completedAt=new Date().toISOString(); saveState(); toast('האימון סומן כהושלם'); renderDaily(); renderTracking(); };
+    root.querySelectorAll('[data-delset]').forEach(b=>b.onclick=()=>{ const l=ensureLog(logKey); (l.sets||[]).splice(+b.dataset.delset,1); saveState(); renderDaily(); renderTracking(); });
+    root.querySelector('#saveWorkoutNotes').onclick=()=>{ const l=ensureLog(logKey); l.notes=root.querySelector('#workoutNotes').value; saveState(); toast(); };
+    root.querySelector('#toggleCardio').onclick=()=>{ const l=ensureLog(logKey); l.cardioDone=!l.cardioDone; saveState(); renderDaily(); renderTracking(); };
+    root.querySelector('#completeWorkout').onclick=()=>{ const l=ensureLog(logKey); l.completed=!l.completed; l.completedAt=l.completed?new Date().toISOString():null; saveState(); toast(l.completed?'האימון סומן כהושלם':'בוטל סימון ההשלמה'); renderDaily(); renderTracking(); };
     root.querySelector('#copyToday').onclick=async()=>{ const text=summaryWorkout(d, dayLog); try{await navigator.clipboard.writeText(text); toast('הועתק');}catch(e){toast('לא ניתן להעתיק');} };
   }
   function exerciseMeta(e){
@@ -342,7 +376,7 @@
     if(e.note) extras.push(e.note);
     return `${esc(e.muscle)} · ${esc(e.sets)} סטים × ${esc(e.reps)}${extras.length?' · '+esc(extras.join(' · ')):''}`;
   }
-  function exerciseRow(e,idx,done){ return `<div class="exercise"><div><div class="exName">${esc(e.name)}${e.custom?'<span class="manualTag">ידני</span>':''}</div><div class="exMeta">${exerciseMeta(e)}</div></div><button class="check ${done?'done':''}" data-idx="${idx}">✓</button></div>`; }
+  function exerciseRow(e,done){ return `<div class="exercise" data-testid="exercise-row"><div><div class="exName">${esc(e.name)}${e.custom?'<span class="manualTag">ידני</span>':''}</div><div class="exMeta">${exerciseMeta(e)}</div></div><button class="check ${done?'done':''}" role="checkbox" aria-checked="${done?'true':'false'}" aria-label="סמן בוצע: ${esc(e.name)}" data-id="${esc(e.id)}">✓</button></div>`; }
   function summaryWorkout(d, log){ const exercises=getDayExercises(d); return `${d.title}\n${d.cardio}\n${exercises.map(e=>`- ${e.name}: ${e.sets}×${e.reps}${e.targetWeight?' · '+e.targetWeight:''}${e.rest?' · מנוחה '+e.rest:''}`).join('\n')}\n\nהערות: ${log.notes||''}`; }
 
   function renderWeekly(){
@@ -370,7 +404,7 @@
         <div class="card">
           <h2>תזונה יומית</h2>
           <div class="metricGrid">
-            <div class="metric"><div class="label">קלוריות</div><div class="value">${Math.round(totals.cal)}</div><div class="hint">יעד ${state.settings.calorieTarget}</div></div>
+            <div class="metric"><div class="label">קלוריות</div><div class="value" data-testid="cal-total">${Math.round(totals.cal)}</div><div class="hint">יעד ${esc(state.settings.calorieTarget)}</div></div>
             <div class="metric"><div class="label">חלבון</div><div class="value">${Math.round(totals.protein)}g</div><div class="hint">יעד ${state.settings.proteinTarget}g</div></div>
             <div class="metric"><div class="label">פחמימות</div><div class="value">${Math.round(totals.carb)}g</div><div class="hint">יעד ${state.settings.carbTarget}g</div></div>
             <div class="metric"><div class="label">שומן</div><div class="value">${Math.round(totals.fat)}g</div><div class="hint">יעד ${state.settings.fatTarget}g</div></div>
@@ -396,7 +430,7 @@
         </div>
         <div class="card">
           <h2>יומן היום</h2>
-          <table class="table"><thead><tr><th>מזון</th><th>קל׳</th><th>חלבון</th><th></th></tr></thead><tbody>${(nlog.meals||[]).map((m,i)=>`<tr><td>${m.name}</td><td>${m.cal}</td><td>${m.protein}g</td><td><button class="iconBtn" data-delfood="${i}">×</button></td></tr>`).join('') || '<tr><td colspan="4" class="muted">עוד לא הוזן מזון היום</td></tr>'}</tbody></table>
+          <table class="table" data-testid="nutrition-log"><thead><tr><th>מזון</th><th>קל׳</th><th>חלבון</th><th></th></tr></thead><tbody>${(Array.isArray(nlog.meals)?nlog.meals:[]).map((m,i)=>`<tr><td>${esc(m.name)}</td><td>${esc(m.cal)}</td><td>${esc(m.protein)}g</td><td><button class="iconBtn" data-delfood="${i}" aria-label="מחק מזון">×</button></td></tr>`).join('') || '<tr><td colspan="4" class="muted">עוד לא הוזן מזון היום</td></tr>'}</tbody></table>
         </div>
         <div class="card">
           <h2>כללי תזונה קצרים</h2>
@@ -410,7 +444,7 @@
       </div>`;
     root.querySelector('#addFood').onclick=()=>{ const l=state.logs.nutrition[date] ||= {meals:[], water:0}; l.meals.push({id:uid(), name:val('foodName')||'מזון', cal:safeNum(val('foodCal')), protein:safeNum(val('foodProtein')), carb:safeNum(val('foodCarb')), fat:safeNum(val('foodFat'))}); saveState(); toast('מזון נוסף'); renderNutrition(); renderTracking(); };
     root.querySelectorAll('[data-meal]').forEach(b=>b.onclick=()=>{ const m=mealTemplates[+b.dataset.meal]; const l=state.logs.nutrition[date] ||= {meals:[], water:0}; l.meals.push({...m,id:uid()}); saveState(); toast('ארוחה נוספה'); renderNutrition(); renderTracking(); });
-    root.querySelector('#addTemplateDay').onclick=()=>{ const l=state.logs.nutrition[date] ||= {meals:[], water:0}; mealTemplates.forEach(m=>l.meals.push({...m,id:uid()})); saveState(); toast('יום בסיס נוסף'); renderNutrition(); renderTracking(); };
+    root.querySelector('#addTemplateDay').onclick=()=>{ const l=state.logs.nutrition[date] ||= {meals:[], water:0}; if((l.meals||[]).length && !confirm('כבר קיימות ארוחות היום. להוסיף עוד יום בסיס מלא?')) return; mealTemplates.forEach(m=>l.meals.push({...m,id:uid()})); saveState(); toast('יום בסיס נוסף'); renderNutrition(); renderTracking(); };
     root.querySelector('#clearNutrition').onclick=()=>{ if(confirm('לנקות את יומן התזונה של היום?')){ state.logs.nutrition[date]={meals:[],water:0}; saveState(); renderNutrition(); renderTracking(); }};
     root.querySelectorAll('[data-delfood]').forEach(b=>b.onclick=()=>{ state.logs.nutrition[date].meals.splice(+b.dataset.delfood,1); saveState(); renderNutrition(); renderTracking(); });
   }
@@ -461,9 +495,9 @@
         <div class="card"><h2>גרף משקל</h2><div class="chartBox"><canvas id="weightChart"></canvas></div></div>
         <div class="card"><h2>גרף היקף בטן</h2><div class="chartBox"><canvas id="waistChart"></canvas></div></div>
         <div class="card"><h2>גרף קלוריות אחרונות</h2><div class="chartBox"><canvas id="calChart"></canvas></div></div>
-        <div class="card"><h2>טבלת מדדי גוף</h2><table class="table"><thead><tr><th>תאריך</th><th>משקל</th><th>בטן</th><th>צעדים</th><th>שינה</th><th></th></tr></thead><tbody>${bodyRows.slice(-14).reverse().map(([date,b])=>`<tr><td>${date}</td><td>${b.weight||''}</td><td>${b.waist||''}</td><td>${b.steps||''}</td><td>${b.sleep||''}</td><td><button class="iconBtn" data-delbody="${date}">×</button></td></tr>`).join('') || '<tr><td colspan="6" class="muted">אין מדדים עדיין</td></tr>'}</tbody></table></div>
+        <div class="card"><h2>טבלת מדדי גוף</h2><table class="table" data-testid="body-table"><thead><tr><th>תאריך</th><th>משקל</th><th>בטן</th><th>צעדים</th><th>שינה</th><th></th></tr></thead><tbody>${bodyRows.slice(-14).reverse().map(([date,b])=>`<tr><td>${esc(date)}</td><td>${esc(b.weight)}</td><td>${esc(b.waist)}</td><td>${esc(b.steps)}</td><td>${esc(b.sleep)}</td><td><button class="iconBtn" data-delbody="${esc(date)}" aria-label="מחק מדידה">×</button></td></tr>`).join('') || '<tr><td colspan="6" class="muted">אין מדדים עדיין</td></tr>'}</tbody></table></div>
       </div>`;
-    root.querySelector('#saveBody').onclick=()=>{ const date=val('bodyDate'); state.logs.body[date]={weight:val('bodyWeight'),waist:val('bodyWaist'),steps:val('bodySteps'),sleep:val('bodySleep'),energy:val('bodyEnergy'),savedAt:new Date().toISOString()}; saveState(); toast('מדדים נשמרו'); renderTracking(); };
+    root.querySelector('#saveBody').onclick=()=>{ const date=val('bodyDate'); if(!date){ alert('חסר תאריך'); return; } if(state.logs.body[date] && !confirm('כבר קיימת מדידה לתאריך הזה. להחליף?')) return; state.logs.body[date]={weight:val('bodyWeight'),waist:val('bodyWaist'),steps:val('bodySteps'),sleep:val('bodySleep'),energy:val('bodyEnergy'),savedAt:new Date().toISOString()}; saveState(); toast('מדדים נשמרו'); renderTracking(); };
     root.querySelector('#savePerf').onclick=()=>{ state.logs.performance={pullups:val('perfPullups'),pushups:val('perfPushups'),dips:val('perfDips'),savedAt:new Date().toISOString()}; saveState(); toast('ביצועים נשמרו'); renderTracking(); };
     root.querySelectorAll('[data-delbody]').forEach(b=>b.onclick=()=>{ delete state.logs.body[b.dataset.delbody]; saveState(); renderTracking(); });
     setTimeout(drawCharts,0);
@@ -477,7 +511,25 @@
     drawBars('calChart', dates.map(d=>({x:d.slice(5),y:calcNutrition(d).cal})), state.settings.calorieTarget);
   }
   function prepCanvas(id){ const c=document.getElementById(id); if(!c) return null; const rect=c.getBoundingClientRect(); const scale=window.devicePixelRatio||1; c.width=rect.width*scale; c.height=rect.height*scale; const ctx=c.getContext('2d'); ctx.scale(scale,scale); return {c,ctx,w:rect.width,h:rect.height}; }
-  function drawLine(id, data, label){ const o=prepCanvas(id); if(!o) return; const {ctx,w,h}=o; ctx.clearRect(0,0,w,h); ctx.fillStyle='#a9b7cc'; ctx.font='12px Arial'; if(data.length<2){ ctx.fillText('צריך לפחות שתי מדידות כדי לצייר גרף',16,28); return; } const pad=28; const ys=data.map(d=>d.y); let min=Math.min(...ys), max=Math.max(...ys); if(min===max){min-=1;max+=1} ctx.strokeStyle='#27364d'; ctx.lineWidth=1; for(let i=0;i<4;i++){ const y=pad+(h-pad*2)*i/3; ctx.beginPath(); ctx.moveTo(pad,y); ctx.lineTo(w-pad,y); ctx.stroke(); } ctx.strokeStyle='#64d2ff'; ctx.lineWidth=3; ctx.beginPath(); data.forEach((p,i)=>{ const x=pad+(w-pad*2)*i/(data.length-1); const y=h-pad-(p.y-min)/(max-min)*(h-pad*2); if(i) ctx.lineTo(x,y); else ctx.moveTo(x,y); }); ctx.stroke(); ctx.fillStyle='#f3f7ff'; ctx.fillText(`${label}: ${data.at(-1).y}`,pad,18); ctx.fillStyle='#a9b7cc'; ctx.fillText(String(min.toFixed(1)),4,h-pad); ctx.fillText(String(max.toFixed(1)),4,pad+4); }
+  function drawLine(id, data, label){
+    window.__chartPoints = window.__chartPoints || {};
+    const o=prepCanvas(id); if(!o) return; const {ctx,w,h}=o; ctx.clearRect(0,0,w,h);
+    ctx.fillStyle='#a9b7cc'; ctx.font='12px Arial';
+    if(data.length<2){ window.__chartPoints[id]=[]; ctx.fillText('צריך לפחות שתי מדידות כדי לצייר גרף',16,28); return; }
+    const pad=28; const ys=data.map(d=>d.y); let min=Math.min(...ys), max=Math.max(...ys); if(min===max){min-=1;max+=1;}
+    // X is positioned by ACTUAL DATE, not array index, so uneven gaps read honestly.
+    const ts=data.map(d=>new Date(d.x).getTime()); let tmin=Math.min(...ts), tmax=Math.max(...ts);
+    const xAt=(t,i)=> tmax===tmin ? pad+(w-pad*2)*i/(data.length-1) : pad+(w-pad*2)*(t-tmin)/(tmax-tmin);
+    ctx.strokeStyle='#27364d'; ctx.lineWidth=1; for(let i=0;i<4;i++){ const y=pad+(h-pad*2)*i/3; ctx.beginPath(); ctx.moveTo(pad,y); ctx.lineTo(w-pad,y); ctx.stroke(); }
+    const pts=data.map((p,i)=>({ x:xAt(ts[i],i), y:h-pad-(p.y-min)/(max-min)*(h-pad*2), date:p.x, value:p.y }));
+    window.__chartPoints[id]=pts;
+    ctx.strokeStyle='#64d2ff'; ctx.lineWidth=3; ctx.beginPath(); pts.forEach((p,i)=>{ if(i) ctx.lineTo(p.x,p.y); else ctx.moveTo(p.x,p.y); }); ctx.stroke();
+    ctx.fillStyle='#f3f7ff'; ctx.fillText(`${label}: ${data.at(-1).y}`,pad,18);
+    ctx.fillStyle='#a9b7cc'; ctx.font='10px Arial';
+    ctx.fillText(String(min.toFixed(1)),4,h-pad); ctx.fillText(String(max.toFixed(1)),4,pad+4);
+    // First/last date labels so the time axis is legible.
+    ctx.fillText(String(data[0].x).slice(5), pad, h-8); const last=String(data.at(-1).x).slice(5); ctx.fillText(last, w-pad-ctx.measureText(last).width, h-8);
+  }
   function drawBars(id,data,target){ const o=prepCanvas(id); if(!o) return; const {ctx,w,h}=o; ctx.clearRect(0,0,w,h); const pad=28; const max=Math.max(target, ...data.map(d=>d.y), 1); const bw=(w-pad*2)/data.length*.7; ctx.strokeStyle='#27364d'; ctx.lineWidth=1; ctx.beginPath(); const ty=h-pad-target/max*(h-pad*2); ctx.moveTo(pad,ty); ctx.lineTo(w-pad,ty); ctx.stroke(); ctx.fillStyle='#a9b7cc'; ctx.font='11px Arial'; ctx.fillText('יעד',pad,ty-4); data.forEach((p,i)=>{ const x=pad+(w-pad*2)*i/data.length + bw*.2; const bh=p.y/max*(h-pad*2); const y=h-pad-bh; const g=ctx.createLinearGradient(0,y,0,h-pad); g.addColorStop(0,'#64d2ff'); g.addColorStop(1,'#8fffbd'); ctx.fillStyle=g; ctx.fillRect(x,y,bw,bh); }); ctx.fillStyle='#f3f7ff'; ctx.font='12px Arial'; ctx.fillText('קלוריות ב־14 ימים אחרונים',pad,18); }
 
   function renderExercises(){
@@ -490,7 +542,7 @@
         <div class="legendGrid" id="guideGrid">${allGuides.map(g=>guideCard(g)).join('')}</div>
       </div>`;
     const search=root.querySelector('#exSearch');
-    search.oninput=()=>{ const q=search.value.trim(); root.querySelector('#guideGrid').innerHTML=allGuides.filter(g=>!q || (g.name+g.steps).includes(q)).map(g=>guideCard(g)).join('') || '<div class="card muted">לא נמצא תרגיל</div>'; };
+    search.oninput=()=>{ const q=search.value.trim().toLowerCase(); root.querySelector('#guideGrid').innerHTML=allGuides.filter(g=>!q || (g.name+' '+g.steps).toLowerCase().includes(q)).map(g=>guideCard(g)).join('') || '<div class="card muted">לא נמצא תרגיל</div>'; };
     root.querySelector('#clearSearch').onclick=()=>{search.value='';search.oninput();};
   }
   function guideCard(g){ return `<div class="legendCard"><div class="svgBox">${svgFor(g.icon)}</div><div><h3>${esc(g.name)}</h3><div class="steps">${esc(g.steps)}</div></div></div>`; }
@@ -573,11 +625,20 @@
       </div>`;
     root.querySelector('#saveSettings').onclick=()=>{ state.settings.calorieTarget=safeNum(val('setCal')); state.settings.proteinTarget=safeNum(val('setProtein')); state.settings.carbTarget=safeNum(val('setCarb')); state.settings.fatTarget=safeNum(val('setFat')); saveState(); toast('הגדרות נשמרו'); renderNutrition(); renderTracking(); };
     root.querySelector('#exportData').onclick=()=>{ const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`fitness-backup-${todayIso()}.json`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000); };
-    root.querySelector('#importFile').onchange=(ev)=>{ const file=ev.target.files[0]; if(!file) return; const r=new FileReader(); r.onload=()=>{ try{ const data=JSON.parse(r.result); if(!data.logs) throw new Error('invalid'); state=ensureStateShape(data); saveState(); toast('שוחזר מגיבוי'); render(); }catch(e){ alert('קובץ גיבוי לא תקין'); } }; r.readAsText(file); };
-    root.querySelector('#resetData').onclick=()=>{ if(confirm('לאפס את כל הנתונים המקומיים? כדאי לייצא גיבוי קודם.')){ state=structuredClone(defaultState); saveState(); render(); toast('אופס'); } };
+    root.querySelector('#importFile').onchange=(ev)=>{ const file=ev.target.files[0]; if(!file) return; if(file.size>20*1024*1024){ alert('הקובץ גדול מדי'); return; } const r=new FileReader(); r.onerror=()=>alert('שגיאה בקריאת הקובץ'); r.onload=()=>{ try{ const data=JSON.parse(r.result); if(!data || typeof data!=='object' || !('logs' in data)) throw new Error('invalid'); try{ localStorage.setItem(APP_KEY+'_prev', localStorage.getItem(APP_KEY)||JSON.stringify(state)); }catch(e){} state=ensureStateShape(data); saveState(); toast('שוחזר מגיבוי'); render(); }catch(e){ alert('קובץ גיבוי לא תקין'); } }; r.readAsText(file); };
+    root.querySelector('#resetData').onclick=()=>{ if(confirm('לאפס את כל הנתונים המקומיים? כדאי לייצא גיבוי קודם.')){ state=clone(defaultState); state.selectedDay=programPosition().dayIndex; saveState(); render(); toast('אופס'); } };
   }
 
-  document.querySelectorAll('.tab').forEach(tab=>tab.onclick=()=>{ document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active')); tab.classList.add('active'); document.querySelectorAll('.view').forEach(v=>v.classList.remove('active')); document.getElementById(tab.dataset.view).classList.add('active'); if(tab.dataset.view==='tracking') setTimeout(drawCharts,0); window.scrollTo({top:0,behavior:'smooth'}); });
+  document.querySelectorAll('.tab').forEach(tab=>tab.onclick=()=>{ document.querySelectorAll('.tab').forEach(t=>{t.classList.remove('active'); t.setAttribute('aria-selected','false');}); tab.classList.add('active'); tab.setAttribute('aria-selected','true'); document.querySelectorAll('.view').forEach(v=>v.classList.remove('active')); document.getElementById(tab.dataset.view).classList.add('active'); if(tab.dataset.view==='tracking') setTimeout(drawCharts,0); window.scrollTo({top:0,behavior:'smooth'}); });
+
+  // Redraw charts on resize/orientation change (only when the tracking tab is visible).
+  let _rsz=null;
+  function onResize(){ clearTimeout(_rsz); _rsz=setTimeout(()=>{ if(document.getElementById('tracking')?.classList.contains('active')) drawCharts(); },150); }
+  window.addEventListener('resize', onResize);
+  window.addEventListener('orientationchange', onResize);
+
+  // Open straight to today's scheduled workout (override still available via the day picker).
+  state.selectedDay = programPosition().dayIndex;
   render();
 })();
 </script>
