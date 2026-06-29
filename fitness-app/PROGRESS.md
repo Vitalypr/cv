@@ -28,11 +28,11 @@ Roadmap re-sequenced accordingly.
 | 2 | Logging UX (history, rest timer, prev hints, overload) | ✅ | 18/18 evals green (P2-PREVHINT, P2-HISTORY, P2-OVERLOAD, P2-RESTTIMER). F4 closed. |
 | 3 | Exercise media (bundled images) | ✅ | 22/22 evals green (P3-IMAGE, P3-ATTRIB, P3-FALLBACK + E-NOOVERFLOW). 31 CC BY-SA photos bundled. |
 | 4 | Stats (uPlot interactive, streaks, PRs) | ✅ | 25/25 evals green (P4-1RM, P4-STREAK, P4-PR). uPlot vendored. |
-| 5 | Samsung Health (Health Connect) | ⚠️ | Code-complete: Health bridge + Settings card + Capacitor config + handoff doc. 26/26 web evals green incl. P5-WEB-FALLBACK. On-device runtime unverified (no Android SDK). |
+| 5 | Samsung Health (Health Connect) | ⚠️ | APK builds green in CI and is statically verified (valid signed APK; manifest has READ_STEPS/READ_WEIGHT + healthdata queries + rationale intents; Health Connect SDK classes compiled in; web app+media bundled, byte-identical to the 26-eval source). Only on-device runtime (install + grant + sync) remains for the user. |
 | 2 | Logging UX (in-place, rest timer, history, overload) | ⬜ | |
 | 3 | Exercise media | ⬜ | |
 | 4 | Stats | ⬜ | |
-| 5 | Samsung Health (Health Connect) | ⚠️ | Code-complete: Health bridge + Settings card + Capacitor config + handoff doc. 26/26 web evals green incl. P5-WEB-FALLBACK. On-device runtime unverified (no Android SDK). |
+| 5 | Samsung Health (Health Connect) | ⚠️ | APK builds green in CI and is statically verified (valid signed APK; manifest has READ_STEPS/READ_WEIGHT + healthdata queries + rationale intents; Health Connect SDK classes compiled in; web app+media bundled, byte-identical to the 26-eval source). Only on-device runtime (install + grant + sync) remains for the user. |
 
 ## Environment
 
