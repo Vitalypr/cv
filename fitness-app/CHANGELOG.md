@@ -56,3 +56,12 @@ All notable changes to the fitness app. Newest first. Keep entries terse and use
   exercise picker in the tracking tab.
 - Workout streak (with single-day forgiveness), workouts-this-week metric, and a
   personal-records table (best lift + estimated 1RM per exercise).
+
+### Phase 5 — Samsung Health / Health Connect (code-complete + handoff)
+- Feature-detected health bridge + a Settings "חיבור ל‑Samsung Health" card to (in the
+  Android app) connect to Health Connect, pull steps/weight into body metrics, and push
+  completed workouts. On the web it degrades gracefully ("Android app only").
+- Capacitor scaffold: `capacitor.config.json`, `scripts/build-webdir.mjs` (clean web dir),
+  `build:web`/`cap:sync`/`cap:open` scripts, and `docs/ANDROID_HEALTH_CONNECT.md` handoff
+  (plugin, manifest permissions, privacy-policy activity, run + verify on device).
+- On-device build/runtime not performed in CI (no Android SDK); marked done-with-caveat.

@@ -9,11 +9,15 @@
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
     "eval": "playwright test --grep @eval",
+    "build:web": "node scripts/build-webdir.mjs",
+    "cap:sync": "npm run build:web && npx cap sync android",
+    "cap:open": "npx cap open android",
     "lint": "echo \"(lint configured in Phase 1)\" && exit 0",
     "typecheck": "echo \"(typecheck configured in Phase 1)\" && exit 0",
     "test": "echo \"(unit tests configured in Phase 1)\" && exit 0"
   },
   "devDependencies": {
     "@playwright/test": "1.56.1"
-  }
+  },
+  "comment:capacitor": "Android wrapper deps are installed on a machine with the Android SDK during the handoff (see docs/ANDROID_HEALTH_CONNECT.md): @capacitor/core @capacitor/cli @capacitor/android, plus a Health Connect plugin. They are intentionally NOT pinned here so `npm install` stays lightweight in CI/web dev."
 }

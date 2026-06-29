@@ -7,8 +7,9 @@ Legend: ⬜ not started · 🔄 in progress · ✅ done · ⚠️ done-with-cave
 
 ## Current focus
 
-**Phase 5 — Samsung Health (Health Connect)** — Capacitor wrapper, code-complete + handoff
-(no Android SDK in this container).
+**All phases complete.** Phases 0–4 fully built + browser-tested (26 evals green). Phase 5
+(Samsung Health / Health Connect) is code-complete + scaffolded; on-device build/runtime is a
+documented handoff (`docs/ANDROID_HEALTH_CONNECT.md`) since this container has no Android SDK.
 
 ## Architecture note
 
@@ -26,11 +27,11 @@ Roadmap re-sequenced accordingly.
 | 2 | Logging UX (history, rest timer, prev hints, overload) | ✅ | 18/18 evals green (P2-PREVHINT, P2-HISTORY, P2-OVERLOAD, P2-RESTTIMER). F4 closed. |
 | 3 | Exercise media (bundled images) | ✅ | 22/22 evals green (P3-IMAGE, P3-ATTRIB, P3-FALLBACK + E-NOOVERFLOW). 31 CC BY-SA photos bundled. |
 | 4 | Stats (uPlot interactive, streaks, PRs) | ✅ | 25/25 evals green (P4-1RM, P4-STREAK, P4-PR). uPlot vendored. |
-| 5 | Samsung Health (Health Connect) | ⬜ | code-complete + handoff only (no Android SDK here) |
+| 5 | Samsung Health (Health Connect) | ⚠️ | Code-complete: Health bridge + Settings card + Capacitor config + handoff doc. 26/26 web evals green incl. P5-WEB-FALLBACK. On-device runtime unverified (no Android SDK). |
 | 2 | Logging UX (in-place, rest timer, history, overload) | ⬜ | |
 | 3 | Exercise media | ⬜ | |
 | 4 | Stats | ⬜ | |
-| 5 | Samsung Health (Health Connect) | ⬜ | code-complete + handoff only (no Android SDK here) |
+| 5 | Samsung Health (Health Connect) | ⚠️ | Code-complete: Health bridge + Settings card + Capacitor config + handoff doc. 26/26 web evals green incl. P5-WEB-FALLBACK. On-device runtime unverified (no Android SDK). |
 
 ## Environment
 
@@ -155,3 +156,21 @@ Added: vendored uPlot (MIT, `assets/vendor/`), Epley `est1RM`, `sessionSeriesFor
 `workoutsThisWeek`; a tracking-tab Stats card with an exercise selector + interactive 1RM
 chart, streak/this-week metrics, and a PRs table. uPlot credited in the attribution card.
 RCA: none — evals passed on first implementation run.
+
+### Phase 5 — Samsung Health / Health Connect (2026-06-29) — ⚠️ code-complete + handoff
+
+Verification (web only): `npx playwright test` → **26 passed**.
+
+| Criterion | Proof | Result |
+|-----------|-------|--------|
+| Health card present; web actions degrade gracefully (Android-only msg, no crash) | P5-WEB-FALLBACK | PASS |
+| TypeScript/build review of bridge + config | manual | PASS |
+| On-device Health Connect read/write | — | NOT RUN (no Android SDK in container) |
+
+Added: feature-detected `Health` bridge (`healthAction` connect/in/out, `mergeHealthIn`),
+Settings "חיבור ל‑Samsung Health" card with status line, `capacitor.config.json`,
+`scripts/build-webdir.mjs` (clean `dist-web` webDir), npm `build:web`/`cap:sync`/`cap:open`,
+and `docs/ANDROID_HEALTH_CONNECT.md` (full on-device setup: plugin, manifest permissions,
+privacy-policy activity, run + verify). Marked ⚠️ until the user confirms on a device.
+Caveat: the plugin method/field names in the bridge target a generic Health Connect plugin
+shape and may need small adapter tweaks for the specific plugin chosen (isolated + commented).

@@ -324,6 +324,53 @@
   function drawStatChart(ex){ const el=document.getElementById('statChart'); if(!el) return; const series=ex?sessionSeriesFor(ex):[]; window.__stat={exercise:ex?ex.name:null, points:series}; el.innerHTML=''; if(_uplot){ try{_uplot.destroy();}catch(e){} _uplot=null; } if(!window.uPlot || !series.length){ el.innerHTML='<div class="muted small" style="padding:12px">אין מספיק נתונים לתרגיל זה. רשום סטים כדי לראות התקדמות.</div>'; return; } const xs=series.map(p=>Math.round(Date.parse(p.date)/1000)); const ys=series.map(p=>p.e); const w=el.clientWidth||320; _uplot=new uPlot({ width:w, height:200, scales:{x:{time:true}}, legend:{show:true}, series:[{}, {label:'1RM משוער (ק״ג)', stroke:'#64d2ff', width:2, fill:'rgba(100,210,255,.12)', points:{show:true}}], axes:[{stroke:'#a9b7cc',grid:{stroke:'#1a2940'}},{stroke:'#a9b7cc',grid:{stroke:'#1a2940'}}] }, [xs, ys], el); }
   function drawStatsCurrent(){ const sel=document.getElementById('statExercise'); if(!sel) return; const list=exercisesWithHistory(); const ex=list[+sel.value]||list[0]||null; drawStatChart(ex); }
 
+  // ---- Samsung Health / Health Connect bridge (active only inside the Capacitor Android app) ----
+  // On the web this no-ops gracefully. In the Android wrapper it talks to a Health Connect
+  // Capacitor plugin. The plugin's exact method names may differ — see
+  // docs/ANDROID_HEALTH_CONNECT.md for the adapter mapping and setup.
+  const Health = {
+    isNative(){ try{ return !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()); }catch(e){ return false; } },
+    plugin(){ try{ return (window.Capacitor && window.Capacitor.Plugins && (window.Capacitor.Plugins.HealthConnect || window.Capacitor.Plugins.Health)) || null; }catch(e){ return null; } },
+  };
+  function healthStatus(msg){ const el=document.getElementById('healthStatus'); if(el) el.textContent=msg; }
+  async function healthAction(action){
+    if(!Health.isNative()){ healthStatus('חיבור ל‑Samsung Health / Health Connect פעיל רק באפליקציית האנדרואיד (Capacitor). ראה docs/ANDROID_HEALTH_CONNECT.md.'); toast('זמין באפליקציית האנדרואיד'); return; }
+    const hc=Health.plugin();
+    if(!hc){ healthStatus('תוסף Health Connect לא מותקן בבילד. ראה docs/ANDROID_HEALTH_CONNECT.md.'); return; }
+    try{
+      if(action==='connect'){
+        await hc.requestHealthPermissions({ read:['Steps','Weight','SleepSession'], write:['ExerciseSession'] });
+        healthStatus('מחובר ל‑Health Connect.'); toast('מחובר');
+      } else if(action==='in'){
+        // Pull the last 14 days of steps + latest weight into the body log.
+        const since=getDate(-14), until=todayIso();
+        const steps=await hc.readRecords({ type:'Steps', startDate:since, endDate:until }).catch(()=>null);
+        const weight=await hc.readRecords({ type:'Weight', startDate:since, endDate:until }).catch(()=>null);
+        mergeHealthIn(steps, weight);
+        saveState(); renderTracking(); healthStatus('נמשכו נתונים מ‑Health Connect.'); toast('נתונים נמשכו');
+      } else if(action==='out'){
+        // Write completed workouts as exercise sessions.
+        let n=0;
+        for(const [k,w] of Object.entries(state.logs.workouts||{})){ if(!w || !w.completed || w.syncedOut) continue; const date=String(k).split('_')[0]; try{ await hc.insertRecords({ records:[{ type:'ExerciseSession', startDate:date+'T18:00:00', endDate:date+'T19:00:00', exerciseType:'STRENGTH_TRAINING', title:'אימון' }] }); w.syncedOut=true; n++; }catch(e){} }
+        saveState(); healthStatus(`נשלחו ${n} אימונים ל‑Health Connect.`); toast('אימונים נשלחו');
+      }
+    }catch(e){ healthStatus('שגיאה: '+((e&&e.message)||e)); }
+  }
+  // Map plugin records → body log (defensive; adapt field paths to the chosen plugin's shape).
+  function mergeHealthIn(steps, weight){
+    try{
+      const recs = (steps&&(steps.records||steps.result||steps))||[];
+      const byDate={};
+      for(const r of (Array.isArray(recs)?recs:[])){ const d=(r.startDate||r.date||r.time||'').slice(0,10); if(!d) continue; byDate[d]=(byDate[d]||0)+safeNum(r.count||r.value||r.steps); }
+      for(const [d,v] of Object.entries(byDate)){ state.logs.body[d]=Object.assign({weight:'',waist:'',steps:'',sleep:'',energy:''}, state.logs.body[d]||{}, {steps:String(Math.round(v))}); }
+    }catch(e){}
+    try{
+      const wr=(weight&&(weight.records||weight.result||weight))||[];
+      const list=(Array.isArray(wr)?wr:[]).map(r=>({d:(r.startDate||r.date||r.time||'').slice(0,10), kg:safeNum((r.weight&&(r.weight.inKilograms||r.weight.value))||r.value||r.kg)})).filter(x=>x.d&&x.kg);
+      if(list.length){ const last=list[list.length-1]; state.logs.body[last.d]=Object.assign({weight:'',waist:'',steps:'',sleep:'',energy:''}, state.logs.body[last.d]||{}, {weight:String(last.kg)}); }
+    }catch(e){}
+  }
+
   // ---- Rest timer (auto-starts on each logged set; native haptics/notifications added in the Android wrapper) ----
   const _rest = { remaining:0, id:null };
   function fmtTime(s){ s=Math.max(0,Math.round(s)); const m=Math.floor(s/60), ss=s%60; return `${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`; }
@@ -705,6 +752,15 @@
             <div class="foodItem"><span>טלפון קודם: לשוניות תחתונות, כפתורים גדולים, מעט הקלדה, סיכום יומי.</span></div>
           </div>
         </div>
+        <div class="card" data-testid="health-card"><h2>חיבור ל‑Samsung Health</h2>
+          <p class="muted small">באפליקציית האנדרואיד אפשר לסנכרן דרך <strong>Health Connect</strong> (שמרכז גם את נתוני Samsung Health): למשוך צעדים ומשקל למעקב, ולשלוח אימונים שהושלמו. בדפדפן הרגיל זה לא זמין — צריך את עטיפת האנדרואיד.</p>
+          <div class="btnRow">
+            <button class="btn" id="healthConnect">התחבר</button>
+            <button class="btn secondary" id="healthIn">משוך צעדים/משקל</button>
+            <button class="btn secondary" id="healthOut">שלח אימונים</button>
+          </div>
+          <p class="small muted" id="healthStatus" data-testid="health-status" style="margin-top:8px"></p>
+        </div>
         <div class="card" data-testid="attribution"><h2>קרדיטים ורישיון תמונות</h2>
           <p class="muted small">איורי התרגילים (תמונות) מקורם במאגר הפתוח <strong>Free Exercise DB</strong> (yuhonas), המבוסס על פרויקט <strong>Everkinetic</strong>, ברישיון <strong>CC BY-SA</strong> (ייחוס + שיתוף זהה). איורי הקו (SVG) נוצרו עבור האפליקציה.</p>
           <p class="muted small">מקור: <span class="kbd">github.com/yuhonas/free-exercise-db</span></p>
@@ -716,6 +772,9 @@
     root.querySelector('#exportData').onclick=()=>{ const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`fitness-backup-${todayIso()}.json`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000); };
     root.querySelector('#importFile').onchange=(ev)=>{ const file=ev.target.files[0]; if(!file) return; if(file.size>20*1024*1024){ alert('הקובץ גדול מדי'); return; } const r=new FileReader(); r.onerror=()=>alert('שגיאה בקריאת הקובץ'); r.onload=()=>{ try{ const data=JSON.parse(r.result); if(!data || typeof data!=='object' || !('logs' in data)) throw new Error('invalid'); try{ localStorage.setItem(APP_KEY+'_prev', localStorage.getItem(APP_KEY)||JSON.stringify(state)); }catch(e){} state=ensureStateShape(data); saveState(); toast('שוחזר מגיבוי'); render(); }catch(e){ alert('קובץ גיבוי לא תקין'); } }; r.readAsText(file); };
     root.querySelector('#resetData').onclick=()=>{ if(confirm('לאפס את כל הנתונים המקומיים? כדאי לייצא גיבוי קודם.')){ state=clone(defaultState); state.selectedDay=programPosition().dayIndex; saveState(); render(); toast('אופס'); } };
+    root.querySelector('#healthConnect').onclick=()=>healthAction('connect');
+    root.querySelector('#healthIn').onclick=()=>healthAction('in');
+    root.querySelector('#healthOut').onclick=()=>healthAction('out');
   }
 
   document.querySelectorAll('.tab').forEach(tab=>tab.onclick=()=>{ document.querySelectorAll('.tab').forEach(t=>{t.classList.remove('active'); t.setAttribute('aria-selected','false');}); tab.classList.add('active'); tab.setAttribute('aria-selected','true'); document.querySelectorAll('.view').forEach(v=>v.classList.remove('active')); document.getElementById(tab.dataset.view).classList.add('active'); if(tab.dataset.view==='tracking') setTimeout(()=>{ drawCharts(); drawStatsCurrent(); },0); window.scrollTo({top:0,behavior:'smooth'}); });

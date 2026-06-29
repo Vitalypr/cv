@@ -1,0 +1,11 @@
+{
+  "appId": "com.vitaly.fitness",
+  "appName": "אימונים",
+  "webDir": "dist-web",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}
