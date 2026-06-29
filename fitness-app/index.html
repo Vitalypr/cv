@@ -1,0 +1,585 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>תוכנית חיטוב וכוח 8 שבועות</title>
+  <style>
+    :root{
+      --bg:#070b12; --panel:#0f1724; --panel2:#121d2e; --soft:#1a2940; --line:#27364d;
+      --text:#f3f7ff; --muted:#a9b7cc; --accent:#64d2ff; --accent2:#8fffbd; --warn:#ffd166; --danger:#ff6b6b;
+      --radius:18px; --shadow:0 10px 30px rgba(0,0,0,.35); --tabH:78px;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,"Noto Sans Hebrew",sans-serif;}
+    body{padding-bottom:calc(var(--tabH) + env(safe-area-inset-bottom));}
+    button,input,select,textarea{font:inherit}
+    .app{max-width:960px;margin:0 auto;padding:14px 12px 96px;}
+    header{position:sticky;top:0;z-index:8;background:linear-gradient(180deg,rgba(7,11,18,.98),rgba(7,11,18,.88));backdrop-filter:blur(14px);padding:12px 4px 10px;border-bottom:1px solid rgba(255,255,255,.06)}
+    h1{font-size:22px;margin:0 0 5px;line-height:1.2}.sub{color:var(--muted);font-size:13px;line-height:1.4}.pillRow{display:flex;gap:8px;overflow:auto;padding:10px 0 0}.pill{border:1px solid var(--line);background:rgba(255,255,255,.04);border-radius:999px;padding:7px 10px;color:var(--muted);white-space:nowrap;font-size:12px}.pill strong{color:var(--text)}
+    .grid{display:grid;grid-template-columns:1fr;gap:12px;margin-top:12px}.card{background:linear-gradient(180deg,var(--panel),#0b1220);border:1px solid rgba(255,255,255,.07);box-shadow:var(--shadow);border-radius:var(--radius);padding:14px}.card h2{font-size:18px;margin:0 0 10px}.card h3{font-size:15px;margin:14px 0 8px;color:#dce8ff}.muted{color:var(--muted)}.small{font-size:12px}.big{font-size:28px;font-weight:800;letter-spacing:.2px}.metricGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.metric{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:12px}.metric .label{color:var(--muted);font-size:12px}.metric .value{font-size:22px;font-weight:800;margin-top:5px}.metric .hint{font-size:11px;color:var(--muted);margin-top:3px}
+    .sectionTitle{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:16px 0 8px}.tag{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:4px 8px;background:rgba(100,210,255,.11);color:#bceeff;border:1px solid rgba(100,210,255,.25);font-size:12px}.tag.green{background:rgba(143,255,189,.10);color:#d9ffe9;border-color:rgba(143,255,189,.22)}.tag.warn{background:rgba(255,209,102,.10);color:#ffe8ad;border-color:rgba(255,209,102,.25)}
+    .btn{border:0;background:linear-gradient(135deg,var(--accent),#7a8cff);color:#06101d;border-radius:14px;padding:10px 12px;font-weight:800;box-shadow:0 8px 18px rgba(100,210,255,.18);cursor:pointer}.btn.secondary{background:#1c2b42;color:var(--text);box-shadow:none;border:1px solid var(--line)}.btn.ghost{background:transparent;color:var(--accent);border:1px solid rgba(100,210,255,.32);box-shadow:none}.btn.danger{background:rgba(255,107,107,.15);color:#ffd1d1;border:1px solid rgba(255,107,107,.3);box-shadow:none}.btn:active{transform:translateY(1px)}.btnRow{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.iconBtn{width:36px;height:36px;border-radius:12px;background:var(--panel2);border:1px solid var(--line);color:var(--text)}
+    .tabs{position:fixed;left:0;right:0;bottom:0;height:calc(var(--tabH) + env(safe-area-inset-bottom));background:rgba(9,14,23,.92);backdrop-filter:blur(18px);border-top:1px solid rgba(255,255,255,.1);display:flex;justify-content:center;z-index:20;padding-bottom:env(safe-area-inset-bottom)}.tabbar{max-width:960px;width:100%;display:grid;grid-template-columns:repeat(6,1fr);gap:0}.tab{appearance:none;border:0;background:transparent;color:var(--muted);font-size:11px;padding:8px 2px 6px;display:flex;flex-direction:column;align-items:center;gap:4px}.tab .ico{font-size:20px;line-height:1}.tab.active{color:var(--accent)}.view{display:none}.view.active{display:block}.twoCol{display:grid;grid-template-columns:1fr;gap:12px}@media(min-width:720px){.twoCol{grid-template-columns:1fr 1fr}.metricGrid{grid-template-columns:repeat(4,1fr)}}
+    .workoutDay{border:1px solid var(--line);background:rgba(255,255,255,.035);border-radius:16px;padding:12px;margin:10px 0}.workoutHead{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}.exercise{display:grid;grid-template-columns:1fr auto;gap:8px;padding:10px 0;border-top:1px solid rgba(255,255,255,.06)}.exercise:first-of-type{border-top:0}.exName{font-weight:750}.exMeta{color:var(--muted);font-size:12px;margin-top:2px}.check{width:26px;height:26px;border-radius:8px;border:1px solid var(--line);background:#111b2b;color:transparent}.check.done{background:linear-gradient(135deg,var(--accent2),var(--accent));color:#06101d;border:0}.setLog{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:6px;margin-top:8px}.setLog input{width:100%;background:#0b1320;border:1px solid var(--line);color:var(--text);border-radius:10px;padding:8px}.setLog label{font-size:11px;color:var(--muted);display:block;margin-bottom:4px}.input,textarea,select{width:100%;background:#0b1320;border:1px solid var(--line);color:var(--text);border-radius:13px;padding:11px 12px;outline:none}textarea{min-height:86px;resize:vertical}.formGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.formGrid.three{grid-template-columns:1fr 1fr 1fr}.formGrid .wide{grid-column:1/-1}.divider{height:1px;background:rgba(255,255,255,.08);margin:12px 0}.meal{background:rgba(255,255,255,.035);border:1px solid var(--line);border-radius:16px;padding:12px;margin:10px 0}.meal h3{margin:0 0 8px}.foodList{display:grid;gap:8px}.foodItem{display:flex;justify-content:space-between;gap:8px;padding:8px;border-radius:12px;background:rgba(0,0,0,.16);border:1px solid rgba(255,255,255,.05)}.progressWrap{height:12px;background:#0a111d;border:1px solid var(--line);border-radius:999px;overflow:hidden}.progressBar{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));width:0%}.chartBox{height:220px;background:#09111d;border:1px solid var(--line);border-radius:16px;padding:10px}.chartBox canvas{width:100%;height:100%}.legendGrid{display:grid;gap:10px}.legendCard{display:grid;grid-template-columns:98px 1fr;gap:12px;align-items:center;background:rgba(255,255,255,.035);border:1px solid var(--line);border-radius:16px;padding:10px}.svgBox{height:90px;background:#07101c;border-radius:14px;border:1px solid rgba(255,255,255,.06);display:grid;place-items:center;overflow:hidden}.svgBox svg{width:94px;height:82px}.steps{font-size:12px;color:var(--muted);line-height:1.5;margin-top:4px}.searchRow{display:flex;gap:8px}.searchRow input{flex:1}.table{width:100%;border-collapse:collapse;font-size:12px}.table th,.table td{border-bottom:1px solid rgba(255,255,255,.07);padding:9px 6px;text-align:right;vertical-align:top}.table th{color:var(--muted);font-weight:600}.kbd{font-family:ui-monospace,Menlo,monospace;background:#08101b;border:1px solid var(--line);border-radius:8px;padding:2px 6px;color:#d6e8ff}.ok{color:var(--accent2)}.warnText{color:var(--warn)}.dangerText{color:var(--danger)}.toast{position:fixed;left:50%;bottom:calc(var(--tabH) + 20px);transform:translateX(-50%);background:#13233a;border:1px solid var(--line);color:var(--text);border-radius:999px;padding:10px 14px;box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:.25s;z-index:50}.toast.show{opacity:1}.dayPicker{display:flex;gap:8px;overflow:auto;padding:4px 0 8px}.dayChip{border:1px solid var(--line);background:#0f1724;color:var(--muted);border-radius:999px;padding:8px 11px;white-space:nowrap}.dayChip.active{background:rgba(100,210,255,.13);color:var(--accent);border-color:rgba(100,210,255,.4)}.swatch{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--accent);margin-left:4px}.macroRow{display:grid;grid-template-columns:86px 1fr 52px;gap:8px;align-items:center;margin:9px 0}.macroRow span{font-size:12px;color:var(--muted)}.hidden{display:none!important}.installNote{font-size:12px;color:var(--muted);line-height:1.5}.manualTag{display:inline-block;margin-right:6px;border:1px solid rgba(255,209,102,.35);background:rgba(255,209,102,.11);color:#ffe8ad;border-radius:999px;padding:2px 7px;font-size:11px}.inlineNote{font-size:11px;color:var(--muted);margin-top:6px;line-height:1.45}.footerSpace{height:30px}.rtlNum{direction:ltr;unicode-bidi:embed}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>תוכנית חיטוב וכוח — 8 שבועות</h1>
+      <div class="sub">אפליקציה מקומית לטלפון: אימונים, תזונה, מעקב, גיבוי ושחזור. הנתונים נשמרים רק בדפדפן שלך.</div>
+      <div class="pillRow">
+        <div class="pill">משקל פתיחה: <strong>77 ק״ג</strong></div>
+        <div class="pill">יעד: <strong>72–73 ק״ג</strong></div>
+        <div class="pill">חלבון: <strong>150–170 גרם</strong></div>
+        <div class="pill">קלוריות: <strong>2,200–2,300</strong></div>
+        <div class="pill">אימונים: <strong>5 כוח + קרדיו</strong></div>
+      </div>
+    </header>
+
+    <main>
+      <section id="daily" class="view active"></section>
+      <section id="weekly" class="view"></section>
+      <section id="nutrition" class="view"></section>
+      <section id="tracking" class="view"></section>
+      <section id="exercises" class="view"></section>
+      <section id="settings" class="view"></section>
+    </main>
+  </div>
+
+  <nav class="tabs" aria-label="ניווט">
+    <div class="tabbar">
+      <button class="tab active" data-view="daily"><span class="ico">🏋️</span><span>יומי</span></button>
+      <button class="tab" data-view="weekly"><span class="ico">📅</span><span>שבועי</span></button>
+      <button class="tab" data-view="nutrition"><span class="ico">🍽️</span><span>תזונה</span></button>
+      <button class="tab" data-view="tracking"><span class="ico">📈</span><span>מעקב</span></button>
+      <button class="tab" data-view="exercises"><span class="ico">📚</span><span>מקרא</span></button>
+      <button class="tab" data-view="settings"><span class="ico">⚙️</span><span>גיבוי</span></button>
+    </div>
+  </nav>
+  <div id="toast" class="toast">נשמר</div>
+
+<script>
+(function(){
+  const APP_KEY = 'vitaly_fitness_app_v1';
+  const todayIso = () => new Date().toISOString().slice(0,10);
+  const dayNames = ['יום א׳','יום ב׳','יום ג׳','יום ד׳','יום ה׳','יום ו׳','שבת'];
+  const startDate = '2026-06-29';
+
+  const plan = {
+    profile: { age:37, height:172, startWeight:77, targetWeight:72.5, startWaist:'91–95', targetWaist:'ירידה 4–7 ס״מ', protein:'150–170g', calories:'2200–2300' },
+    weekNotes: [
+      'שבוע 1: כניסה חזקה אבל מדורגת. לא כשל בכל סט.',
+      'שבועות 2–3: להוסיף חזרות או משקל בהדרגה.',
+      'שבוע 4: שבוע חזק, ניסיון שיפור ביצועים.',
+      'שבוע 5: הורדת עומס 20–30% בנפח.',
+      'שבועות 6–7: הבלוק החזק ביותר.',
+      'שבוע 8: סיום חזק + בדיקות ביצוע, בלי פציעה.'
+    ],
+    days: [
+      { id:'d1', title:'יום 1 — Push + Bench כבד', focus:'חזה, כתפיים, יד אחורית, ליבה', cardio:'Zone 2 — 30–40 דקות', notes:'בנץ׳ כבד יחסית, 1–2 חזרות ברזרבה. לא מקסימום.', exercises:[
+        ex('Bench Press','חזה','5','5–8','כבד מבוקר','bench'),
+        ex('מקבילים','חזה/יד אחורית','3','5–10','לא כשל בסטים הראשונים','dips'),
+        ex('לחיצת כתפיים עם דאמבלים','כתפיים','3','8–12','גב יציב, לא להקשית','dbpress'),
+        ex('שכיבות סמיכה','חזה','2–3','12–25','אפשר סט אחרון קרוב לכשל','pushup'),
+        ex('הרחקות כתפיים לצדדים','כתפיים','3','12–20','תנועה איטית, בלי תנופה','lateral'),
+        ex('פשיטת יד אחורית מעל הראש','יד אחורית','3','10–15','מרפקים יציבים','triceps'),
+        ex('Goblet Squat קל','רגליים','2','12–15','רק תחזוקה, לא כבד','squat'),
+        ex('תאומים בעמידה','רגליים','3','15–25','עצירה קצרה למעלה','calves'),
+        ex('פלאנק','ליבה','3','30–60 שנ׳','אגן יציב, בטן אסופה','plank'),
+        ex('Dead Bug','ליבה','3','10 לכל צד','גב תחתון צמוד למזרון','deadbug')
+      ]},
+      { id:'d2', title:'יום 2 — Pull + Bench קל', focus:'גב, מתח, יד קדמית, ליבה', cardio:'Zone 2 — 35–45 דקות', notes:'בנץ׳ קל לטכניקה והזרמת דם, 60–70% מיום 1.', exercises:[
+        ex('Bench Press קל/טכני','חזה','3','10–12','קל־בינוני, בלי מלחמה','bench'),
+        ex('מתח','גב','5','4–8','1–2 חזרות ברזרבה','pullup'),
+        ex('חתירה יד אחת עם דאמבל','גב','4','8–12 לכל צד','כתף לא עולה לאוזן','row'),
+        ex('חתירה עם שני דאמבלים','גב','3','10–12','גב ניטרלי','row2'),
+        ex('Pullover עם דאמבל','גב/חזה','3','10–15','טווח נוח לכתפיים','pullover'),
+        ex('Y Raises / Face Pull עם גומייה','גב עליון','3','12–20','שכמות אחורה ולמטה','yraise'),
+        ex('כפיפת מרפקים','יד קדמית','3','10–15','בלי תנופה','curl'),
+        ex('Hammer Curl','יד קדמית','2','10–15','אחיזה ניטרלית','hammercurl'),
+        ex('גשר ישבן','רגליים','3','15–20','כיווץ ישבן למעלה','glute'),
+        ex('הרמות ברכיים','ליבה','3','8–15','בלי תנופה','legraise'),
+        ex('Side Plank','ליבה','3','20–45 שנ׳ לכל צד','גוף בקו ישר','sideplank')
+      ]},
+      { id:'d3', title:'יום 3 — Upper Volume + אינטרוולים', focus:'נפח פלג גוף עליון, חזה, גב, ידיים', cardio:'אינטרוולים — 8×30 שנ׳ חזק / 90 שנ׳ קל', notes:'אימון פאמפ, לא להעמיס כבד כמו יום 1.', exercises:[
+        ex('Incline Dumbbell Press','חזה עליון','4','8–12','שיפוע מתון, שליטה','incline'),
+        ex('Bench Press נפח בינוני','חזה','3','8–10','משקל בינוני, טכניקה נקייה','bench'),
+        ex('מתח באחיזה נוחה','גב','4','4–8','אפשר Chin-up','pullup'),
+        ex('חתירה עם דאמבלים','גב','3','10–15','קצב מבוקר','row2'),
+        ex('הרחקות כתפיים לצדדים','כתפיים','4','15–25','שריפה מבוקרת','lateral'),
+        ex('כפיפת מרפקים','יד קדמית','3','12–15','שליטה מלאה','curl'),
+        ex('פשיטת יד אחורית','יד אחורית','3','10–15','תנועה מלאה','triceps'),
+        ex('Step-ups נמוכים','רגליים','2','10 לכל רגל','קל, יציב','stepup'),
+        ex('Reverse Crunch','ליבה','3','12–20','להרים אגן, לא למשוך צוואר','reverse'),
+        ex('פלאנק עם נגיעות כתף','ליבה','3','10 לכל צד','אגן לא זז','planktap')
+      ]},
+      { id:'d4', title:'יום 4 — Push/Pull + ידיים', focus:'מעורב, ידיים, חזה וגב', cardio:'Zone 2 — 30–45 דקות', notes:'בנץ׳ אחיזה צרה: עובד חזה ויד אחורית, פחות כבד.', exercises:[
+        ex('Close Grip Bench Press','חזה/יד אחורית','3–4','8–10','אחיזה מעט צרה, מרפקים בשליטה','closebench'),
+        ex('מקבילים','חזה/יד אחורית','3','5–10','אם מרגיש כבד — להוריד סט','dips'),
+        ex('מתח','גב','4','4–8','לא כשל מוקדם','pullup'),
+        ex('לחיצת כתפיים עם דאמבלים','כתפיים','3','8–12','בינוני, לא כבד מדי','dbpress'),
+        ex('חתירה יד אחת','גב','3','10–12 לכל צד','עצירה קצרה למעלה','row'),
+        ex('שכיבות סמיכה','חזה','2','15–25','פינישר קל','pushup'),
+        ex('סופר־סט: יד קדמית + יד אחורית','ידיים','3','10–15 כל אחד','מנוחה קצרה','arms'),
+        ex('Romanian Deadlift קל עם דאמבלים','רגליים/גב אחורי','2','10–12','גב ניטרלי, קל בלבד','rdl'),
+        ex('Suitcase Carry','ליבה','3','30–60 שנ׳ לכל צד','הליכה עם דאמבל ביד אחת','carry'),
+        ex('כפיפות בטן איטיות','ליבה','3','15–20','תנועה איטית','crunch')
+      ]},
+      { id:'d5', title:'יום 5 — Upper Strength + Conditioning', focus:'חזק אבל נקי, חזה/גב/כתפיים', cardio:'קל — 25–35 דקות', notes:'יום חזק. לא לעשות אינטרוולים אחרי האימון הזה.', exercises:[
+        ex('Bench Press נפח/כוח','חזה','4','6–10','קשה אבל בלי כשל','bench'),
+        ex('מתח','גב','5','3–7','איכות לפני כמות','pullup'),
+        ex('חתירה כבדה עם דאמבל','גב','4','6–10 לכל צד','משקל יחסית כבד','row'),
+        ex('מקבילים','חזה/יד אחורית','3','5–10','לא אם הכתפיים עייפות','dips'),
+        ex('לחיצת כתפיים','כתפיים','3','6–10','בינוני־כבד','dbpress'),
+        ex('Farmer Walk','אחיזה/ליבה','4','30–60 שנ׳','דאמבלים כבדים, גב זקוף','farmer'),
+        ex('Curl + Triceps Superset','ידיים','2–3','10–15','סיום ידיים','arms'),
+        ex('Goblet Squat קל־בינוני','רגליים','3','10–15','תחזוקה','squat'),
+        ex('Hanging Knee Raise','ליבה','3','8–15','שליטה, בלי תנופה','legraise'),
+        ex('פלאנק','ליבה','3','45–75 שנ׳','בטן חזקה','plank')
+      ]},
+      { id:'d6', title:'יום 6 — קרדיו ארוך + מוביליטי', focus:'שריפת שומן, התאוששות, תנועה', cardio:'Zone 2 — 45–60 דקות', notes:'אין כוח. הליכון/אופניים/הליכה בחוץ. לסיים עם 10–15 דקות מתיחות.', exercises:[
+        ex('הליכון בשיפוע קל / אופניים','קרדיו','1','45–60 דק׳','דיבור במשפטים קצרים','cardio'),
+        ex('מתיחות ירך אחורית','מוביליטי','2','45 שנ׳ לכל צד','בלי כאב','stretch'),
+        ex('מתיחות חזה וכתפיים','מוביליטי','2','45 שנ׳','נשימות רגועות','stretch2'),
+        ex('נשימות והרפיה','התאוששות','1','3–5 דק׳','להוריד דופק','breath')
+      ]},
+      { id:'d7', title:'יום 7 — התאוששות אקטיבית', focus:'צעדים, שחרור, בדיקת מצב', cardio:'הליכה קלה 20–40 דקות לפי תחושה', notes:'אם עייף — יום התאוששות אמיתי. אם מרגיש טוב — אופניים קל.', exercises:[
+        ex('הליכה קלה','קרדיו','1','20–40 דק׳','קל מאוד','walk'),
+        ex('מוביליטי כללי','מוביליטי','1','10–15 דק׳','גב, חזה, ירכיים','stretch'),
+        ex('בדיקת התאוששות','מעקב','1','2 דק׳','שינה, כאבים, חשק להתאמן','checkin')
+      ]}
+    ]
+  };
+
+  function ex(name, muscle, sets, reps, note, icon){ return {name,muscle,sets,reps,note,icon}; }
+  function esc(v){ return String(v ?? '').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function getDayExercises(day){ return [...day.exercises, ...((state?.customExercises?.[day.id]) || [])]; }
+  function customExerciseFromForm(root){
+    return {
+      id: uid(), custom:true, icon:'custom',
+      name: root.querySelector('#customName')?.value.trim() || '',
+      muscle: root.querySelector('#customMuscle')?.value.trim() || 'מותאם אישית',
+      sets: root.querySelector('#customSets')?.value.trim() || '3',
+      reps: root.querySelector('#customReps')?.value.trim() || '8–12',
+      targetWeight: root.querySelector('#customWeight')?.value.trim() || '',
+      rest: root.querySelector('#customRest')?.value.trim() || '',
+      targetRpe: root.querySelector('#customRpe')?.value.trim() || '',
+      note: root.querySelector('#customNote')?.value.trim() || 'תרגיל ידני'
+    };
+  }
+  function setCustomForm(root, e, idx=''){
+    root.querySelector('#customEditIndex').value = idx;
+    root.querySelector('#customName').value = e?.name || '';
+    root.querySelector('#customMuscle').value = e?.muscle || '';
+    root.querySelector('#customSets').value = e?.sets || '';
+    root.querySelector('#customReps').value = e?.reps || '';
+    root.querySelector('#customWeight').value = e?.targetWeight || '';
+    root.querySelector('#customRest').value = e?.rest || '';
+    root.querySelector('#customRpe').value = e?.targetRpe || '';
+    root.querySelector('#customNote').value = e?.note || '';
+    const btn=root.querySelector('#addCustomExercise'); if(btn) btn.textContent = idx!=='' ? 'שמור שינוי בתרגיל' : 'הוסף תרגיל לאימון זה';
+  }
+
+  const exerciseGuide = [
+    guide('Bench Press','bench','שכב על הספסל, שכמות אחורה ולמטה, כפות רגליים יציבות. הורד את המוט לחזה בשליטה ולחץ למעלה בקו יציב. אל תרים אגן ואל תעשה מקסימום לבד.'),
+    guide('Close Grip Bench Press','closebench','כמו בנץ׳ רגיל אבל אחיזה מעט צרה יותר. שמור מרפקים בשליטה. מתאים ליד אחורית וחזה, לא כבד מדי.'),
+    guide('Incline Dumbbell Press','incline','ספסל בשיפוע מתון. דאמבלים יורדים לצד החזה העליון, ואז לוחצים למעלה בלי לנעול כתפיים בכוח.'),
+    guide('מקבילים','dips','התחל ממרפקים ישרים, רד עד שליטה סביב 90 מעלות, עלה בלי קפיצה. אם הכתף מציקה — עצור מוקדם יותר.'),
+    guide('שכיבות סמיכה','pushup','גוף בקו ישר, ידיים מתחת לקו החזה, ירידה בשליטה, עלייה מלאה. בטן מכווצת כדי לא לשקוע בגב.'),
+    guide('לחיצת כתפיים עם דאמבלים','dbpress','ישיבה או עמידה יציבה. דאמבלים מתחילים בגובה כתפיים, לחיצה למעלה בלי הקשתה בגב.'),
+    guide('הרחקות כתפיים לצדדים','lateral','מרפק מעט כפוף, הרמה עד גובה כתפיים. משקל קל, בלי תנופה ובלי למשוך עם הטרפז.'),
+    guide('מתח','pullup','התחל מתלייה יציבה. משוך חזה לכיוון המוט, סנטר עובר, ירידה כמעט מלאה. בלי בעיטות ותנופה.'),
+    guide('חתירה יד אחת עם דאמבל','row','יד וברך/יד על ספסל. גב ניטרלי, משוך מרפק לאחור לכיוון המותן, הורד בשליטה.'),
+    guide('חתירה עם שני דאמבלים','row2','כפיפה קדימה עם גב ניטרלי. משוך שני דאמבלים לכיוון הגוף, שכמות אחורה, בלי לזרוק משקל.'),
+    guide('Pullover עם דאמבל','pullover','שכיבה על ספסל, דאמבל מעל החזה. הורד מאחורי הראש בטווח נוח ולחץ חזרה. לא למתוח כתף בכאב.'),
+    guide('Y Raises / Face Pull','yraise','משקל קל מאוד. הרם ידיים בצורת Y או משוך גומייה לפנים. המטרה היא גב עליון ושכמות, לא אגו.'),
+    guide('כפיפת מרפקים','curl','מרפקים קרובים לגוף, עלייה בלי תנופה, ירידה איטית. עצור אם המרפק מציק.'),
+    guide('Hammer Curl','hammercurl','אחיזה ניטרלית כמו פטיש. עובד יד קדמית ואמה. שמור כתף יציבה.'),
+    guide('פשיטת יד אחורית','triceps','דאמבל/מוט קצר. מרפקים קבועים, פשיטה בשליטה. לא להעמיס אם מרפקים כואבים.'),
+    guide('Goblet Squat','squat','דאמבל מול החזה. ירידה עם ברכיים החוצה, גב ניטרלי, עלייה דרך העקבים. אצלך זה תחזוקה, לא כבד.'),
+    guide('Step-ups','stepup','עלה למדרגה נמוכה עם רגל אחת, שלוט בירידה. לא לדחוף חזק מהרגל האחורית.'),
+    guide('Romanian Deadlift קל','rdl','דאמבלים ליד הגוף, ברכיים מעט כפופות, דחוף אגן לאחור, גב ניטרלי. תרגיש ירך אחורית, לא גב תחתון.'),
+    guide('גשר ישבן','glute','שכב על הגב, כפות רגליים על הרצפה, הרם אגן וכווץ ישבן. עצירה קצרה למעלה.'),
+    guide('תאומים בעמידה','calves','עלה על קצות האצבעות, עצור למעלה, רד לאט. אפשר להחזיק דאמבלים.'),
+    guide('פלאנק','plank','מרפקים מתחת לכתפיים, גוף בקו ישר, בטן אסופה. לא לשקוע בגב ולא להרים אגן גבוה מדי.'),
+    guide('Side Plank','sideplank','מרפק מתחת לכתף, גוף בקו ישר. שמור אגן גבוה ובטן אסופה.'),
+    guide('Dead Bug','deadbug','שכב על הגב, גב תחתון צמוד למזרון. הורד יד ורגל נגדית באיטיות וחזור. איכות לפני כמות.'),
+    guide('הרמות ברכיים / רגליים','legraise','בתלייה או בשכיבה. הרם ברכיים/רגליים בשליטה בלי תנופה. אם הגב מתנתק מדי — כופף ברכיים.'),
+    guide('Reverse Crunch','reverse','שכב על הגב, הרם אגן קלות לכיוון החזה. לא לבעוט רגליים ולא למשוך צוואר.'),
+    guide('Suitcase Carry','carry','דאמבל כבד ביד אחת. הליכה איטית, גוף ישר, לא להישען לצד. תרגיל ליבה מצוין.'),
+    guide('Farmer Walk','farmer','דאמבל בכל יד, גב זקוף, הליכה בשליטה. עובד אחיזה, גב וליבה.'),
+    guide('אינטרוולים אופניים/הליכון','cardio','חימום 5 דקות. 30 שניות חזק, 90 שניות קל, 8 סבבים. קשה אבל לא הרסני.'),
+    guide('Zone 2','walk','קצב שבו אפשר לדבר במשפטים קצרים. רוב הקרדיו שלך יהיה כאן כדי לשמור על שריר ולהוריד שומן.'),
+    guide('מתיחות ומוביליטי','stretch','מתיחה נעימה בלי כאב חד. נשימה רגועה. 30–60 שניות לכל אזור.')
+  ];
+  function guide(name, icon, steps){ return {name, icon, steps}; }
+
+  const defaultState = {
+    meta:{ createdAt:new Date().toISOString(), version:1 },
+    selectedDay:0,
+    logs:{ workouts:{}, nutrition:{}, body:{}, performance:{} },
+    customExercises:{},
+    settings:{ calorieTarget:2250, proteinTarget:160, carbTarget:220, fatTarget:65, waterTarget:2.5 }
+  };
+  let state = loadState();
+
+  function ensureStateShape(raw){
+    const base = structuredClone(defaultState);
+    const merged = Object.assign(base, raw || {});
+    merged.logs = Object.assign(structuredClone(defaultState.logs), raw?.logs || {});
+    merged.logs.workouts = raw?.logs?.workouts || {};
+    merged.logs.nutrition = raw?.logs?.nutrition || {};
+    merged.logs.body = raw?.logs?.body || {};
+    merged.logs.performance = raw?.logs?.performance || {};
+    merged.customExercises = raw?.customExercises || {};
+    merged.settings = Object.assign(structuredClone(defaultState.settings), raw?.settings || {});
+    return merged;
+  }
+  function loadState(){
+    try{ return ensureStateShape(JSON.parse(localStorage.getItem(APP_KEY) || '{}')); }
+    catch(e){ return structuredClone(defaultState); }
+  }
+  function saveState(){ localStorage.setItem(APP_KEY, JSON.stringify(state)); }
+  function toast(msg='נשמר'){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),1600); }
+  function uid(){ return Math.random().toString(36).slice(2)+Date.now().toString(36); }
+  function getDate(offset=0){ const d=new Date(); d.setDate(d.getDate()+offset); return d.toISOString().slice(0,10); }
+  function safeNum(v){ const n=parseFloat(v); return Number.isFinite(n)?n:0; }
+
+  function render(){ renderDaily(); renderWeekly(); renderNutrition(); renderTracking(); renderExercises(); renderSettings(); }
+
+  function renderDaily(){
+    const root = document.getElementById('daily');
+    const d = plan.days[state.selectedDay] || plan.days[0];
+    const exercises = getDayExercises(d);
+    const customForDay = state.customExercises[d.id] || [];
+    const logKey = todayIso()+'_'+d.id;
+    const dayLog = state.logs.workouts[logKey] || { done:{}, sets:[], notes:'', cardioDone:false, completed:false };
+    root.innerHTML = `
+      <div class="grid">
+        <div class="card">
+          <div class="sectionTitle"><h2>אימון יומי</h2><span class="tag">${todayIso()}</span></div>
+          <div class="dayPicker">${plan.days.map((x,i)=>`<button class="dayChip ${i===state.selectedDay?'active':''}" data-day="${i}">${i+1}. ${x.title.split('—')[0].trim()}</button>`).join('')}</div>
+          <h2>${d.title}</h2>
+          <p class="muted">${d.focus}</p>
+          <div class="metricGrid">
+            <div class="metric"><div class="label">קרדיו</div><div class="value" style="font-size:16px">${d.cardio}</div></div>
+            <div class="metric"><div class="label">דגש</div><div class="value" style="font-size:16px">${d.notes}</div></div>
+          </div>
+          <div class="btnRow">
+            <button class="btn" id="completeWorkout">סמן אימון הושלם</button>
+            <button class="btn secondary" id="copyToday">העתק סיכום יום</button>
+          </div>
+        </div>
+        <div class="card">
+          <h2>תרגילים</h2>
+          ${exercises.map((e,idx)=>exerciseRow(e,idx,dayLog.done[idx])).join('')}
+        </div>
+        <div class="card">
+          <h2>הוסף / ערוך תרגיל ידני לאימון הזה</h2>
+          <p class="muted small">מיועד למקרה שהחלטת להחליף או להוסיף תרגיל. התרגיל יישמר לאימון הנבחר, יופיע בתוכנית השבועית, בלוג הסטים ובמקרא התרגילים.</p>
+          <input type="hidden" id="customEditIndex" value="">
+          <div class="formGrid two">
+            <div class="wide"><label class="small muted">שם תרגיל</label><input id="customName" class="input" placeholder="לדוגמה: Dumbbell Fly / חתירה בשיפוע"></div>
+            <div><label class="small muted">קבוצת שריר</label><input id="customMuscle" class="input" placeholder="חזה / גב / ליבה..."></div>
+            <div><label class="small muted">סטים</label><input id="customSets" class="input" placeholder="לדוגמה 3 או 3–4"></div>
+            <div><label class="small muted">חזרות / זמן</label><input id="customReps" class="input" placeholder="8–12 / 45 שנ׳ / 30 דק׳"></div>
+            <div><label class="small muted">משקל יעד / עומס</label><input id="customWeight" class="input" placeholder="20 ק״ג / קל / משקל גוף"></div>
+            <div><label class="small muted">מנוחה</label><input id="customRest" class="input" placeholder="60–90 שנ׳"></div>
+            <div><label class="small muted">RPE יעד</label><input id="customRpe" class="input" placeholder="7–9"></div>
+            <div class="wide"><label class="small muted">הערות ודגשי ביצוע</label><textarea id="customNote" placeholder="מה חשוב בתרגיל, למה הוספת אותו, איך לבצע בזהירות"></textarea></div>
+          </div>
+          <div class="btnRow"><button class="btn" id="addCustomExercise">הוסף תרגיל לאימון זה</button><button class="btn secondary" id="clearCustomForm">נקה טופס</button></div>
+          <div class="divider"></div>
+          <h3>תרגילים ידניים באימון הזה</h3>
+          <table class="table"><thead><tr><th>תרגיל</th><th>פרמטרים</th><th></th></tr></thead><tbody>${customForDay.map((e,i)=>`<tr><td>${esc(e.name)}</td><td class="muted">${esc(e.sets)}×${esc(e.reps)}${e.targetWeight?` · ${esc(e.targetWeight)}`:''}${e.rest?` · מנוחה ${esc(e.rest)}`:''}${e.targetRpe?` · RPE ${esc(e.targetRpe)}`:''}</td><td><button class="iconBtn" data-editcustom="${i}" title="ערוך">✎</button> <button class="iconBtn" data-delcustom="${i}" title="מחק">×</button></td></tr>`).join('') || '<tr><td colspan="3" class="muted">עוד לא נוספו תרגילים ידניים לאימון הזה</td></tr>'}</tbody></table>
+        </div>
+        <div class="card">
+          <h2>לוג סטים מהיר</h2>
+          <div class="formGrid three">
+            <div class="wide"><select id="setExercise" class="input">${exercises.map((e,i)=>`<option value="${i}">${esc(e.name)}</option>`).join('')}</select></div>
+            <div><label class="small muted">משקל</label><input id="setWeight" class="input" type="number" step="0.5" placeholder="ק״ג"></div>
+            <div><label class="small muted">חזרות</label><input id="setReps" class="input" type="number" step="1" placeholder="מס׳"></div>
+            <div><label class="small muted">RPE</label><input id="setRpe" class="input" type="number" step="0.5" placeholder="1–10"></div>
+          </div>
+          <button class="btn" id="addSet" style="margin-top:10px;width:100%">הוסף סט</button>
+          <div class="divider"></div>
+          <table class="table"><thead><tr><th>תרגיל</th><th>משקל</th><th>חזרות</th><th>RPE</th><th></th></tr></thead><tbody>${(dayLog.sets||[]).map((s,i)=>`<tr><td>${s.exercise}</td><td>${s.weight||''}</td><td>${s.reps||''}</td><td>${s.rpe||''}</td><td><button class="iconBtn" data-delset="${i}">×</button></td></tr>`).join('') || '<tr><td colspan="5" class="muted">אין סטים היום עדיין</td></tr>'}</tbody></table>
+        </div>
+        <div class="card">
+          <h2>הערות אימון</h2>
+          <textarea id="workoutNotes" placeholder="איך הרגשת? כאבים? משקלים להעלות בפעם הבאה?">${dayLog.notes||''}</textarea>
+          <div class="btnRow"><button class="btn secondary" id="saveWorkoutNotes">שמור הערות</button><button class="btn ghost" id="toggleCardio">${dayLog.cardioDone?'בטל קרדיו':'סמן קרדיו בוצע'}</button></div>
+        </div>
+      </div>`;
+    root.querySelectorAll('.dayChip').forEach(b=>b.onclick=()=>{state.selectedDay=+b.dataset.day; saveState(); renderDaily();});
+    root.querySelectorAll('.check').forEach(b=>b.onclick=()=>{ const key=todayIso()+'_'+d.id; const l=state.logs.workouts[key] ||= {done:{},sets:[],notes:'',cardioDone:false,completed:false}; const idx=b.dataset.idx; l.done[idx]=!l.done[idx]; saveState(); renderDaily(); });
+    root.querySelector('#addSet').onclick=()=>{ const key=todayIso()+'_'+d.id; const l=state.logs.workouts[key] ||= {done:{},sets:[],notes:'',cardioDone:false,completed:false}; const sel=root.querySelector('#setExercise'); const e=exercises[+sel.value]; l.sets.push({id:uid(), date:todayIso(), exercise:e.name, weight:root.querySelector('#setWeight').value, reps:root.querySelector('#setReps').value, rpe:root.querySelector('#setRpe').value}); saveState(); toast('סט נוסף'); renderDaily(); renderTracking(); };
+    root.querySelector('#addCustomExercise').onclick=()=>{
+      const item = customExerciseFromForm(root);
+      if(!item.name){ alert('חסר שם תרגיל'); return; }
+      const arr = state.customExercises[d.id] ||= [];
+      const editIdx = root.querySelector('#customEditIndex').value;
+      if(editIdx !== '' && arr[+editIdx]){ item.id = arr[+editIdx].id || item.id; arr[+editIdx] = item; toast('התרגיל עודכן'); }
+      else { arr.push(item); toast('תרגיל נוסף'); }
+      saveState(); renderDaily(); renderWeekly(); renderExercises();
+    };
+    root.querySelector('#clearCustomForm').onclick=()=>setCustomForm(root,null,'');
+    root.querySelectorAll('[data-editcustom]').forEach(b=>b.onclick=()=>{ const item=(state.customExercises[d.id]||[])[+b.dataset.editcustom]; setCustomForm(root,item,b.dataset.editcustom); root.querySelector('#customName').focus(); });
+    root.querySelectorAll('[data-delcustom]').forEach(b=>b.onclick=()=>{ if(confirm('למחוק את התרגיל הידני מהאימון הזה? הלוגים שכבר נרשמו לא יימחקו.')){ (state.customExercises[d.id]||[]).splice(+b.dataset.delcustom,1); saveState(); renderDaily(); renderWeekly(); renderExercises(); } });
+    root.querySelectorAll('[data-delset]').forEach(b=>b.onclick=()=>{ const key=todayIso()+'_'+d.id; state.logs.workouts[key].sets.splice(+b.dataset.delset,1); saveState(); renderDaily(); renderTracking(); });
+    root.querySelector('#saveWorkoutNotes').onclick=()=>{ const key=todayIso()+'_'+d.id; const l=state.logs.workouts[key] ||= {done:{},sets:[],notes:'',cardioDone:false,completed:false}; l.notes=root.querySelector('#workoutNotes').value; saveState(); toast(); };
+    root.querySelector('#toggleCardio').onclick=()=>{ const key=todayIso()+'_'+d.id; const l=state.logs.workouts[key] ||= {done:{},sets:[],notes:'',cardioDone:false,completed:false}; l.cardioDone=!l.cardioDone; saveState(); renderDaily(); renderTracking(); };
+    root.querySelector('#completeWorkout').onclick=()=>{ const key=todayIso()+'_'+d.id; const l=state.logs.workouts[key] ||= {done:{},sets:[],notes:'',cardioDone:false,completed:false}; l.completed=true; l.completedAt=new Date().toISOString(); saveState(); toast('האימון סומן כהושלם'); renderDaily(); renderTracking(); };
+    root.querySelector('#copyToday').onclick=async()=>{ const text=summaryWorkout(d, dayLog); try{await navigator.clipboard.writeText(text); toast('הועתק');}catch(e){toast('לא ניתן להעתיק');} };
+  }
+  function exerciseMeta(e){
+    const extras = [];
+    if(e.targetWeight) extras.push('עומס: '+e.targetWeight);
+    if(e.rest) extras.push('מנוחה: '+e.rest);
+    if(e.targetRpe) extras.push('RPE: '+e.targetRpe);
+    if(e.note) extras.push(e.note);
+    return `${esc(e.muscle)} · ${esc(e.sets)} סטים × ${esc(e.reps)}${extras.length?' · '+esc(extras.join(' · ')):''}`;
+  }
+  function exerciseRow(e,idx,done){ return `<div class="exercise"><div><div class="exName">${esc(e.name)}${e.custom?'<span class="manualTag">ידני</span>':''}</div><div class="exMeta">${exerciseMeta(e)}</div></div><button class="check ${done?'done':''}" data-idx="${idx}">✓</button></div>`; }
+  function summaryWorkout(d, log){ const exercises=getDayExercises(d); return `${d.title}\n${d.cardio}\n${exercises.map(e=>`- ${e.name}: ${e.sets}×${e.reps}${e.targetWeight?' · '+e.targetWeight:''}${e.rest?' · מנוחה '+e.rest:''}`).join('\n')}\n\nהערות: ${log.notes||''}`; }
+
+  function renderWeekly(){
+    const root=document.getElementById('weekly');
+    root.innerHTML=`
+      <div class="grid">
+        <div class="card"><h2>תוכנית שבועית</h2><p class="muted">מחזור שבועי חוזר ל־8 שבועות. שבוע 5 הוא שבוע הורדת עומס: פחות 20–30% סטים ובלי אינטרוולים כבדים. תרגילים שסומנו <span class="manualTag">ידני</span> הם תוספות/שינויים שהזנת בעצמך.</p></div>
+        ${plan.days.map((d,i)=>{ const exs=getDayExercises(d); return `<div class="workoutDay"><div class="workoutHead"><div><h2>${i+1}. ${esc(d.title)}</h2><div class="muted small">${esc(d.focus)}</div></div><span class="tag ${i>4?'warn':''}">${esc(d.cardio)}</span></div><div class="divider"></div>${exs.slice(0,10).map(e=>`<div class="foodItem"><span>${esc(e.name)}${e.custom?'<span class="manualTag">ידני</span>':''}</span><span class="muted">${esc(e.sets)}×${esc(e.reps)}</span></div>`).join('')}${exs.length>10?`<div class="small muted">+ ${exs.length-10} תרגילי ליבה/תחזוקה</div>`:''}</div>`; }).join('')}
+        <div class="card"><h2>התקדמות 8 שבועות</h2><div class="legendGrid">${plan.weekNotes.map(x=>`<div class="foodItem"><span>${esc(x)}</span></div>`).join('')}</div></div>
+      </div>`;
+  }
+
+  const mealTemplates = [
+    {name:'בוקר — ביצים ולחם', items:['3 ביצים','2 פרוסות לחם','ירקות חופשי','קפה'], cal:520, protein:35, carb:35, fat:25},
+    {name:'צהריים — עוף ואורז', items:['200 גרם עוף מוכן','220 גרם אורז מבושל','סלט גדול','עד כף שמן זית'], cal:740, protein:60, carb:70, fat:20},
+    {name:'ביניים — קוטג׳ ופרי', items:['קוטג׳ 250 גרם','פרי אחד','אפשר 1 פרוסת לחם אם צריך'], cal:350, protein:30, carb:35, fat:8},
+    {name:'ערב — טונה/עוף וסלט', items:['קופסת טונה או 150–200 גרם עוף','סלט גדול','2 פרוסות לחם או תפוח אדמה מדוד'], cal:520, protein:45, carb:45, fat:12}
+  ];
+  function renderNutrition(){
+    const root=document.getElementById('nutrition');
+    const date=todayIso(); const nlog=state.logs.nutrition[date] || {meals:[], water:0};
+    const totals = calcNutrition(date);
+    root.innerHTML=`
+      <div class="grid">
+        <div class="card">
+          <h2>תזונה יומית</h2>
+          <div class="metricGrid">
+            <div class="metric"><div class="label">קלוריות</div><div class="value">${Math.round(totals.cal)}</div><div class="hint">יעד ${state.settings.calorieTarget}</div></div>
+            <div class="metric"><div class="label">חלבון</div><div class="value">${Math.round(totals.protein)}g</div><div class="hint">יעד ${state.settings.proteinTarget}g</div></div>
+            <div class="metric"><div class="label">פחמימות</div><div class="value">${Math.round(totals.carb)}g</div><div class="hint">יעד ${state.settings.carbTarget}g</div></div>
+            <div class="metric"><div class="label">שומן</div><div class="value">${Math.round(totals.fat)}g</div><div class="hint">יעד ${state.settings.fatTarget}g</div></div>
+          </div>
+          ${macroBar('קלוריות', totals.cal, state.settings.calorieTarget)}
+          ${macroBar('חלבון', totals.protein, state.settings.proteinTarget)}
+          <div class="btnRow"><button class="btn" id="addTemplateDay">הוסף יום תפריט בסיס</button><button class="btn secondary" id="clearNutrition">נקה היום</button></div>
+        </div>
+        <div class="card">
+          <h2>הוסף מזון מהיר</h2>
+          <div class="formGrid two">
+            <div class="wide"><input class="input" id="foodName" placeholder="שם מזון / ארוחה"></div>
+            <div><label class="small muted">קלוריות</label><input class="input" id="foodCal" type="number"></div>
+            <div><label class="small muted">חלבון g</label><input class="input" id="foodProtein" type="number"></div>
+            <div><label class="small muted">פחמימות g</label><input class="input" id="foodCarb" type="number"></div>
+            <div><label class="small muted">שומן g</label><input class="input" id="foodFat" type="number"></div>
+          </div>
+          <button class="btn" id="addFood" style="margin-top:10px;width:100%">הוסף</button>
+        </div>
+        <div class="card">
+          <h2>תבניות ארוחה</h2>
+          ${mealTemplates.map((m,i)=>`<div class="meal"><h3>${m.name}</h3><div class="foodList">${m.items.map(x=>`<div class="foodItem"><span>${x}</span></div>`).join('')}</div><div class="small muted" style="margin-top:8px">≈ ${m.cal} קל׳ · ${m.protein}g חלבון · ${m.carb}g פחמימות · ${m.fat}g שומן</div><button class="btn secondary" data-meal="${i}" style="margin-top:10px;width:100%">הוסף ליומן היום</button></div>`).join('')}
+        </div>
+        <div class="card">
+          <h2>יומן היום</h2>
+          <table class="table"><thead><tr><th>מזון</th><th>קל׳</th><th>חלבון</th><th></th></tr></thead><tbody>${(nlog.meals||[]).map((m,i)=>`<tr><td>${m.name}</td><td>${m.cal}</td><td>${m.protein}g</td><td><button class="iconBtn" data-delfood="${i}">×</button></td></tr>`).join('') || '<tr><td colspan="4" class="muted">עוד לא הוזן מזון היום</td></tr>'}</tbody></table>
+        </div>
+        <div class="card">
+          <h2>כללי תזונה קצרים</h2>
+          <div class="legendGrid">
+            <div class="foodItem"><span>לחם: 2–4 פרוסות ביום, לא חופשי.</span></div>
+            <div class="foodItem"><span>חלבון: 150–170 גרם ביום בלי אבקת חלבון.</span></div>
+            <div class="foodItem"><span>אם אחרי שבועיים אין ירידה — להוריד 150–200 קלוריות או להוסיף מעט קרדיו, לא הכל יחד.</span></div>
+            <div class="foodItem"><span>אם האימונים נחלשים מאוד — להוסיף פחמימה סביב אימון.</span></div>
+          </div>
+        </div>
+      </div>`;
+    root.querySelector('#addFood').onclick=()=>{ const l=state.logs.nutrition[date] ||= {meals:[], water:0}; l.meals.push({id:uid(), name:val('foodName')||'מזון', cal:safeNum(val('foodCal')), protein:safeNum(val('foodProtein')), carb:safeNum(val('foodCarb')), fat:safeNum(val('foodFat'))}); saveState(); toast('מזון נוסף'); renderNutrition(); renderTracking(); };
+    root.querySelectorAll('[data-meal]').forEach(b=>b.onclick=()=>{ const m=mealTemplates[+b.dataset.meal]; const l=state.logs.nutrition[date] ||= {meals:[], water:0}; l.meals.push({...m,id:uid()}); saveState(); toast('ארוחה נוספה'); renderNutrition(); renderTracking(); });
+    root.querySelector('#addTemplateDay').onclick=()=>{ const l=state.logs.nutrition[date] ||= {meals:[], water:0}; mealTemplates.forEach(m=>l.meals.push({...m,id:uid()})); saveState(); toast('יום בסיס נוסף'); renderNutrition(); renderTracking(); };
+    root.querySelector('#clearNutrition').onclick=()=>{ if(confirm('לנקות את יומן התזונה של היום?')){ state.logs.nutrition[date]={meals:[],water:0}; saveState(); renderNutrition(); renderTracking(); }};
+    root.querySelectorAll('[data-delfood]').forEach(b=>b.onclick=()=>{ state.logs.nutrition[date].meals.splice(+b.dataset.delfood,1); saveState(); renderNutrition(); renderTracking(); });
+  }
+  function val(id){ return document.getElementById(id)?.value || ''; }
+  function calcNutrition(date){ const meals=(state.logs.nutrition[date]?.meals)||[]; return meals.reduce((a,m)=>({cal:a.cal+safeNum(m.cal),protein:a.protein+safeNum(m.protein),carb:a.carb+safeNum(m.carb),fat:a.fat+safeNum(m.fat)}),{cal:0,protein:0,carb:0,fat:0}); }
+  function macroBar(label, value, target){ const pct=Math.min(120, target?value/target*100:0); return `<div class="macroRow"><span>${label}</span><div class="progressWrap"><div class="progressBar" style="width:${pct}%"></div></div><span class="rtlNum">${Math.round(pct)}%</span></div>`; }
+
+  function renderTracking(){
+    const root=document.getElementById('tracking');
+    const bodyRows=Object.entries(state.logs.body).sort((a,b)=>a[0].localeCompare(b[0]));
+    const perf=state.logs.performance;
+    const lastBody=bodyRows.at(-1)?.[1] || {};
+    const completed=Object.values(state.logs.workouts).filter(x=>x.completed).length;
+    const cardio=Object.values(state.logs.workouts).filter(x=>x.cardioDone).length;
+    root.innerHTML=`
+      <div class="grid">
+        <div class="card">
+          <h2>מדדים מהירים</h2>
+          <div class="metricGrid">
+            <div class="metric"><div class="label">משקל אחרון</div><div class="value">${lastBody.weight||'—'}</div><div class="hint">ק״ג</div></div>
+            <div class="metric"><div class="label">היקף בטן</div><div class="value">${lastBody.waist||'—'}</div><div class="hint">ס״מ</div></div>
+            <div class="metric"><div class="label">אימונים הושלמו</div><div class="value">${completed}</div></div>
+            <div class="metric"><div class="label">קרדיו בוצע</div><div class="value">${cardio}</div></div>
+          </div>
+        </div>
+        <div class="card">
+          <h2>הזן מדדי גוף</h2>
+          <div class="formGrid three">
+            <div><label class="small muted">תאריך</label><input id="bodyDate" class="input" type="date" value="${todayIso()}"></div>
+            <div><label class="small muted">משקל</label><input id="bodyWeight" class="input" type="number" step="0.1" placeholder="77.0"></div>
+            <div><label class="small muted">בטן</label><input id="bodyWaist" class="input" type="number" step="0.5" placeholder="94"></div>
+            <div><label class="small muted">צעדים</label><input id="bodySteps" class="input" type="number" step="100" placeholder="10000"></div>
+            <div><label class="small muted">שינה</label><input id="bodySleep" class="input" type="number" step="0.25" placeholder="8"></div>
+            <div><label class="small muted">אנרגיה 1–10</label><input id="bodyEnergy" class="input" type="number" step="1" placeholder="7"></div>
+          </div>
+          <button id="saveBody" class="btn" style="margin-top:10px;width:100%">שמור מדדים</button>
+        </div>
+        <div class="card">
+          <h2>בדיקות ביצוע</h2>
+          <div class="formGrid three">
+            <div><label class="small muted">מתח מקס׳</label><input id="perfPullups" class="input" type="number" value="${perf.pullups||''}"></div>
+            <div><label class="small muted">שכיבות סמיכה</label><input id="perfPushups" class="input" type="number" value="${perf.pushups||''}"></div>
+            <div><label class="small muted">מקבילים</label><input id="perfDips" class="input" type="number" value="${perf.dips||''}"></div>
+          </div>
+          <button id="savePerf" class="btn secondary" style="margin-top:10px;width:100%">שמור ביצועים</button>
+          <p class="muted small">מומלץ לבדוק בתחילת התוכנית, סוף שבוע 4 וסוף שבוע 8.</p>
+        </div>
+        <div class="card"><h2>גרף משקל</h2><div class="chartBox"><canvas id="weightChart"></canvas></div></div>
+        <div class="card"><h2>גרף היקף בטן</h2><div class="chartBox"><canvas id="waistChart"></canvas></div></div>
+        <div class="card"><h2>גרף קלוריות אחרונות</h2><div class="chartBox"><canvas id="calChart"></canvas></div></div>
+        <div class="card"><h2>טבלת מדדי גוף</h2><table class="table"><thead><tr><th>תאריך</th><th>משקל</th><th>בטן</th><th>צעדים</th><th>שינה</th><th></th></tr></thead><tbody>${bodyRows.slice(-14).reverse().map(([date,b])=>`<tr><td>${date}</td><td>${b.weight||''}</td><td>${b.waist||''}</td><td>${b.steps||''}</td><td>${b.sleep||''}</td><td><button class="iconBtn" data-delbody="${date}">×</button></td></tr>`).join('') || '<tr><td colspan="6" class="muted">אין מדדים עדיין</td></tr>'}</tbody></table></div>
+      </div>`;
+    root.querySelector('#saveBody').onclick=()=>{ const date=val('bodyDate'); state.logs.body[date]={weight:val('bodyWeight'),waist:val('bodyWaist'),steps:val('bodySteps'),sleep:val('bodySleep'),energy:val('bodyEnergy'),savedAt:new Date().toISOString()}; saveState(); toast('מדדים נשמרו'); renderTracking(); };
+    root.querySelector('#savePerf').onclick=()=>{ state.logs.performance={pullups:val('perfPullups'),pushups:val('perfPushups'),dips:val('perfDips'),savedAt:new Date().toISOString()}; saveState(); toast('ביצועים נשמרו'); renderTracking(); };
+    root.querySelectorAll('[data-delbody]').forEach(b=>b.onclick=()=>{ delete state.logs.body[b.dataset.delbody]; saveState(); renderTracking(); });
+    setTimeout(drawCharts,0);
+  }
+
+  function drawCharts(){
+    const bodyRows=Object.entries(state.logs.body).sort((a,b)=>a[0].localeCompare(b[0]));
+    drawLine('weightChart', bodyRows.map(([d,b])=>({x:d,y:safeNum(b.weight)})).filter(p=>p.y), 'משקל');
+    drawLine('waistChart', bodyRows.map(([d,b])=>({x:d,y:safeNum(b.waist)})).filter(p=>p.y), 'בטן');
+    const dates=[]; for(let i=13;i>=0;i--) dates.push(getDate(-i));
+    drawBars('calChart', dates.map(d=>({x:d.slice(5),y:calcNutrition(d).cal})), state.settings.calorieTarget);
+  }
+  function prepCanvas(id){ const c=document.getElementById(id); if(!c) return null; const rect=c.getBoundingClientRect(); const scale=window.devicePixelRatio||1; c.width=rect.width*scale; c.height=rect.height*scale; const ctx=c.getContext('2d'); ctx.scale(scale,scale); return {c,ctx,w:rect.width,h:rect.height}; }
+  function drawLine(id, data, label){ const o=prepCanvas(id); if(!o) return; const {ctx,w,h}=o; ctx.clearRect(0,0,w,h); ctx.fillStyle='#a9b7cc'; ctx.font='12px Arial'; if(data.length<2){ ctx.fillText('צריך לפחות שתי מדידות כדי לצייר גרף',16,28); return; } const pad=28; const ys=data.map(d=>d.y); let min=Math.min(...ys), max=Math.max(...ys); if(min===max){min-=1;max+=1} ctx.strokeStyle='#27364d'; ctx.lineWidth=1; for(let i=0;i<4;i++){ const y=pad+(h-pad*2)*i/3; ctx.beginPath(); ctx.moveTo(pad,y); ctx.lineTo(w-pad,y); ctx.stroke(); } ctx.strokeStyle='#64d2ff'; ctx.lineWidth=3; ctx.beginPath(); data.forEach((p,i)=>{ const x=pad+(w-pad*2)*i/(data.length-1); const y=h-pad-(p.y-min)/(max-min)*(h-pad*2); if(i) ctx.lineTo(x,y); else ctx.moveTo(x,y); }); ctx.stroke(); ctx.fillStyle='#f3f7ff'; ctx.fillText(`${label}: ${data.at(-1).y}`,pad,18); ctx.fillStyle='#a9b7cc'; ctx.fillText(String(min.toFixed(1)),4,h-pad); ctx.fillText(String(max.toFixed(1)),4,pad+4); }
+  function drawBars(id,data,target){ const o=prepCanvas(id); if(!o) return; const {ctx,w,h}=o; ctx.clearRect(0,0,w,h); const pad=28; const max=Math.max(target, ...data.map(d=>d.y), 1); const bw=(w-pad*2)/data.length*.7; ctx.strokeStyle='#27364d'; ctx.lineWidth=1; ctx.beginPath(); const ty=h-pad-target/max*(h-pad*2); ctx.moveTo(pad,ty); ctx.lineTo(w-pad,ty); ctx.stroke(); ctx.fillStyle='#a9b7cc'; ctx.font='11px Arial'; ctx.fillText('יעד',pad,ty-4); data.forEach((p,i)=>{ const x=pad+(w-pad*2)*i/data.length + bw*.2; const bh=p.y/max*(h-pad*2); const y=h-pad-bh; const g=ctx.createLinearGradient(0,y,0,h-pad); g.addColorStop(0,'#64d2ff'); g.addColorStop(1,'#8fffbd'); ctx.fillStyle=g; ctx.fillRect(x,y,bw,bh); }); ctx.fillStyle='#f3f7ff'; ctx.font='12px Arial'; ctx.fillText('קלוריות ב־14 ימים אחרונים',pad,18); }
+
+  function renderExercises(){
+    const root=document.getElementById('exercises');
+    const customGuides = Object.values(state.customExercises||{}).flat().map(e=>guide(`${e.name} · ידני`, 'custom', `${e.muscle||'מותאם אישית'} · ${e.sets}×${e.reps}${e.targetWeight?' · עומס '+e.targetWeight:''}${e.rest?' · מנוחה '+e.rest:''}${e.targetRpe?' · RPE '+e.targetRpe:''}. ${e.note||'תרגיל שהוזן ידנית.'}`));
+    const allGuides = [...exerciseGuide, ...customGuides];
+    root.innerHTML=`
+      <div class="grid">
+        <div class="card"><h2>מקרא תרגילים</h2><p class="muted">איורי קו פשוטים + דגשי ביצוע. תרגילים ידניים שהוספת מופיעים גם כאן עם איור כללי ופרטי הביצוע שהזנת.</p><div class="searchRow"><input id="exSearch" class="input" placeholder="חפש תרגיל / שריר"><button class="btn secondary" id="clearSearch">נקה</button></div></div>
+        <div class="legendGrid" id="guideGrid">${allGuides.map(g=>guideCard(g)).join('')}</div>
+      </div>`;
+    const search=root.querySelector('#exSearch');
+    search.oninput=()=>{ const q=search.value.trim(); root.querySelector('#guideGrid').innerHTML=allGuides.filter(g=>!q || (g.name+g.steps).includes(q)).map(g=>guideCard(g)).join('') || '<div class="card muted">לא נמצא תרגיל</div>'; };
+    root.querySelector('#clearSearch').onclick=()=>{search.value='';search.oninput();};
+  }
+  function guideCard(g){ return `<div class="legendCard"><div class="svgBox">${svgFor(g.icon)}</div><div><h3>${esc(g.name)}</h3><div class="steps">${esc(g.steps)}</div></div></div>`; }
+
+  function svgFor(type){
+    const common=`<defs><style>.l{fill:none;stroke:#eaf4ff;stroke-width:5;stroke-linecap:round;stroke-linejoin:round}.a{stroke:#64d2ff}.g{stroke:#8fffbd}.w{stroke:#ffd166}.f{fill:#64d2ff}</style></defs>`;
+    const head=(x,y)=>`<circle class="l" cx="${x}" cy="${y}" r="6"/>`;
+    const map={
+      bench:`${common}<line class="l a" x1="12" y1="60" x2="82" y2="60"/><line class="l" x1="20" y1="68" x2="20" y2="77"/><line class="l" x1="74" y1="68" x2="74" y2="77"/>${head(38,46)}<line class="l" x1="44" y1="50" x2="65" y2="58"/><line class="l" x1="50" y1="45" x2="50" y2="25"/><line class="l" x1="68" y1="45" x2="68" y2="25"/><line class="l g" x1="30" y1="24" x2="82" y2="24"/>`,
+      closebench:`${common}<line class="l a" x1="12" y1="60" x2="82" y2="60"/>${head(38,46)}<line class="l" x1="44" y1="50" x2="65" y2="58"/><line class="l" x1="55" y1="45" x2="55" y2="26"/><line class="l" x1="63" y1="45" x2="63" y2="26"/><line class="l g" x1="35" y1="25" x2="78" y2="25"/>`,
+      incline:`${common}<line class="l a" x1="18" y1="66" x2="72" y2="38"/><line class="l" x1="26" y1="71" x2="26" y2="78"/>${head(43,40)}<line class="l" x1="48" y1="45" x2="64" y2="53"/><line class="l g" x1="50" y1="31" x2="76" y2="21"/>`,
+      dips:`${common}<line class="l a" x1="22" y1="18" x2="22" y2="76"/><line class="l a" x1="72" y1="18" x2="72" y2="76"/><line class="l a" x1="16" y1="34" x2="36" y2="34"/><line class="l a" x1="58" y1="34" x2="78" y2="34"/>${head(47,24)}<line class="l" x1="47" y1="31" x2="47" y2="52"/><line class="l" x1="47" y1="39" x2="31" y2="35"/><line class="l" x1="47" y1="39" x2="64" y2="35"/><line class="l" x1="47" y1="52" x2="38" y2="70"/><line class="l" x1="47" y1="52" x2="56" y2="70"/>`,
+      pushup:`${common}${head(22,50)}<line class="l" x1="28" y1="53" x2="65" y2="61"/><line class="l" x1="66" y1="61" x2="84" y2="64"/><line class="l" x1="42" y1="56" x2="35" y2="76"/><line class="l" x1="60" y1="60" x2="56" y2="76"/><line class="l a" x1="14" y1="78" x2="88" y2="78"/>`,
+      dbpress:`${common}${head(47,28)}<line class="l" x1="47" y1="35" x2="47" y2="58"/><line class="l" x1="47" y1="41" x2="29" y2="24"/><line class="l" x1="47" y1="41" x2="65" y2="24"/><rect class="f" x="22" y="16" width="12" height="8" rx="2"/><rect class="f" x="60" y="16" width="12" height="8" rx="2"/><line class="l" x1="47" y1="58" x2="35" y2="75"/><line class="l" x1="47" y1="58" x2="59" y2="75"/>`,
+      lateral:`${common}${head(47,25)}<line class="l" x1="47" y1="32" x2="47" y2="58"/><line class="l g" x1="47" y1="39" x2="20" y2="39"/><line class="l g" x1="47" y1="39" x2="74" y2="39"/><line class="l" x1="47" y1="58" x2="36" y2="76"/><line class="l" x1="47" y1="58" x2="58" y2="76"/>`,
+      pullup:`${common}<line class="l a" x1="18" y1="14" x2="78" y2="14"/><line class="l a" x1="22" y1="14" x2="22" y2="78"/><line class="l a" x1="74" y1="14" x2="74" y2="78"/>${head(48,33)}<line class="l" x1="48" y1="40" x2="48" y2="58"/><line class="l" x1="48" y1="41" x2="34" y2="18"/><line class="l" x1="48" y1="41" x2="62" y2="18"/><line class="l" x1="48" y1="58" x2="40" y2="75"/><line class="l" x1="48" y1="58" x2="56" y2="75"/>`,
+      row:`${common}<line class="l a" x1="16" y1="62" x2="82" y2="62"/>${head(28,38)}<line class="l" x1="35" y1="43" x2="61" y2="57"/><line class="l" x1="44" y1="49" x2="35" y2="67"/><line class="l g" x1="59" y1="55" x2="76" y2="44"/><rect class="f" x="74" y="38" width="12" height="9" rx="2"/>`,
+      row2:`${common}${head(48,25)}<line class="l" x1="47" y1="32" x2="58" y2="54"/><line class="l" x1="58" y1="54" x2="41" y2="75"/><line class="l" x1="58" y1="54" x2="70" y2="75"/><line class="l g" x1="53" y1="43" x2="27" y2="53"/><line class="l g" x1="55" y1="43" x2="80" y2="53"/>`,
+      pullover:`${common}<line class="l a" x1="15" y1="63" x2="80" y2="63"/>${head(34,50)}<line class="l" x1="40" y1="52" x2="62" y2="60"/><line class="l g" x1="45" y1="48" x2="28" y2="26"/><rect class="f" x="21" y="18" width="12" height="9" rx="2"/>`,
+      yraise:`${common}${head(48,28)}<line class="l" x1="48" y1="35" x2="48" y2="58"/><line class="l g" x1="48" y1="42" x2="25" y2="18"/><line class="l g" x1="48" y1="42" x2="71" y2="18"/><line class="l" x1="48" y1="58" x2="36" y2="76"/><line class="l" x1="48" y1="58" x2="60" y2="76"/>`,
+      curl:`${common}${head(48,24)}<line class="l" x1="48" y1="31" x2="48" y2="58"/><line class="l g" x1="48" y1="40" x2="33" y2="54"/><line class="l g" x1="48" y1="40" x2="63" y2="54"/><rect class="f" x="27" y="52" width="11" height="8" rx="2"/><rect class="f" x="58" y="52" width="11" height="8" rx="2"/><line class="l" x1="48" y1="58" x2="38" y2="77"/><line class="l" x1="48" y1="58" x2="58" y2="77"/>`,
+      hammercurl:`${common}${head(48,24)}<line class="l" x1="48" y1="31" x2="48" y2="58"/><line class="l g" x1="48" y1="40" x2="34" y2="55"/><line class="l g" x1="48" y1="40" x2="62" y2="55"/><rect class="f" x="31" y="50" width="7" height="15" rx="2"/><rect class="f" x="59" y="50" width="7" height="15" rx="2"/>`,
+      triceps:`${common}${head(48,25)}<line class="l" x1="48" y1="32" x2="48" y2="58"/><line class="l g" x1="48" y1="38" x2="48" y2="12"/><rect class="f" x="41" y="5" width="14" height="9" rx="2"/><line class="l" x1="48" y1="58" x2="37" y2="76"/><line class="l" x1="48" y1="58" x2="59" y2="76"/>`,
+      squat:`${common}${head(50,24)}<line class="l" x1="50" y1="31" x2="50" y2="54"/><line class="l g" x1="50" y1="40" x2="35" y2="46"/><line class="l g" x1="50" y1="40" x2="65" y2="46"/><line class="l" x1="50" y1="54" x2="36" y2="72"/><line class="l" x1="50" y1="54" x2="64" y2="72"/><line class="l a" x1="24" y1="78" x2="76" y2="78"/>`,
+      stepup:`${common}<rect x="48" y="58" width="36" height="17" rx="3" fill="#1d344f" stroke="#64d2ff"/>${head(35,25)}<line class="l" x1="35" y1="32" x2="42" y2="54"/><line class="l" x1="42" y1="54" x2="56" y2="58"/><line class="l" x1="42" y1="54" x2="29" y2="75"/><line class="l g" x1="35" y1="40" x2="53" y2="35"/>`,
+      rdl:`${common}${head(46,22)}<line class="l" x1="47" y1="29" x2="64" y2="52"/><line class="l" x1="64" y1="52" x2="54" y2="76"/><line class="l" x1="64" y1="52" x2="75" y2="76"/><line class="l g" x1="59" y1="47" x2="37" y2="58"/><rect class="f" x="31" y="55" width="11" height="8" rx="2"/>`,
+      glute:`${common}<line class="l a" x1="12" y1="76" x2="86" y2="76"/>${head(25,60)}<line class="l" x1="31" y1="61" x2="58" y2="52"/><line class="l" x1="58" y1="52" x2="75" y2="73"/><line class="l" x1="58" y1="52" x2="38" y2="74"/><path class="l g" d="M44 63 Q55 44 69 61"/>`,
+      calves:`${common}${head(48,24)}<line class="l" x1="48" y1="31" x2="48" y2="57"/><line class="l" x1="48" y1="57" x2="39" y2="76"/><line class="l" x1="48" y1="57" x2="58" y2="76"/><path class="l g" d="M31 78 Q48 68 66 78"/>`,
+      plank:`${common}<line class="l a" x1="14" y1="77" x2="86" y2="77"/>${head(24,48)}<line class="l" x1="30" y1="52" x2="70" y2="59"/><line class="l" x1="70" y1="59" x2="84" y2="75"/><line class="l g" x1="41" y1="54" x2="34" y2="75"/>`,
+      sideplank:`${common}<line class="l a" x1="12" y1="77" x2="86" y2="77"/>${head(25,50)}<line class="l" x1="31" y1="53" x2="70" y2="62"/><line class="l g" x1="42" y1="56" x2="34" y2="76"/><line class="l" x1="70" y1="62" x2="84" y2="75"/>`,
+      deadbug:`${common}<line class="l a" x1="10" y1="76" x2="86" y2="76"/>${head(32,62)}<line class="l" x1="38" y1="64" x2="62" y2="65"/><line class="l g" x1="48" y1="62" x2="35" y2="38"/><line class="l g" x1="58" y1="65" x2="74" y2="43"/><line class="l" x1="55" y1="65" x2="43" y2="46"/>`,
+      legraise:`${common}<line class="l a" x1="18" y1="14" x2="78" y2="14"/>${head(48,30)}<line class="l" x1="48" y1="36" x2="48" y2="58"/><line class="l" x1="48" y1="39" x2="36" y2="16"/><line class="l" x1="48" y1="39" x2="60" y2="16"/><line class="l g" x1="48" y1="58" x2="37" y2="48"/><line class="l g" x1="48" y1="58" x2="59" y2="48"/>`,
+      reverse:`${common}<line class="l a" x1="12" y1="76" x2="86" y2="76"/>${head(25,62)}<line class="l" x1="31" y1="64" x2="58" y2="66"/><line class="l g" x1="58" y1="66" x2="70" y2="47"/><line class="l g" x1="58" y1="66" x2="78" y2="55"/>`,
+      planktap:`${common}<line class="l a" x1="14" y1="77" x2="86" y2="77"/>${head(24,48)}<line class="l" x1="30" y1="52" x2="70" y2="59"/><line class="l g" x1="42" y1="54" x2="61" y2="42"/><line class="l" x1="70" y1="59" x2="84" y2="75"/>`,
+      carry:`${common}${head(48,22)}<line class="l" x1="48" y1="29" x2="48" y2="58"/><line class="l" x1="48" y1="39" x2="35" y2="55"/><line class="l g" x1="48" y1="39" x2="66" y2="58"/><rect class="f" x="64" y="56" width="12" height="15" rx="2"/><line class="l" x1="48" y1="58" x2="38" y2="77"/><line class="l" x1="48" y1="58" x2="60" y2="77"/>`,
+      farmer:`${common}${head(48,22)}<line class="l" x1="48" y1="29" x2="48" y2="58"/><line class="l g" x1="48" y1="39" x2="31" y2="60"/><line class="l g" x1="48" y1="39" x2="65" y2="60"/><rect class="f" x="25" y="59" width="12" height="15" rx="2"/><rect class="f" x="59" y="59" width="12" height="15" rx="2"/><line class="l" x1="48" y1="58" x2="38" y2="77"/><line class="l" x1="48" y1="58" x2="60" y2="77"/>`,
+      cardio:`${common}<circle class="l a" cx="48" cy="48" r="28"/><path class="l g" d="M25 52 C35 25 64 25 73 52"/><line class="l" x1="48" y1="48" x2="63" y2="35"/><text x="39" y="73" fill="#eaf4ff" font-size="13" font-family="Arial">Z2</text>`,
+      walk:`${common}${head(46,19)}<line class="l" x1="46" y1="26" x2="41" y2="50"/><line class="l g" x1="43" y1="35" x2="27" y2="49"/><line class="l g" x1="43" y1="35" x2="62" y2="44"/><line class="l" x1="41" y1="50" x2="27" y2="75"/><line class="l" x1="41" y1="50" x2="66" y2="75"/>`,
+      stretch:`${common}<line class="l a" x1="10" y1="76" x2="86" y2="76"/>${head(27,56)}<line class="l" x1="33" y1="58" x2="55" y2="64"/><line class="l g" x1="54" y1="64" x2="80" y2="70"/><line class="l g" x1="46" y1="62" x2="25" y2="74"/>`,
+      stretch2:`${common}${head(48,26)}<line class="l" x1="48" y1="33" x2="48" y2="61"/><path class="l g" d="M24 42 Q48 20 72 42"/><line class="l" x1="48" y1="61" x2="36" y2="78"/><line class="l" x1="48" y1="61" x2="60" y2="78"/>`,
+      breath:`${common}<circle class="l a" cx="48" cy="46" r="26"/><path class="l g" d="M31 47 Q48 28 65 47 Q48 66 31 47"/><circle class="f" cx="48" cy="47" r="5"/>`,
+      checkin:`${common}<path class="l a" d="M20 50 L39 68 L78 28"/><circle class="l" cx="48" cy="48" r="34"/>`,
+      custom:`${common}<rect x="18" y="18" width="60" height="48" rx="12" fill="#101d2f" stroke="#64d2ff" stroke-width="4"/><path class="l g" d="M32 42 L44 54 L66 29"/><circle class="f" cx="70" cy="60" r="5"/>`,
+      arms:`${common}${head(48,24)}<line class="l" x1="48" y1="31" x2="48" y2="58"/><path class="l g" d="M48 39 Q26 31 24 53"/><path class="l g" d="M48 39 Q70 31 72 53"/><line class="l" x1="48" y1="58" x2="38" y2="77"/><line class="l" x1="48" y1="58" x2="58" y2="77"/>`
+    };
+    return `<svg viewBox="0 0 96 84" role="img" aria-label="איור ${type}">${map[type]||map.checkin}</svg>`;
+  }
+
+  function renderSettings(){
+    const root=document.getElementById('settings');
+    root.innerHTML=`
+      <div class="grid">
+        <div class="card"><h2>ארכיטקטורה מקומית פשוטה</h2>
+          <p class="muted">האפליקציה היא קובץ HTML יחיד. אין שרת, אין משתמשים, ואין שליחת נתונים החוצה. כל הנתונים נשמרים בדפדפן בטלפון תחת מפתח <span class="kbd">${APP_KEY}</span>.</p>
+          <table class="table"><tr><th>שכבה</th><th>תפקיד</th></tr><tr><td>UI</td><td>לשוניות תחתונות, כרטיסים, טפסים מהירים וגרפים.</td></tr><tr><td>Data Model</td><td>אובייקט JSON אחד: אימונים, תזונה, מדדי גוף, ביצועים, תרגילים ידניים והגדרות.</td></tr><tr><td>Storage</td><td>localStorage לשמירה אוטומטית. מתאים לאפליקציה קטנה של משתמש יחיד.</td></tr><tr><td>Backup</td><td>ייצוא JSON לקובץ ושחזור מקובץ JSON.</td></tr><tr><td>Processing</td><td>חישוב מקומי של קלוריות, חלבון, השלמות אימון, תרגילים ידניים וגרפים.</td></tr></table>
+          <p class="installNote">שימוש מומלץ בטלפון: לפתוח את הקובץ בדפדפן, ואז “הוסף למסך הבית” אם הדפדפן מאפשר. חשוב לבצע גיבוי JSON מדי שבוע.</p>
+        </div>
+        <div class="card"><h2>הגדרות יעדים</h2>
+          <div class="formGrid two">
+            <div><label class="small muted">קלוריות</label><input id="setCal" class="input" type="number" value="${state.settings.calorieTarget}"></div>
+            <div><label class="small muted">חלבון g</label><input id="setProtein" class="input" type="number" value="${state.settings.proteinTarget}"></div>
+            <div><label class="small muted">פחמימות g</label><input id="setCarb" class="input" type="number" value="${state.settings.carbTarget}"></div>
+            <div><label class="small muted">שומן g</label><input id="setFat" class="input" type="number" value="${state.settings.fatTarget}"></div>
+          </div>
+          <button class="btn" id="saveSettings" style="margin-top:10px;width:100%">שמור יעדים</button>
+        </div>
+        <div class="card"><h2>גיבוי ושחזור</h2>
+          <div class="btnRow"><button class="btn" id="exportData">ייצוא גיבוי JSON</button><label class="btn secondary" for="importFile">ייבוא גיבוי</label><input id="importFile" class="hidden" type="file" accept="application/json,.json"><button class="btn danger" id="resetData">איפוס נתונים</button></div>
+          <p class="muted small">הייצוא כולל רק את הלוגים וההגדרות שלך, לא שולח כלום לאינטרנט.</p>
+        </div>
+        <div class="card"><h2>עקרונות עיצוב שנלקחו ממוצרים קיימים</h2>
+          <div class="legendGrid">
+            <div class="foodItem"><span>לוג אימון מהיר: תרגיל, משקל, חזרות, RPE, היסטוריה וגרפים.</span></div>
+            <div class="foodItem"><span>תזונה לא מסובכת: תבניות ארוחה, קלוריות וחלבון במקום מאגר מזון ענק.</span></div>
+            <div class="foodItem"><span>מעקב גוף וביצועים באותו מקום: משקל, בטן, צעדים, שינה, מתח/מקבילים/שכיבות סמיכה.</span></div>
+            <div class="foodItem"><span>טלפון קודם: לשוניות תחתונות, כפתורים גדולים, מעט הקלדה, סיכום יומי.</span></div>
+          </div>
+        </div>
+        <div class="card"><h2>מגבלות חשובות</h2><p class="muted">localStorage יכול להימחק אם מנקים נתוני אתר/דפדפן. לכן הגיבוי חשוב. אם בעתיד תרצה הרבה תמונות/קבצים או נפח גדול, נכון לעבור ל־IndexedDB.</p></div>
+      </div>`;
+    root.querySelector('#saveSettings').onclick=()=>{ state.settings.calorieTarget=safeNum(val('setCal')); state.settings.proteinTarget=safeNum(val('setProtein')); state.settings.carbTarget=safeNum(val('setCarb')); state.settings.fatTarget=safeNum(val('setFat')); saveState(); toast('הגדרות נשמרו'); renderNutrition(); renderTracking(); };
+    root.querySelector('#exportData').onclick=()=>{ const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`fitness-backup-${todayIso()}.json`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000); };
+    root.querySelector('#importFile').onchange=(ev)=>{ const file=ev.target.files[0]; if(!file) return; const r=new FileReader(); r.onload=()=>{ try{ const data=JSON.parse(r.result); if(!data.logs) throw new Error('invalid'); state=ensureStateShape(data); saveState(); toast('שוחזר מגיבוי'); render(); }catch(e){ alert('קובץ גיבוי לא תקין'); } }; r.readAsText(file); };
+    root.querySelector('#resetData').onclick=()=>{ if(confirm('לאפס את כל הנתונים המקומיים? כדאי לייצא גיבוי קודם.')){ state=structuredClone(defaultState); saveState(); render(); toast('אופס'); } };
+  }
+
+  document.querySelectorAll('.tab').forEach(tab=>tab.onclick=()=>{ document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active')); tab.classList.add('active'); document.querySelectorAll('.view').forEach(v=>v.classList.remove('active')); document.getElementById(tab.dataset.view).classList.add('active'); if(tab.dataset.view==='tracking') setTimeout(drawCharts,0); window.scrollTo({top:0,behavior:'smooth'}); });
+  render();
+})();
+</script>
+</body>
+</html>
