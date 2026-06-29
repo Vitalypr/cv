@@ -47,6 +47,10 @@ Roadmap re-sequenced accordingly.
 - 2026-06-29: Multi-agent audit + research completed. Baseline imported under `fitness-app/`.
   `.gitignore` added. Full docs set authored. (Background CLAUDE.md research agent stalled
   after an MCP disconnect; proceeded from the workflow research + first-principles.)
+- 2026-06-29: Phases 0–5 implemented end to end via the dev loop, each committed + pushed.
+  Final state: **26 Playwright evals green**; Phases 0–4 fully built + browser-tested;
+  Phase 5 (Samsung Health) code-complete + handoff (⚠️ on-device unverified). README added;
+  CLAUDE.md project map reconciled to the buildless architecture (ADR-0002).
 
 ## Eval reports
 

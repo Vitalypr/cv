@@ -57,11 +57,16 @@ phase's defined subset passes — never commit with a regression in a previously
 
 ## Project map
 
-- `fitness-app/index.html` — current app (single file; being migrated to `src/`).
-- `src/` — modular source after Phase 1 (state, components, lib, charts).
-- `tests/` — `unit/` (vitest), `e2e/` (playwright), `eval/` (golden-flow specs).
-- `android/` — Capacitor Android project (Phase 5).
-- `docs/` — see imports below.
+> Architecture is **buildless** per ADR-0002 (no Vite/Preact/TS). One self-contained file +
+> assets + vendored libs, wrapped by Capacitor for Android.
+
+- `index.html` — the entire app (UI, logic, state) in clear sections.
+- `manifest.webmanifest`, `sw.js` — PWA (installable + offline).
+- `assets/icons/` — app icons · `assets/exercises/` — bundled exercise photos (CC BY-SA) +
+  `credits.json` · `assets/vendor/` — uPlot (MIT).
+- `tests/` — Playwright e2e + `@eval` acceptance specs; `helpers.ts`.
+- `capacitor.config.json`, `scripts/build-webdir.mjs` — Android wrapper scaffold (Phase 5).
+- `docs/` — see imports below (incl. `ANDROID_HEALTH_CONNECT.md` handoff).
 - `PROGRESS.md` — live phase/status tracker. Update it every working session.
 
 ## Imported docs
