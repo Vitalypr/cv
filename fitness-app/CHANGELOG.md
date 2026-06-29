@@ -33,3 +33,13 @@ All notable changes to the fitness app. Newest first. Keep entries terse and use
   `theme-color`, and a dismissible iOS "Add to Home Screen" hint.
 - Architecture: ADR-0002 — stay buildless (single file + assets + vendored libs), keep
   localStorage, wrap with Capacitor; roadmap re-sequenced.
+
+### Phase 2 — Logging UX
+- Per-exercise history: the set logger shows the previous session's weight×reps as ghost
+  placeholders + a "last time" line, and a history panel of recent sessions for the
+  selected exercise (aggregated across all logged days).
+- Progressive overload: a set that beats the previous session (heavier, or equal weight for
+  more reps) is flagged with a ▲ and a "improvement" toast.
+- Rest timer: auto-starts when a set is logged; −15/+15 adjust, skip dismisses, with an
+  end-of-rest beep + vibration (Android web). Default rest duration configurable in settings.
+- Faster entry: `inputmode` hints on numeric fields for better mobile keypads.

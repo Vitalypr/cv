@@ -7,7 +7,7 @@ Legend: ⬜ not started · 🔄 in progress · ✅ done · ⚠️ done-with-cave
 
 ## Current focus
 
-**Phase 2 — Logging UX** (next: per-exercise history, rest timer, previous-session hints, overload).
+**Phase 3 — Exercise media** (next: bundle real exercise images, lazy-load, attribution).
 
 ## Architecture note
 
@@ -22,7 +22,10 @@ Roadmap re-sequenced accordingly.
 | Docs | CLAUDE.md + docs set | ✅ | + ADR-0002 (buildless pivot) |
 | 0 | Hardening | ✅ | 12/12 evals green. See eval report below. |
 | 1 | PWA (manifest + SW + offline + iOS) | ✅ | 14/14 evals green (added PWA-SW, PWA-OFFLINE). F7 closed. |
-| 2 | Logging UX (history, rest timer, prev hints, overload) | ⬜ | |
+| 2 | Logging UX (history, rest timer, prev hints, overload) | ✅ | 18/18 evals green (P2-PREVHINT, P2-HISTORY, P2-OVERLOAD, P2-RESTTIMER). F4 closed. |
+| 3 | Exercise media (bundled images) | ⬜ | |
+| 4 | Stats (uPlot interactive, streaks, PRs) | ⬜ | |
+| 5 | Samsung Health (Health Connect) | ⬜ | code-complete + handoff only (no Android SDK here) |
 | 2 | Logging UX (in-place, rest timer, history, overload) | ⬜ | |
 | 3 | Exercise media | ⬜ | |
 | 4 | Stats | ⬜ | |
@@ -89,3 +92,26 @@ RCA: SVG-stroke icon generation produced blank glyphs (gradient stroke not rende
 headless SVG path); root cause — relied on inline-SVG `<line>` stroke rendering quirk.
 Fixed by drawing the icon on a `<canvas>` and exporting via `toDataURL` (deterministic).
 Prevention: icon generation now uses Canvas; verified by visual read of the output PNG.
+
+### Phase 2 — Logging UX (2026-06-29) — ✅
+
+Verification: `npx playwright test` → **18 passed**.
+
+| Criterion | Proof | Result |
+|-----------|-------|--------|
+| Previous session shown as ghost placeholders + "last time" line | P2-PREVHINT | PASS |
+| Per-exercise history lists prior sessions for selected exercise | P2-HISTORY | PASS |
+| Progressive-overload set flagged (▲); non-beating set not flagged | P2-OVERLOAD | PASS |
+| Rest timer auto-starts on add, +15 adjusts, countdown ticks, skip dismisses | P2-RESTTIMER | PASS |
+
+Added: cross-log history helpers (`historyFor`/`lastSessionBest`/`isOverload`), set-logger
+hints + history panel, ▲ overload indicator + toast, a fixed-position rest timer
+(−15/+15/skip, WebAudio beep + `navigator.vibrate` fallback), `restDefaultSec` setting +
+control, `inputmode` on numeric inputs. Findings closed: F4.
+Note: rest timer's native haptics + lock-screen notification land in the Android wrapper (P5);
+web fallback (vibrate + in-page beep) implemented now.
+Caveat (cosmetic): the "last time" line shows "8×60" instead of "60×8" due to RTL bidi
+reordering of digits around ×; values are correct. Will wrap in an LTR span in a later pass.
+RCA: rest-timer eval initially failed — container lacked `data-testid="rest-timer"`.
+Root cause: testid added to children but not the wrapper. Fix: add it. Prevention: eval
+asserts the container visibility, which now guards the hook.

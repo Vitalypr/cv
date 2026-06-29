@@ -12,7 +12,7 @@ Status: ⬜ open · 🔄 in progress · ✅ fixed (test id) · 🚫 won't-fix (r
 | F1 | 🔴 | Stored XSS: user text interpolated without `esc()` in set-log (L308), nutrition (L399), body (L464) tables; also via import | P0 | ✅ E-XSS |
 | F2 | 🔴 | Full-`innerHTML` re-render on every interaction discards unsaved notes + focus + scroll | P0 (mitigate) / P1 (eliminate) | 🔄 mitigated (G3: notes persist on input; check toggles in-place) — full fix P1 |
 | F3 | 🔴 | `done` flags keyed by array index → corrupt mapping on custom edit/delete; flags never displayed | P0 | ✅ E-IDENTITY (id-keyed + progress shown) |
-| F4 | 🔴 | No per-exercise history; set logs are write-only after the day rolls over | P2 | ⬜ |
+| F4 | 🔴 | No per-exercise history; set logs are write-only after the day rolls over | P2 | ✅ P2-HISTORY (+ prev-session hints, overload ▲) |
 
 ## Medium
 
