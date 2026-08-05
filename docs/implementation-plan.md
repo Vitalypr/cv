@@ -52,4 +52,8 @@ Install path (APK), Samsung-specific checks: One UI notification channels, batte
 
 ## Deviation log
 
-Deviations from the spec discovered during implementation are recorded here with rationale — none yet.
+- **Category editor (F5, Should) deferred to v1.1** — the 8 seeded Hebrew categories cover the spec's use cases; the hide/rename UI is scaffolded in the data layer (isHidden, no hard delete) but has no Settings surface yet.
+- **Auto Backup toggle (F13, Should) deferred to v1.1** — Auto Backup itself is on via `allowBackup`; the in-app off switch is not yet exposed.
+- **Chart tooltip** renders as a selection-detail line under the plot instead of a floating bubble — same information, simpler and more reliable on touch; exact values also live in the KPI tiles per the accessibility relief rule.
+- **2026-08-05 day-name fix**: spec prose examples called 05.08.2026 a Tuesday; it is a Wednesday. Code and tests follow `LocalDate` — the calendar, not the prose.
+- **Spec §2.2 example dates** in CONOPS narrative retained as-is (cosmetic).

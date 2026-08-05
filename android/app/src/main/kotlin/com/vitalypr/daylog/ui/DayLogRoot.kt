@@ -78,11 +78,7 @@ fun DayLogRoot() {
                     // Day editor: same screen/ViewModel bound to a past date via the nav arg.
                     composable("day/{date}") { TodayScreen() }
                     composable("stats") { StatsScreen() }
-                    composable("settings") {
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text(stringResource(R.string.coming_soon), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
+                    composable("settings") { com.vitalypr.daylog.ui.settings.SettingsScreen() }
                 }
             }
         }

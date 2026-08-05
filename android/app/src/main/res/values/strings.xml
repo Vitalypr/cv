@@ -65,4 +65,24 @@
     <string name="legend_avg">ממוצע</string>
     <string name="activities_by_category">פעילויות לפי קטגוריה</string>
     <string name="share_period_summary">שיתוף סיכום התקופה</string>
+
+    <string name="settings_geofence_section">גדר גיאוגרפית</string>
+    <string name="settings_office_location">מיקום המשרד</string>
+    <string name="settings_office_set">הוגדר · רדיוס %1$d מ׳</string>
+    <string name="settings_office_unset">טרם הוגדר</string>
+    <string name="settings_capture_location">קבע למיקום הנוכחי</string>
+    <string name="settings_geofence_toggle">הצעות כניסה/יציאה</string>
+    <string name="settings_geofence_sub">התראות לאישור בלבד — לא נרשם דבר בלי אישור</string>
+    <string name="settings_silent_toggle">רישום שקט</string>
+    <string name="settings_silent_sub">רישום אוטומטי ללא אישור; לא דורס ערכים ידניים</string>
+    <string name="settings_schedule_section">לוח זמנים</string>
+    <string name="settings_work_days">ימי עבודה:</string>
+    <string name="settings_report_time">שעת תזכורת הדוח</string>
+    <string name="settings_report_time_sub">בימי עבודה, או בכל יום עם נתונים</string>
+    <string name="settings_data_section">נתונים</string>
+    <string name="settings_export_json">ייצוא JSON</string>
+    <string name="settings_export_csv">ייצוא CSV</string>
+    <string name="settings_battery">סוללה (Samsung)</string>
+    <string name="settings_battery_sub">להצעות גדר אמינות, בחר ״ללא הגבלה״ בהגדרות הסוללה</string>
+    <string name="settings_open">פתיחה</string>
 </resources>
