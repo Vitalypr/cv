@@ -19,6 +19,15 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.DayLog">
 
+        <receiver android:name=".reminder.ReminderReceiver" android:exported="false" />
+        <receiver android:name=".reminder.BootReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.intent.action.TIME_CHANGED" />
+            </intent-filter>
+        </receiver>
+
         <activity
             android:name=".reporting.SendReportActivity"
             android:exported="false"
