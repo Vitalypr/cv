@@ -7,6 +7,7 @@ import android.content.Intent
 import com.vitalypr.daylog.data.repo.DayRepository
 import com.vitalypr.daylog.data.settings.SettingsSource
 import com.vitalypr.daylog.di.Now
+import com.vitalypr.daylog.domain.model.DayType
 import com.vitalypr.daylog.domain.model.TimeSource
 import com.vitalypr.daylog.notifications.Notifier
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -40,6 +41,7 @@ class GeofenceEngine @Inject constructor(
         val minutes = nowMinutes()
         if (today.dayOfWeek !in settings.workDays) return
         val day = repository.getDay(today)
+        if (day != null && day.dayType != DayType.WORK) return // חופש/חג — no prompts (S4)
         if (day?.arrivalMin != null) return
 
         if (settings.silentGeofence) {
@@ -63,6 +65,7 @@ class GeofenceEngine @Inject constructor(
         val settings = settingsRepository.settings.first()
         val today = now().toLocalDate()
         val day = repository.getDay(today)
+        if (day != null && day.dayType != DayType.WORK) return // חופש/חג — no prompts (S4)
 
         when {
             day?.arrivalMin == null -> notifier.logDayPrompt(eventMinutes)

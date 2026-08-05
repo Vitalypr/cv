@@ -35,6 +35,7 @@ class JobLocationRepository @Inject constructor(
     /** First ENTER of the day: auto-create the field job / fill the suggested start. */
     suspend fun onEnter(locationId: Long, date: LocalDate, eventMin: Int) {
         val location = jobLocationDao.byId(locationId) ?: return
+        if (isSpecialDay(date)) return // חופש/חג — nothing is tracked (S4)
         ensureDay(date)
         val existing = dayDao.fieldJobForLocation(date.toString(), locationId)
         when {
@@ -52,6 +53,7 @@ class JobLocationRepository @Inject constructor(
     /** Every EXIT overwrites the suggested end — last exit of the day wins. */
     suspend fun onExit(locationId: Long, date: LocalDate, eventMin: Int) {
         val location = jobLocationDao.byId(locationId) ?: return
+        if (isSpecialDay(date)) return // חופש/חג — nothing is tracked (S4)
         ensureDay(date)
         val existing = dayDao.fieldJobForLocation(date.toString(), locationId)
         if (existing == null) {
@@ -66,6 +68,9 @@ class JobLocationRepository @Inject constructor(
             dayDao.updateFieldJob(existing.copy(suggestedEndMin = eventMin))
         }
     }
+
+    private suspend fun isSpecialDay(date: LocalDate): Boolean =
+        dayDao.getDay(date.toString())?.day?.dayType?.let { it != "WORK" } ?: false
 
     private suspend fun ensureDay(date: LocalDate) {
         val key = date.toString()

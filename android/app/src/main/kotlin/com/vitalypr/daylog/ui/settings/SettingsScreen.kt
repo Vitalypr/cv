@@ -103,6 +103,8 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
         },
         onSilent = viewModel::setSilent,
         onCaptureOffice = viewModel::captureOffice,
+        onOfficePicked = viewModel::setOfficeAt,
+        onJobPicked = viewModel::addJobLocationAt,
         onExportJson = viewModel::exportJson,
         onExportCsv = viewModel::exportCsv,
         onBatterySettings = {
@@ -127,11 +129,15 @@ fun SettingsContent(
     onGeofenceEnabled: (Boolean) -> Unit = {},
     onSilent: (Boolean) -> Unit = {},
     onCaptureOffice: () -> Unit = {},
+    onOfficePicked: (Double, Double) -> Unit = { _, _ -> },
+    onJobPicked: (String, Double, Double) -> Unit = { _, _, _ -> },
     onExportJson: () -> Unit = {},
     onExportCsv: () -> Unit = {},
     onBatterySettings: () -> Unit = {},
 ) {
     var pickTime by remember { mutableStateOf(false) }
+    var pickOfficeOnMap by remember { mutableStateOf(false) }
+    var pickJobOnMap by remember { mutableStateOf<String?>(null) }
 
     Column(
         modifier = Modifier
@@ -155,8 +161,13 @@ fun SettingsContent(
                     stringResource(R.string.settings_office_unset)
                 },
             ) {
-                TextButton(onClick = onCaptureOffice) {
-                    Text(stringResource(R.string.settings_capture_location))
+                Column(horizontalAlignment = Alignment.End) {
+                    TextButton(onClick = onCaptureOffice) {
+                        Text(stringResource(R.string.settings_capture_location))
+                    }
+                    TextButton(onClick = { pickOfficeOnMap = true }) {
+                        Text(stringResource(R.string.settings_pick_on_map))
+                    }
                 }
             }
             SettingsRow(
@@ -210,10 +221,16 @@ fun SettingsContent(
                     singleLine = true,
                     modifier = Modifier.weight(1f),
                 )
-                TextButton(
-                    onClick = { onAddJobLocation(newName); newName = "" },
-                    enabled = newName.isNotBlank(),
-                ) { Text(stringResource(R.string.settings_add_job_here)) }
+                Column(horizontalAlignment = Alignment.End) {
+                    TextButton(
+                        onClick = { onAddJobLocation(newName); newName = "" },
+                        enabled = newName.isNotBlank(),
+                    ) { Text(stringResource(R.string.settings_add_job_here)) }
+                    TextButton(
+                        onClick = { pickJobOnMap = newName },
+                        enabled = newName.isNotBlank(),
+                    ) { Text(stringResource(R.string.settings_pick_on_map)) }
+                }
             }
         }
 
@@ -266,6 +283,23 @@ fun SettingsContent(
             }
         }
         Spacer(Modifier.padding(bottom = 8.dp))
+    }
+
+    if (pickOfficeOnMap) {
+        com.vitalypr.daylog.ui.components.MapPickerDialog(
+            initialLat = settings.officeLat,
+            initialLon = settings.officeLon,
+            onPick = { lat, lon -> onOfficePicked(lat, lon); pickOfficeOnMap = false },
+            onDismiss = { pickOfficeOnMap = false },
+        )
+    }
+    pickJobOnMap?.let { name ->
+        com.vitalypr.daylog.ui.components.MapPickerDialog(
+            initialLat = settings.officeLat,
+            initialLon = settings.officeLon,
+            onPick = { lat, lon -> onJobPicked(name, lat, lon); pickJobOnMap = null },
+            onDismiss = { pickJobOnMap = null },
+        )
     }
 
     if (pickTime) {

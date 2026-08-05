@@ -1,7 +1,7 @@
 # DayLog (יומן עבודה) — Consultant Daily Work Logger
 
 **Document type:** CONOPS + Technical Specification
-**Status:** Draft v0.6 — v0.5 + job-location tracking amendment
+**Status:** Draft v0.7 — v0.6 + period PDFs, unified day-total rule, map picker (N3 revised)
 **Platform:** Android (native)
 **Language & locale:** Hebrew UI and reports, full RTL; Israel defaults (Sun–Thu work-week, Asia/Jerusalem, dd.MM.yyyy)
 **Author:** Vitaly (product owner) with Claude (co-author)
@@ -94,7 +94,7 @@ Template rules:
 
 ### 2.5 Period summaries (shareable on demand)
 
-Generated in the Statistics tab for the selected week, month, or year and sent via the same share flow (monthly example):
+Generated in the Statistics tab for the selected week, month, or year and — like the daily report (v0.7) — sent as a **styled Ledger-design PDF with the plain text as the WhatsApp caption** (monthly example):
 
 ```
 ‏📊 סיכום חודשי — אוגוסט 2026
@@ -103,7 +103,7 @@ Generated in the Statistics tab for the selected week, month, or year and sent v
 ‏✅ פעילויות: פיתוח 14 · התקנה 9 · דיון 7 · בדיקות 5
 ```
 
-**Hours rule:** a day's total = office span (arrival→departure) **plus** field-job time that falls outside the office span (no double counting); a day with only field jobs = sum of field-job spans.
+**Hours rule:** a day's total = office span (arrival→departure) **plus** field-job time that falls outside the office span (no double counting; partial overlap adds only the outside part); a day with only field jobs = sum of field-job spans. **v0.7: this single rule feeds every daily total** — the daily report's סה״כ line, the PDF summary cell, the Today screen total, and Statistics.
 
 ---
 
@@ -130,7 +130,7 @@ Generated in the Statistics tab for the selected week, month, or year and sent v
 
 - **N1 Simplicity:** every daily interaction reachable in ≤ 2 taps from app open; no login; setup is 3 steps (office location, work-week — default Sun–Thu, report time).
 - **N2 Reliability:** the reminder fires within ~10 minutes of the configured time even under Doze (AlarmManager `setAndAllowWhileIdle`, §6.4) and survives reboot; a geofence misfire can never corrupt data — suggestions are committed only on user confirmation.
-- **N3 Privacy:** the app declares no INTERNET permission (enforced by a merged-manifest CI check); no analytics, no third-party services; location is used only for geofence triggers and coordinates are never stored in history. Documented exception: Android Auto Backup (F13) copies app data to the user's own Google account unless disabled.
+- **N3 Privacy (revised v0.7 by product-owner decision):** INTERNET is declared **solely for OpenStreetMap tile downloads in the location picker** (the merged-manifest test documents this exception); no analytics, no third-party services, no backend; location is used only for geofence triggers and coordinates are never stored in history. Documented exceptions: OSM tiles (map picker) and Android Auto Backup (F13).
 - **N4 Performance:** cold start < 1.5 s on a mid-range device; the Today screen renders from a single DB query.
 - **N5 Data safety:** Room DB with export; schema migrations versioned from day one.
 - **N6 Battery:** geofencing via Play Services GeofencingClient (OS-managed, near-zero battery), never continuous location polling.
@@ -163,7 +163,7 @@ Four-tab bottom navigation (היום / היסטוריה / סטטיסטיקה / �
 - **שיתוף** button: sends the selected period's text summary (§2.5).
 
 ### 5.4 Settings (הגדרות)
-- Office location: **"קבע למיקום הנוכחי"** button (one-shot location fix while standing at the office) or manual coordinate entry — deliberately no map picker, keeping the app free of Maps SDK, API keys, and network (N3). Geofence radius (default 150 m) + on/off.
+- Office location: **"קבע למיקום הנוכחי"** (one-shot fix while standing at the office) **or a map pin picker** (v0.7: OpenStreetMap via osmdroid — no API keys, no Google account; requires the N3-revised INTERNET permission for tile downloads). Job locations get the same two options. Geofence radius (default 150 m) + on/off.
 - Work-week day toggles (default Sun–Thu); report reminder time.
 - Arrival/departure confirmation behavior: confirm-via-notification (default) or auto-log silently (opt-in; silent mode still never overwrites MANUAL values).
 - Manage activity categories; Auto Backup toggle; report template preview; export JSON/CSV; about.
@@ -318,7 +318,7 @@ Beyond the office fence, the user saves **job locations** (client sites): name +
 | ACCESS_FINE_LOCATION → ACCESS_BACKGROUND_LOCATION | geofencing only | only when enabling geofence feature; background grant via system-settings redirect (§6.6) |
 | RECEIVE_BOOT_COMPLETED | re-arm alarm & geofence after reboot | manifest, no prompt |
 | SCHEDULE_EXACT_ALARM | **not requested** — `setAndAllowWhileIdle` (±10 min) suffices | — |
-| INTERNET | **not declared** — verified by merged-manifest CI check | — |
+| INTERNET + ACCESS_NETWORK_STATE | OSM map tiles in the location picker ONLY (N3 rev v0.7) | manifest, no prompt |
 
 ---
 

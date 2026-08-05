@@ -61,6 +61,20 @@ class SettingsViewModel @Inject constructor(
         geofenceManager.sync()
     }
 
+    /** Map-picked coordinates (OSM pin picker). */
+    fun setOfficeAt(lat: Double, lon: Double) = viewModelScope.launch {
+        settingsRepository.setOffice(lat, lon, settings.value.officeRadiusM)
+        geofenceManager.sync()
+        effects.send(SettingsEffect.Toast("מיקום המשרד נשמר"))
+    }
+
+    fun addJobLocationAt(name: String, lat: Double, lon: Double) = viewModelScope.launch {
+        if (name.isBlank()) return@launch
+        jobLocationRepository.add(name, lat, lon)
+        geofenceManager.sync()
+        effects.send(SettingsEffect.Toast("מיקום העבודה נשמר"))
+    }
+
     private val effects = Channel<SettingsEffect>(Channel.BUFFERED)
     val effect = effects.receiveAsFlow()
 

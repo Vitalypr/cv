@@ -52,7 +52,11 @@ class StatsViewModelTest {
         db.close()
     }
 
-    private fun vm() = StatsViewModel(repo) { fixedNow }
+    private val fakePdf = com.vitalypr.daylog.reporting.PeriodPdfRenderer { s ->
+        java.io.File.createTempFile("daylog-summary", ".pdf").apply { writeText("%PDF-fake ${'$'}{s.label}") }
+    }
+
+    private fun vm() = StatsViewModel(repo, fakePdf) { fixedNow }
 
     private suspend fun seedWeek() {
         // Sunday: 9h office. Monday: 8h office + field 17:00–19:00 (2h outside).
@@ -98,10 +102,11 @@ class StatsViewModelTest {
         vm.uiState.test { awaitUntil { it.summary != null } }
         vm.effect.test {
             vm.share()
-            val text = (awaitItem() as StatsEffect.LaunchShare).text
-            assertTrue(text.contains("סיכום שבועי"))
-            assertTrue(text.contains("ימי עבודה: 2"))
-            assertTrue(text.contains("סה״כ שעות: 19:00"))
+            val effect = awaitItem() as StatsEffect.LaunchShare
+            assertTrue(effect.caption.contains("סיכום שבועי"))
+            assertTrue(effect.caption.contains("ימי עבודה: 2"))
+            assertTrue(effect.caption.contains("סה״כ שעות: 19:00"))
+            assertTrue(effect.pdf.exists())
         }
     }
 

@@ -71,6 +71,23 @@ class ReportBuilderTest {
         assertEquals("$rlm🕗 כניסה: 08:12", timeLine)
     }
 
+    @Test fun `field time outside office hours adds to the daily total`() {
+        // Office 08:00-17:00 (9h) + field 16:00-19:00 -> 2h outside -> 11:00 total.
+        val day = DaySnapshot(
+            date = tue, arrivalMin = 480, departureMin = 1020,
+            fieldJobs = listOf(FieldJob("אתר", startMin = 960, endMin = 1140)),
+        )
+        assertTrue(ReportBuilder.daily(day).lines()[1].endsWith("סה״כ 11:00"))
+    }
+
+    @Test fun `field fully inside office hours does not inflate the total`() {
+        val day = DaySnapshot(
+            date = tue, arrivalMin = 480, departureMin = 1020,
+            fieldJobs = listOf(FieldJob("אתר", startMin = 600, endMin = 780)),
+        )
+        assertTrue(ReportBuilder.daily(day).lines()[1].endsWith("סה״כ 9:00"))
+    }
+
     @Test fun `overnight departure renders next-day and correct duration`() {
         val day = DaySnapshot(date = tue, arrivalMin = 22 * 60, departureMin = 25 * 60 + 30)
         val timeLine = ReportBuilder.daily(day).lines()[1]

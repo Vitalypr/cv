@@ -9,5 +9,7 @@ class DayLogApp : Application() {
     override fun onCreate() {
         super.onCreate()
         Channels.ensure(this)
+        // OSM tile policy requires an identifying user agent (map picker only).
+        org.osmdroid.config.Configuration.getInstance().userAgentValue = packageName
     }
 }

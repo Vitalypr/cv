@@ -2,6 +2,7 @@ package com.vitalypr.daylog.domain.report
 
 import com.vitalypr.daylog.domain.model.DaySnapshot
 import com.vitalypr.daylog.domain.stats.PeriodSummary
+import com.vitalypr.daylog.domain.stats.StatsCalculator
 import com.vitalypr.daylog.domain.time.formatDate
 import com.vitalypr.daylog.domain.time.formatDuration
 import com.vitalypr.daylog.domain.time.formatMinutes
@@ -26,8 +27,10 @@ object ReportBuilder {
             var t = "🕗 כניסה: ${formatMinutes(day.arrivalMin)}"
             if (day.departureMin != null) {
                 t += " | יציאה: ${formatMinutes(day.departureMin)}"
-                val dur = day.departureMin - day.arrivalMin
-                if (dur > 0) t += " | סה״כ ${formatDuration(dur)}"
+                // Day total = office span + field time OUTSIDE it (partial overlap
+                // adds only the outside part) — same rule as Statistics (§2.5).
+                val total = StatsCalculator.dayMinutes(day).total
+                if (total > 0) t += " | סה״כ ${formatDuration(total)}"
             }
             lines += t
         }

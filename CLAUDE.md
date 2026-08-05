@@ -27,7 +27,7 @@ gradle :app:lintDebug
 1. **TDD:** failing test first for every domain rule and ViewModel behavior. Every spec section maps to named tests (@docs/dev/testing.md).
 2. **Dependency direction:** `:domain` never imports Android. UI renders only from ViewModel `UiState`; no logic in composables (@docs/dev/architecture.md).
 3. **Hebrew/RTL:** every report line starts with RLM (U+200F); golden-string tests are canonical — never "fix" a golden to match broken output (@docs/dev/ui-guidelines.md).
-4. **No INTERNET permission.** The merged-manifest test enforces spec N3; don't add dependencies that merge it in.
+4. **Network = map tiles only.** INTERNET exists solely for the OSM location picker (spec N3 rev v0.7); no analytics/backends ever. `ManifestGuardTest` documents this — any new network use is a conscious spec change.
 5. **Geofence invariants** (spec §6.6): confirmations write event time; never overwrite MANUAL-source values; suggestions commit only on user confirmation.
 6. **Time model:** minutes-from-midnight `Int`, may exceed 1440 (past midnight, renders "(למחרת)"). Never store `LocalTime` for arrival/departure.
 

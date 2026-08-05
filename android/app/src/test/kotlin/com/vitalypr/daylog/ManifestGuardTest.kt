@@ -10,9 +10,10 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * Spec N3: the app must not hold the INTERNET permission. This parses the MERGED
- * manifest, so a dependency sneaking the permission in fails the build. Fix by
- * excluding the dependency — never by deleting this test.
+ * Spec N3 (revised v0.7 by explicit product-owner decision — the map location
+ * picker needs OSM tiles): INTERNET exists SOLELY for map tiles. The
+ * no-analytics/no-backend posture is unchanged; this test documents the
+ * exception so any further network-facing change is a conscious one.
  */
 @RunWith(RobolectricTestRunner::class)
 class ManifestGuardTest {
@@ -25,8 +26,8 @@ class ManifestGuardTest {
         }
 
     @Test
-    fun `INTERNET permission is absent`() {
-        assertFalse(android.Manifest.permission.INTERNET in permissions)
+    fun `INTERNET present for the map picker only - documented N3 revision`() {
+        assertTrue(android.Manifest.permission.INTERNET in permissions)
     }
 
     @Test

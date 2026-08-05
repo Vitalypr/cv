@@ -43,13 +43,15 @@ data class StatsUiState(
 )
 
 sealed interface StatsEffect {
-    data class LaunchShare(val text: String) : StatsEffect
+    /** Period summary ships as a styled PDF with the text as caption (like the daily report). */
+    data class LaunchShare(val pdf: java.io.File, val caption: String) : StatsEffect
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class StatsViewModel @Inject constructor(
     private val repository: DayRepository,
+    private val periodPdf: com.vitalypr.daylog.reporting.PeriodPdfRenderer,
     @Now private val now: () -> LocalDateTime,
 ) : ViewModel() {
 
@@ -78,7 +80,9 @@ class StatsViewModel @Inject constructor(
     fun selectBar(index: Int?) { selected.value = index }
 
     fun share() = viewModelScope.launch {
-        uiState.value.summary?.let { effects.send(StatsEffect.LaunchShare(ReportBuilder.period(it))) }
+        uiState.value.summary?.let { summary ->
+            effects.send(StatsEffect.LaunchShare(periodPdf.render(summary), ReportBuilder.period(summary)))
+        }
     }
 
     private data class Range(val from: LocalDate, val to: LocalDate, val label: String, val title: String)

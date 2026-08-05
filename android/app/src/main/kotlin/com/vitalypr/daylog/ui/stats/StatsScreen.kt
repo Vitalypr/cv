@@ -65,7 +65,7 @@ fun StatsScreen(viewModel: StatsViewModel = hiltViewModel()) {
         viewModel.effect.collect { effect ->
             when (effect) {
                 is StatsEffect.LaunchShare ->
-                    context.startActivity(ReportShare.intentFor(context, effect.text))
+                    context.startActivity(ReportShare.pdfIntent(context, effect.pdf, effect.caption))
             }
         }
     }

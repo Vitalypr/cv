@@ -10,7 +10,7 @@
     <string name="departure">יציאה</string>
     <string name="arrived_now">הגעתי</string>
     <string name="left_now">יצאתי</string>
-    <string name="total_at_office">סה״כ במשרד %1$s</string>
+    <string name="total_at_office">סה״כ שעות %1$s</string>
     <string name="source_geofence">גדר גיאוגרפית</string>
     <string name="source_manual">ידני</string>
     <string name="minus_5">‎−5</string>
@@ -91,4 +91,6 @@
     <string name="settings_battery">סוללה (Samsung)</string>
     <string name="settings_battery_sub">להצעות גדר אמינות, בחר ״ללא הגבלה״ בהגדרות הסוללה</string>
     <string name="settings_open">פתיחה</string>
+    <string name="settings_pick_on_map">בחירה במפה</string>
+    <string name="map_confirm">קביעת המיקום כאן</string>
 </resources>

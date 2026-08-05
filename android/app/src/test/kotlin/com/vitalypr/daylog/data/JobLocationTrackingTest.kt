@@ -112,6 +112,13 @@ class JobLocationTrackingTest {
         assertEquals(2, days.getDay(date)!!.fieldJobs.size)
     }
 
+    @Test fun `no tracking on a day marked off or holiday`() = runTest {
+        days.setDayType(date, com.vitalypr.daylog.domain.model.DayType.OFF)
+        jobs.onEnter(locId, date, 600)
+        jobs.onExit(locId, date, 1020)
+        assertTrue(days.getDay(date)!!.fieldJobs.isEmpty())
+    }
+
     @Test fun `next day starts fresh`() = runTest {
         jobs.onEnter(locId, date, 600)
         jobs.onEnter(locId, date.plusDays(1), 615)

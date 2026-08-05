@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Spec N3: NO android.permission.INTERNET — ManifestGuardTest enforces this. -->
+    <!-- Spec N3 (revised v0.7, product-owner decision): INTERNET is granted SOLELY
+         for OpenStreetMap tiles in the location picker. No analytics, no backend —
+         ManifestGuardTest documents this exception. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />

@@ -57,3 +57,4 @@ Install path (APK), Samsung-specific checks: One UI notification channels, batte
 - **Chart tooltip** renders as a selection-detail line under the plot instead of a floating bubble — same information, simpler and more reliable on touch; exact values also live in the KPI tiles per the accessibility relief rule.
 - **2026-08-05 day-name fix**: spec prose examples called 05.08.2026 a Tuesday; it is a Wednesday. Code and tests follow `LocalDate` — the calendar, not the prose.
 - **Spec §2.2 example dates** in CONOPS narrative retained as-is (cosmetic).
+- **N3 revised (v0.7):** the product owner requested a map pin picker for office/job locations; map tiles require network, so INTERNET was added for OSM tiles only (osmdroid, no API keys). ManifestGuardTest flipped from "INTERNET absent" to "INTERNET documented".

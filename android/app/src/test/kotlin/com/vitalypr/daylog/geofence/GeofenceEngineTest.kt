@@ -118,6 +118,18 @@ class GeofenceEngineTest {
         assertEquals(1000, repo.getDay(today)?.departureMin)
     }
 
+    @Test fun `enter on a day marked off is silent`() = runTest {
+        repo.setDayType(today, com.vitalypr.daylog.domain.model.DayType.OFF)
+        engine.onEnter()
+        assertTrue(titles().isEmpty())
+    }
+
+    @Test fun `exit on a holiday is silent`() = runTest {
+        repo.setDayType(today, com.vitalypr.daylog.domain.model.DayType.HOLIDAY)
+        engine.onExitConfirmedByDebounce(1055)
+        assertTrue(titles().isEmpty())
+    }
+
     @Test fun `enter cancels a pending departure suggestion notification`() = runTest {
         repo.setArrival(today, 492, TimeSource.MANUAL)
         engine.onExitConfirmedByDebounce(750) // lunch exit prompt

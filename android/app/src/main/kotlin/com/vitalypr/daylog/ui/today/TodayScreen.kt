@@ -172,11 +172,10 @@ private fun TimeCard(state: TodayUiState, cb: TodayCallbacks) {
         }
         if (!state.isSpecialDay) HorizontalDivider(Modifier.padding(vertical = 6.dp))
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            val arr = state.day.arrivalMin
-            val dep = state.day.departureMin
+            val totalMin = com.vitalypr.daylog.domain.stats.StatsCalculator.dayMinutes(state.day).total
             Text(
-                if (arr != null && dep != null && dep > arr) {
-                    stringResource(R.string.total_at_office, formatDuration(dep - arr))
+                if (totalMin > 0 && !state.isSpecialDay) {
+                    stringResource(R.string.total_at_office, formatDuration(totalMin))
                 } else {
                     stringResource(R.string.special_day)
                 },
