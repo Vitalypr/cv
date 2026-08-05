@@ -29,10 +29,15 @@ data class Settings(
 
 private val Context.dataStore by preferencesDataStore(name = "settings")
 
+/** Read-only view — system engines depend on this, tests fake it. */
+interface SettingsSource {
+    val settings: Flow<Settings>
+}
+
 @Singleton
 class SettingsRepository @Inject constructor(
     @ApplicationContext private val context: Context,
-) {
+) : SettingsSource {
     private object Keys {
         val workDays = stringPreferencesKey("work_days") // comma-joined DayOfWeek values
         val reportTime = intPreferencesKey("report_time_min")
@@ -43,7 +48,7 @@ class SettingsRepository @Inject constructor(
         val officeRadius = intPreferencesKey("office_radius_m")
     }
 
-    val settings: Flow<Settings> = context.dataStore.data.map { p ->
+    override val settings: Flow<Settings> = context.dataStore.data.map { p ->
         val defaults = Settings()
         Settings(
             workDays = p[Keys.workDays]

@@ -6,7 +6,7 @@ import android.content.Context
 import android.content.Intent
 import com.vitalypr.daylog.data.repo.DayRepository
 import com.vitalypr.daylog.data.settings.Settings
-import com.vitalypr.daylog.data.settings.SettingsRepository
+import com.vitalypr.daylog.data.settings.SettingsSource
 import com.vitalypr.daylog.di.Now
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.time.LocalDate
@@ -24,7 +24,7 @@ import kotlinx.coroutines.flow.first
 @Singleton
 class ReminderScheduler @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val settingsRepository: SettingsRepository,
+    private val settingsRepository: SettingsSource,
     private val dayRepository: DayRepository,
     @Now private val now: () -> LocalDateTime,
 ) {

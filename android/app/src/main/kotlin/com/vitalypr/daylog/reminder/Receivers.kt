@@ -39,6 +39,7 @@ class ReminderReceiver : BroadcastReceiver() {
 class BootReceiver : BroadcastReceiver() {
 
     @Inject lateinit var scheduler: ReminderScheduler
+    @Inject lateinit var geofenceManager: com.vitalypr.daylog.geofence.GeofenceManager
 
     override fun onReceive(context: Context, intent: Intent) {
         when (intent.action) {
@@ -50,6 +51,7 @@ class BootReceiver : BroadcastReceiver() {
                 CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
                     try {
                         scheduler.scheduleNext()
+                        geofenceManager.sync()
                     } finally {
                         pending.finish()
                     }

@@ -6,7 +6,7 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.vitalypr.daylog.data.db.DayLogDb
 import com.vitalypr.daylog.data.repo.DayRepository
-import com.vitalypr.daylog.data.settings.SettingsRepository
+import com.vitalypr.daylog.FakeSettingsSource
 import com.vitalypr.daylog.di.DatabaseModule
 import com.vitalypr.daylog.domain.model.DayType
 import com.vitalypr.daylog.domain.model.TimeSource
@@ -45,7 +45,7 @@ class ReminderEngineTest {
             .allowMainThreadQueries()
             .build()
         repo = DayRepository(db.dayDao(), db.categoryDao()) { Instant.parse("2026-08-04T14:45:00Z") }
-        val scheduler = ReminderScheduler(context, SettingsRepository(context), repo) { nowDt }
+        val scheduler = ReminderScheduler(context, FakeSettingsSource(), repo) { nowDt }
         engine = ReminderEngine(repo, Notifier(context), scheduler) { nowDt }
         nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
     }

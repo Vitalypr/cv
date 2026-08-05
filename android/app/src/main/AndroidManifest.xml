@@ -20,6 +20,9 @@
         android:theme="@style/Theme.DayLog">
 
         <receiver android:name=".reminder.ReminderReceiver" android:exported="false" />
+        <receiver android:name=".geofence.GeofenceReceiver" android:exported="false" />
+        <receiver android:name=".geofence.GeofenceExitDebounceReceiver" android:exported="false" />
+        <receiver android:name=".geofence.GeofenceActionReceiver" android:exported="false" />
         <receiver android:name=".reminder.BootReceiver" android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />

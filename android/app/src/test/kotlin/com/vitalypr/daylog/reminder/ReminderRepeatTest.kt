@@ -6,7 +6,7 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.vitalypr.daylog.data.db.DayLogDb
 import com.vitalypr.daylog.data.repo.DayRepository
-import com.vitalypr.daylog.data.settings.SettingsRepository
+import com.vitalypr.daylog.FakeSettingsSource
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -36,7 +36,7 @@ class ReminderRepeatTest {
 
     private fun scheduler() = ReminderScheduler(
         context,
-        SettingsRepository(context),
+        FakeSettingsSource(),
         DayRepository(db.dayDao(), db.categoryDao()) { Instant.now() },
     ) { nowDt }
 
