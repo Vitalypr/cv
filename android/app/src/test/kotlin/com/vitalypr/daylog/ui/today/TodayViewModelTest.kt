@@ -1,0 +1,126 @@
+package com.vitalypr.daylog.ui.today
+
+import android.content.Context
+import androidx.room.Room
+import androidx.test.core.app.ApplicationProvider
+import app.cash.turbine.test
+import com.vitalypr.daylog.data.db.DayLogDb
+import com.vitalypr.daylog.data.repo.DayRepository
+import com.vitalypr.daylog.di.DatabaseModule
+import com.vitalypr.daylog.domain.model.DayStatus
+import com.vitalypr.daylog.domain.model.DayType
+import java.time.Instant
+import java.time.LocalDateTime
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
+import org.junit.After
+import org.junit.Before
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+
+@OptIn(ExperimentalCoroutinesApi::class)
+@RunWith(RobolectricTestRunner::class)
+class TodayViewModelTest {
+
+    private lateinit var db: DayLogDb
+    private lateinit var vm: TodayViewModel
+    private val dispatcher = StandardTestDispatcher()
+    // Fixed clock: Tuesday 2026-08-04, 08:12.
+    private val fixedNow = LocalDateTime.of(2026, 8, 4, 8, 12)
+
+    @Before fun setup() {
+        Dispatchers.setMain(dispatcher)
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        db = Room.inMemoryDatabaseBuilder(context, DayLogDb::class.java)
+            .addCallback(DatabaseModule.SeedCallback)
+            .allowMainThreadQueries()
+            .build()
+        val repo = DayRepository(db.dayDao(), db.categoryDao()) { Instant.parse("2026-08-04T12:00:00Z") }
+        vm = TodayViewModel(repo) { fixedNow }
+    }
+
+    @After fun teardown() {
+        Dispatchers.resetMain()
+        db.close()
+    }
+
+    @Test fun `arrive now logs the fixed clock time and report updates`() = runTest(dispatcher) {
+        vm.uiState.test {
+            assertEquals(DayStatus.EMPTY, awaitItem().status)
+            vm.arriveNow()
+            val state = expectMostRecentItemAfter { it.day.arrivalMin != null }
+            assertEquals(8 * 60 + 12, state.day.arrivalMin)
+            assertEquals(DayStatus.LOGGED, state.status)
+            assertTrue(state.reportText.contains("כניסה: 08:12"))
+            assertTrue(state.reportText.contains("יום ג׳ 04.08.2026"))
+        }
+    }
+
+    @Test fun `toggling day type twice returns to work day`() = runTest(dispatcher) {
+        vm.uiState.test {
+            awaitItem()
+            vm.toggleDayType(DayType.OFF)
+            assertEquals(DayType.OFF, expectMostRecentItemAfter { it.day.dayType == DayType.OFF }.day.dayType)
+            vm.toggleDayType(DayType.OFF)
+            assertEquals(DayType.WORK, expectMostRecentItemAfter { it.day.dayType == DayType.WORK }.day.dayType)
+        }
+    }
+
+    @Test fun `special day clears report text and blocks share`() = runTest(dispatcher) {
+        vm.uiState.test {
+            awaitItem()
+            vm.arriveNow()
+            expectMostRecentItemAfter { it.day.arrivalMin != null }
+            vm.toggleDayType(DayType.HOLIDAY)
+            val state = expectMostRecentItemAfter { it.day.dayType == DayType.HOLIDAY }
+            assertEquals("", state.reportText)
+        }
+        vm.share() // must not emit an effect
+        vm.effect.test { expectNoEvents() }
+    }
+
+    @Test fun `share marks day reported and emits launch effect`() = runTest(dispatcher) {
+        vm.uiState.test {
+            awaitItem()
+            vm.arriveNow()
+            expectMostRecentItemAfter { it.day.arrivalMin != null }
+
+            vm.effect.test {
+                vm.share()
+                val effect = awaitItem()
+                assertTrue(effect is TodayEffect.LaunchShare)
+                assertTrue((effect as TodayEffect.LaunchShare).reportText.contains("דוח יומי"))
+            }
+            val state = expectMostRecentItemAfter { it.day.reported }
+            assertEquals(DayStatus.REPORTED, state.status)
+        }
+    }
+
+    @Test fun `adding activity from category chip appears with category name`() = runTest(dispatcher) {
+        vm.uiState.test {
+            awaitItem()
+            val cats = expectMostRecentItemAfter { it.categories.isNotEmpty() }.categories
+            val pituach = cats.first { it.name == "פיתוח" }
+            vm.addActivity(pituach.id)
+            val state = expectMostRecentItemAfter { it.activityRows.isNotEmpty() }
+            assertEquals("פיתוח", state.activityRows.single().category)
+        }
+    }
+
+    /** Awaits emissions until the predicate holds; fails on timeout via Turbine. */
+    private suspend fun app.cash.turbine.ReceiveTurbine<TodayUiState>.expectMostRecentItemAfter(
+        predicate: (TodayUiState) -> Boolean,
+    ): TodayUiState {
+        while (true) {
+            val item = awaitItem()
+            if (predicate(item)) return item
+        }
+    }
+}

@@ -34,6 +34,27 @@ class DayRepository @Inject constructor(
     fun observeDay(date: LocalDate): Flow<DaySnapshot?> =
         dayDao.observeDay(date.toString()).map { it?.toSnapshot() }
 
+    /** Editable view with row ids for the day editor UI. */
+    fun observeEditable(date: LocalDate): Flow<EditableDay?> =
+        dayDao.observeDay(date.toString()).map { d ->
+            d?.let {
+                EditableDay(
+                    snapshot = it.toSnapshot(),
+                    activityRows = it.activities.sortedBy { a -> a.activity.sortOrder }.map { a ->
+                        ActivityRow(
+                            id = a.activity.id, categoryId = a.activity.categoryId,
+                            category = a.category.name, startMin = a.activity.startMin,
+                            endMin = a.activity.endMin, note = a.activity.note, result = a.activity.result,
+                            date = date, sortOrder = a.activity.sortOrder,
+                        )
+                    },
+                    fieldJobRows = it.fieldJobs.map { j ->
+                        FieldJobRow(j.id, j.title, j.locationText, j.startMin, j.endMin)
+                    },
+                )
+            }
+        }
+
     suspend fun getDay(date: LocalDate): DaySnapshot? = dayDao.getDay(date.toString())?.toSnapshot()
 
     fun observeRange(from: LocalDate, to: LocalDate): Flow<List<DaySnapshot>> =
@@ -137,6 +158,37 @@ class DayRepository @Inject constructor(
         }
     }
 }
+
+data class ActivityRow(
+    val id: Long,
+    val categoryId: Long,
+    val category: String,
+    val startMin: Int?,
+    val endMin: Int?,
+    val note: String,
+    val result: String,
+    val date: LocalDate,
+    val sortOrder: Int,
+) {
+    fun toEntity() = ActivityEntity(
+        id = id, date = date.toString(), categoryId = categoryId,
+        startMin = startMin, endMin = endMin, note = note, result = result, sortOrder = sortOrder,
+    )
+}
+
+data class FieldJobRow(
+    val id: Long,
+    val title: String,
+    val locationText: String?,
+    val startMin: Int?,
+    val endMin: Int?,
+)
+
+data class EditableDay(
+    val snapshot: DaySnapshot,
+    val activityRows: List<ActivityRow>,
+    val fieldJobRows: List<FieldJobRow>,
+)
 
 internal fun DayWithEntries.toSnapshot(): DaySnapshot = DaySnapshot(
     date = LocalDate.parse(day.date),

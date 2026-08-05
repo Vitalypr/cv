@@ -5,4 +5,49 @@
     <string name="tab_history">היסטוריה</string>
     <string name="tab_stats">סטטיסטיקה</string>
     <string name="tab_settings">הגדרות</string>
+
+    <string name="arrival">כניסה</string>
+    <string name="departure">יציאה</string>
+    <string name="arrived_now">הגעתי</string>
+    <string name="left_now">יצאתי</string>
+    <string name="total_at_office">סה״כ במשרד %1$s</string>
+    <string name="source_geofence">גדר גיאוגרפית</string>
+    <string name="source_manual">ידני</string>
+    <string name="minus_5">‎−5</string>
+    <string name="plus_5">‎+5</string>
+    <string name="special_day">יום מיוחד:</string>
+    <string name="day_off">חופש</string>
+    <string name="holiday">חג</string>
+
+    <string name="field_jobs">עבודות שטח</string>
+    <string name="add_field_job">+ עבודת שטח</string>
+    <string name="field_job_title">אתר / לקוח</string>
+    <string name="field_job_location">מיקום (לא חובה)</string>
+    <string name="save">שמירה</string>
+    <string name="cancel">ביטול</string>
+
+    <string name="activities">פעילויות</string>
+    <string name="activity_note_hint">מה נעשה… (לא חובה)</string>
+    <string name="activity_result_hint">תוצאה (לא חובה)…</string>
+    <string name="activity_times">שעות:</string>
+    <string name="remove">הסרה</string>
+    <string name="start_time">שעת התחלה</string>
+    <string name="end_time">שעת סיום</string>
+    <string name="time_unset">—:—</string>
+
+    <string name="notes">הערות</string>
+    <string name="notes_hint">הערות ליום…</string>
+
+    <string name="report_preview">תצוגת דוח</string>
+    <string name="send_whatsapp">שליחה לוואטסאפ</string>
+    <string name="resend_whatsapp">שליחה מחדש</string>
+    <string name="no_report_special_day">🏖️ %1$s — לא נשלח דוח</string>
+
+    <string name="status_empty">ריק</string>
+    <string name="status_logged">נרשם, לא נשלח</string>
+    <string name="status_reported">נשלח ✓</string>
+    <string name="status_reported_edited">נשלח (עודכן)</string>
+
+    <string name="coming_soon">בקרוב</string>
+    <string name="confirm_time">אישור</string>
 </resources>
