@@ -1,4 +1,4 @@
-<title>DayLog · יומן עבודה — Clickable Mockup (spec v0.3)</title>
+<title>DayLog · יומן עבודה — Clickable Mockup (spec v0.4)</title>
 <style>
 @font-face {
   font-family: 'Heebo';
@@ -216,6 +216,30 @@ textarea.notes:focus{outline:none}
 .wd{width:26px;height:26px;border-radius:99px;background:#EDF1F3;color:#8A99A4;font-size:12px;font-weight:600;display:grid;place-items:center;transition:all .15s}
 .wd.on{background:#0B6E6A;color:#fff}
 
+/* day off + stats */
+.dayoff{display:flex;align-items:center;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid #F0F4F6;font-size:12.5px;color:#5A6B77}
+.dayoff .chip{padding:5px 12px;font-size:12.5px}
+.chip.off-on{background:#5A6B77;border-color:#5A6B77;color:#fff;font-weight:500}
+.badge.b-off{background:#E8EDF0;color:#5A6B77}
+.seg{display:flex;background:#EDF1F3;border-radius:12px;padding:3px;margin:2px 2px 12px}
+.seg button{flex:1;padding:7px 0;font:600 13px 'Heebo';color:#5A6B77;border-radius:10px;transition:all .15s}
+.seg button.on{background:#fff;color:#085250;box-shadow:0 1px 3px rgba(27,39,51,.14)}
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:11px}
+.kpi2{background:#fff;border-radius:14px;padding:9px 12px;box-shadow:0 1px 2px rgba(27,39,51,.05)}
+.kpi2 b{display:block;font:600 19px 'Rubik';color:#1B2733;letter-spacing:.01em}
+.kpi2 span{font-size:10.5px;color:#8A99A4}
+.legend2{display:flex;gap:13px;font-size:11px;color:#5A6B77;margin-bottom:8px;align-items:center;flex-wrap:wrap}
+.legend2 i{width:9px;height:9px;border-radius:3px;display:inline-block;margin-inline-end:4px;vertical-align:-1px}
+.legend2 .avg-s{width:16px;border-top:2px dashed #8A99A4;display:inline-block;margin-inline-end:4px;vertical-align:2px}
+.chartwrap{position:relative}
+.ctt{position:absolute;background:#24333d;color:#fff;font-size:11px;border-radius:8px;padding:5px 9px;pointer-events:none;opacity:0;transition:opacity .12s;white-space:nowrap;z-index:5;direction:rtl;transform:translate(-50%,-110%)}
+.abar{display:flex;align-items:center;gap:8px;margin-bottom:7px;font-size:12px}
+.abar .nm2{width:46px;color:#33434f;flex:none}
+.abar .tr{flex:1;height:13px;background:#F2F6F7;border-radius:5px;display:flex}
+.abar .fill{height:100%;background:#00897B;border-radius:5px}
+.abar .cnt{width:26px;text-align:left;color:#5A6B77;font-variant-numeric:tabular-nums;flex:none;direction:ltr}
+.statshare{width:100%;background:#0B6E6A;color:#fff;font:600 14px 'Rubik';border-radius:14px;padding:12px 0;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:2px}
+
 /* notifications (heads-up) */
 .headsup{position:absolute;top:44px;inset-inline:10px;background:#FDFEFE;border-radius:18px;box-shadow:0 6px 24px rgba(10,25,35,.28);padding:12px 14px;z-index:40;transform:translateY(-130%);transition:transform .3s cubic-bezier(.2,.9,.3,1.15);direction:rtl}
 .headsup.in{transform:translateY(0)}
@@ -283,7 +307,7 @@ footer.pg{margin-top:40px;border-top:1px solid var(--line);padding-top:16px;colo
 <div class="wrap">
 <header class="page">
   <div class="logo"><div class="mark">יו</div><h1>DayLog · יומן עבודה</h1></div>
-  <div class="sub">Clickable mockup of every screen &amp; scenario in spec v0.3</div>
+  <div class="sub">Clickable mockup of every screen &amp; scenario in spec v0.4</div>
   <div class="approve-pill">FOR APPROVAL</div>
 </header>
 
@@ -304,7 +328,9 @@ footer.pg{margin-top:40px;border-top:1px solid var(--line);padding-top:16px;colo
       <li><b>Today</b> — tap הגעתי/יצאתי, adjust with ±5, tap a chip to add an activity entry (optional start/end times, note, result — same category can repeat), add the field job, watch the live report rebuild <span class="sec">(§2.4 ReportBuilder, RLM marks included)</span></li>
       <li><b>Send</b> — share sheet → WhatsApp → group picker → sent bubble; day flips to נשלח <span class="sec">(§2.2 — 3 taps)</span></li>
       <li><b>History</b> — month summary with its own שיתוף, seeded days with status dots <span class="sec">(§2.5, F11)</span></li>
-      <li><b>Settings</b> — work-week (Sun–Thu), geofence, silent mode, backup toggles <span class="sec">(§5.3)</span></li>
+      <li><b>Special days</b> — the חופש / חג chips in the time card: mark one, then fire "Report time" and see the reminder suppressed <span class="sec">(S4)</span></li>
+      <li><b>Statistics</b> — week/month/year views: KPI tiles, stacked office+field hours chart with tooltips and average line, activity breakdown, period share <span class="sec">(§5.3, F11 — chart palette CVD-validated)</span></li>
+      <li><b>Settings</b> — work-week (Sun–Thu), geofence, silent mode, backup toggles <span class="sec">(§5.4)</span></li>
       <li><b>First-run setup</b> — the 3-step wizard: <button id="open-setup" style="color:var(--accent);font-weight:600">open it</button> <span class="sec">(N1)</span></li>
     </ul>
 
@@ -336,6 +362,7 @@ footer.pg{margin-top:40px;border-top:1px solid var(--line);padding-top:16px;colo
               </div>
             </div>
             <div class="total" id="total" hidden>סה״כ במשרד <b id="total-v"></b></div>
+            <div class="dayoff"><span>יום מיוחד:</span><button class="chip" id="off-v">חופש</button><button class="chip" id="off-h">חג</button></div>
           </div>
 
           <div class="card"><h4>עבודות שטח</h4>
@@ -379,6 +406,29 @@ footer.pg{margin-top:40px;border-top:1px solid var(--line);padding-top:16px;colo
               שיתוף סיכום חודשי</button>
           </div>
           <div id="daylist"></div>
+        </div>
+      </section>
+
+      <!-- STATS -->
+      <section class="pane" id="pane-stats" hidden>
+        <div class="appbar"><div><div class="title">סטטיסטיקה</div></div></div>
+        <div class="scroll">
+          <div class="seg" id="seg">
+            <button data-per="week" class="on">שבוע</button>
+            <button data-per="month">חודש</button>
+            <button data-per="year">שנה</button>
+          </div>
+          <div class="kpis" id="kpis"></div>
+          <div class="card">
+            <h4 id="chart-title"></h4>
+            <div class="legend2"><span><i style="background:#00897B"></i>משרד</span><span><i style="background:#9E6410"></i>שטח</span><span><span class="avg-s"></span>ממוצע</span></div>
+            <div class="chartwrap"><div id="chart"></div><div class="ctt" id="ctt"></div></div>
+          </div>
+          <div class="card"><h4>פעילויות לפי קטגוריה</h4><div id="acats"></div></div>
+          <button class="statshare" id="share-period">
+            <svg class="wa" viewBox="0 0 24 24" fill="#fff" width="16" height="16"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm5 13.6c-.2.6-1.2 1.2-1.7 1.2-.4.1-1 .1-1.6-.1-2.6-.8-4.5-2.6-5.8-4.8-.5-.8-.9-1.8-.7-2.6.1-.6.8-1.5 1.3-1.5h.6c.2 0 .4 0 .6.5l.8 1.9c.1.2 0 .4-.1.6l-.5.6c-.1.2-.2.4-.1.6.6 1.2 1.7 2.2 3 2.8.2.1.4.1.6-.1l.7-.8c.2-.2.4-.3.6-.2l1.9.9c.3.2.4.5.4 1Z"/></svg>
+            שיתוף סיכום התקופה
+          </button>
         </div>
       </section>
 
@@ -451,6 +501,7 @@ footer.pg{margin-top:40px;border-top:1px solid var(--line);padding-top:16px;colo
       <nav class="nav" id="nav">
         <button data-p="today" class="on"><span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg></span>היום</button>
         <button data-p="history"><span class="ic"><svg viewBox="0 0 24 24"><rect x="4" y="5.5" width="16" height="14.5" rx="2.5"/><path d="M4 10h16M8.5 3.5v3M15.5 3.5v3"/></svg></span>היסטוריה</button>
+        <button data-p="stats"><span class="ic"><svg viewBox="0 0 24 24"><path d="M5 20v-7M10.5 20V5.5M16 20v-10M21 20H3"/></svg></span>סטטיסטיקה</button>
         <button data-p="settings"><span class="ic"><svg viewBox="0 0 24 24"><path d="M4 8h10M18 8h2M4 16h2M10 16h10"/><circle cx="16" cy="8" r="2.2"/><circle cx="8" cy="16" r="2.2"/></svg></span>הגדרות</button>
       </nav>
       <div class="homebar"></div>
@@ -465,7 +516,7 @@ footer.pg{margin-top:40px;border-top:1px solid var(--line);padding-top:16px;colo
 </div>
 
 <footer class="pg">
-  <span>DayLog spec v0.3 · docs/daylog-spec.md · every interaction here maps to a numbered spec section</span>
+  <span>DayLog spec v0.4 · docs/daylog-spec.md · every interaction here maps to a numbered spec section</span>
   <span>Rubik + Heebo, embedded · Material 3, light</span>
 </footer>
 </div>
@@ -475,7 +526,7 @@ footer.pg{margin-top:40px;border-top:1px solid var(--line);padding-top:16px;colo
 "use strict";
 var RLM="‏";
 var CATS=["דיון","התקנה","בדיקות","פיתוח","תכנון","תיעוד","תמיכה","אחר"];
-var st={arrival:null,departure:null,aSrc:"",dSrc:"",acts:[],fj:[],notes:"",reported:false,edited:false,exitFired:false};
+var st={arrival:null,departure:null,aSrc:"",dSrc:"",acts:[],fj:[],notes:"",reported:false,edited:false,exitFired:false,dayType:"WORK"};
 var $=function(id){return document.getElementById(id)};
 
 function fmt(m){if(m==null)return "—:—";var mm=m%1440,h=Math.floor(mm/60),x=mm%60;return (h<10?"0":"")+h+":"+(x<10?"0":"")+x+(m>=1440?" (למחרת)":"")}
@@ -509,7 +560,8 @@ function buildReport(){
 function badge(){
   var b=$("badge");
   var has=st.arrival!=null||st.fj.length||st.acts.length||st.notes.trim();
-  if(st.reported&&st.edited){b.className="badge b-edit";b.textContent="נשלח (עודכן)"}
+  if(st.dayType!=="WORK"){b.className="badge b-off";b.textContent=st.dayType==="OFF"?"חופש":"חג"}
+  else if(st.reported&&st.edited){b.className="badge b-edit";b.textContent="נשלח (עודכן)"}
   else if(st.reported){b.className="badge b-sent";b.textContent="נשלח ✓"}
   else if(has){b.className="badge b-logged";b.textContent="נרשם, לא נשלח"}
   else{b.className="badge b-empty";b.textContent="ריק"}
@@ -557,11 +609,17 @@ function render(){
   document.querySelectorAll("#chips .chip").forEach(function(ch){
     ch.classList.toggle("on",st.acts.some(function(a){return a.cat===ch.dataset.c}));
   });
-  $("rep").textContent=buildReport();
+  var offDay=st.dayType!=="WORK";
+  $("rep").textContent=offDay?("🏖️ "+(st.dayType==="OFF"?"יום חופש":"חג")+" — לא נשלח דוח"):buildReport();
+  $("send").style.opacity=offDay?".4":"";
   $("send-l").textContent=st.reported?"שליחה מחדש":"שליחה לוואטסאפ";
   $("send").classList.toggle("resend",st.reported);
+  $("off-v").classList.toggle("off-on",st.dayType==="OFF");
+  $("off-h").classList.toggle("off-on",st.dayType==="HOLIDAY");
   badge();
 }
+$("off-v").addEventListener("click",function(){st.dayType=st.dayType==="OFF"?"WORK":"OFF";render();toast(st.dayType==="OFF"?"סומן יום חופש — אין תזכורת":"בוטל סימון חופש")});
+$("off-h").addEventListener("click",function(){st.dayType=st.dayType==="HOLIDAY"?"WORK":"HOLIDAY";render();toast(st.dayType==="HOLIDAY"?"סומן חג — אין תזכורת":"בוטל סימון חג")});
 function stepper(slot,key){
   var s=$(slot),old=s.querySelector(".stepper");if(old)old.remove();
   if(st[key]==null)return;
@@ -599,10 +657,11 @@ $("nav").addEventListener("click",function(e){
   var b=e.target.closest("button");if(!b)return;
   document.querySelectorAll(".nav button").forEach(function(x){x.classList.remove("on")});
   b.classList.add("on");
-  ["today","history","settings"].forEach(function(p){$("pane-"+p).hidden=p!==b.dataset.p});
+  ["today","history","stats","settings"].forEach(function(p){$("pane-"+p).hidden=p!==b.dataset.p});
   if(b.dataset.p==="today"){$("pane-today").style.position="static"}
+  if(b.dataset.p==="stats")renderStats();
 });
-["pane-history","pane-settings"].forEach(function(id){$(id).style.position="absolute";$(id).style.top="34px";$(id).style.bottom="0"});
+["pane-history","pane-stats","pane-settings"].forEach(function(id){$(id).style.position="absolute";$(id).style.top="34px";$(id).style.bottom="0"});
 
 /* heads-up */
 var huTimer=null;
@@ -655,6 +714,7 @@ $("ev-exit").addEventListener("click",function(){
 });
 $("ev-report").addEventListener("click",function(){
   setClock("17:45");
+  if(st.dayType!=="WORK"){toast((st.dayType==="OFF"?"יום חופש":"חג")+" — אין תזכורת (S4)");return}
   if(st.arrival==null){
     headsup("<b>השלם את יומן היום</b> — לא נרשמה כניסה",null,[["פתיחה",function(){}]]);return;
   }
@@ -670,7 +730,7 @@ $("ev-report").addEventListener("click",function(){
   ]);
 });
 $("ev-reset").addEventListener("click",function(){
-  st={arrival:null,departure:null,aSrc:"",dSrc:"",acts:[],fj:[],notes:"",reported:false,edited:false,exitFired:false};
+  st={arrival:null,departure:null,aSrc:"",dSrc:"",acts:[],fj:[],notes:"",reported:false,edited:false,exitFired:false,dayType:"WORK"};
   $("notes").value="";setClock("07:58");render();toast("היום אופס");
 });
 function setClock(t){$("clock").textContent=t}
@@ -682,7 +742,10 @@ function shareUI(){
   $("sheet-apps").hidden=false;$("sheet-chats").hidden=true;
   $("ovl").classList.add("in");$("sheet").classList.add("in");
 }
-$("send").addEventListener("click",openShare);
+$("send").addEventListener("click",function(){
+  if(st.dayType!=="WORK"){toast("אין דוח ביום חופש/חג");return}
+  openShare();
+});
 $("share-month").addEventListener("click",function(){
   pendingText=[RLM+"📊 סיכום חודשי — אוגוסט 2026",RLM+"ימי עבודה: 3 | סה״כ שעות: 27:10",RLM+"🚗 ימי שטח: 1",RLM+"✅ פעילויות: פיתוח 3 · דיון 2 · התקנה 1 · בדיקות 1"].join("\n");
   monthly=true;shareUI();
@@ -718,6 +781,109 @@ days.forEach(function(x){
   b.innerHTML="<span class='dot "+x.st+"'></span><span class='d'>"+x.d.split(" ")[1]+"<small>"+x.d.split(" ")[0]+"</small></span><span class='cats'>"+x.cats+"</span><span class='hrs'>"+(x.hrs==="—"?"":x.hrs)+"</span>";
   b.addEventListener("click",function(){toast("נפתח עורך יום — "+x.d)});
   dl.appendChild(b);
+});
+
+/* ---------- statistics ---------- */
+var period="week";
+var STATS={
+  week:{
+    title:"שעות לפי יום — השבוע הנוכחי",
+    days:[{l:"א",o:8.5,f:0},{l:"ב",o:9.1,f:0},{l:"ג",o:4.2,f:3.5},{l:"ד",o:8.7,f:0},{l:"ה",o:7.9,f:1.2}],
+    inAvg:"08:19",outAvg:"17:41",off:0,hol:0,
+    acats:[["פיתוח",6],["דיון",4],["התקנה",3],["בדיקות",2],["תיעוד",1]],
+    label:"סיכום שבועי — 2–6.8.2026"
+  },
+  month:{
+    title:"שעות לפי יום — יולי 2026",
+    days:(function(){var a=[],i;for(i=1;i<=31;i++){var dow=(2+i)%7; if(dow===5||dow===6)continue; // Jul 1 2026 = Wed
+      if(i===20){a.push({l:String(i),o:0,f:0,off:true});continue}
+      var o=7.5+((i*37)%27)/10, f=(i%9===0)?2.5:(i%13===0?1.5:0);
+      a.push({l:String(i),o:Math.round(o*10)/10,f:f});}return a})(),
+    inAvg:"08:24",outAvg:"17:38",off:1,hol:0,
+    acats:[["פיתוח",21],["דיון",14],["התקנה",9],["בדיקות",8],["תמיכה",4]],
+    label:"סיכום חודשי — יולי 2026"
+  },
+  year:{
+    title:"שעות לפי חודש — 2026",
+    days:[{l:"ינו",o:162,f:6},{l:"פבר",o:151,f:8},{l:"מרץ",o:171,f:4},{l:"אפר",o:138,f:10},{l:"מאי",o:167,f:7},{l:"יונ",o:162,f:9},{l:"יול",o:170,f:11},{l:"אוג",o:24,f:3.5}],
+    inAvg:"08:27",outAvg:"17:33",off:9,hol:6,
+    acats:[["פיתוח",142],["דיון",96],["התקנה",61],["בדיקות",57],["תכנון",30]],
+    label:"סיכום שנתי — 2026"
+  }
+};
+function hmm(h){var H=Math.floor(h),M=Math.round((h-H)*60);return H+":"+(M<10?"0":"")+M}
+function statCalc(S){
+  var tO=0,tF=0,wd=0,fd=0;
+  S.days.forEach(function(d){tO+=d.o;tF+=d.f;if(d.o+d.f>0)wd++;if(d.f>0)fd++});
+  return {tO:tO,tF:tF,tot:tO+tF,wd:wd,fd:fd,avg:wd?(tO+tF)/wd:0};
+}
+function renderStats(){
+  var S=STATS[period],c=statCalc(S);
+  document.querySelectorAll("#seg button").forEach(function(b){b.classList.toggle("on",b.dataset.per===period)});
+  var K=[[hmm(c.tot),"סה״כ שעות"],[c.wd,"ימי עבודה"],[c.fd,"ימי שטח"],[hmm(c.avg),"ממוצע ליום"],[S.inAvg,"כניסה ממוצעת"],[S.outAvg,"יציאה ממוצעת"]];
+  $("kpis").innerHTML=K.map(function(k){return "<div class='kpi2'><b>"+k[0]+"</b><span>"+k[1]+"</span></div>"}).join("");
+  if(S.off||S.hol)$("kpis").innerHTML+="<div class='kpi2' style='grid-column:1/-1'><b style='font-size:14px'>"+(S.off?S.off+" ימי חופש":"")+(S.off&&S.hol?" · ":"")+(S.hol?S.hol+" חגים":"")+"</b><span>ימים מיוחדים</span></div>";
+  $("chart-title").textContent=S.title;
+  drawChart(S,c);
+  $("acats").innerHTML="";
+  var max=S.acats[0][1];
+  S.acats.forEach(function(a){
+    $("acats").innerHTML+="<div class='abar'><span class='nm2'>"+a[0]+"</span><div class='tr'><div class='fill' style='width:"+Math.round(a[1]/max*100)+"%'></div></div><span class='cnt'>"+a[1]+"</span></div>";
+  });
+}
+function drawChart(S,c){
+  var W=300,H=150,padB=18,padT=8,padL=26,n=S.days.length;
+  var plotW=W-padL,plotH=H-padB-padT;
+  var max=0;S.days.forEach(function(d){max=Math.max(max,d.o+d.f)});
+  max=Math.ceil(max/ (max>50?25:2))*(max>50?25:2);
+  var gap=n>15?2:6, bw=Math.max(3,(plotW-gap*n)/n);
+  var y=function(v){return padT+plotH*(1-v/max)};
+  var s="<svg viewBox='0 0 "+W+" "+H+"' width='100%' style='display:block'>";
+  [0,.5,1].forEach(function(g){var vy=padT+plotH*(1-g);
+    s+="<line x1='0' y1='"+vy+"' x2='"+(W-padL+8)+"' y2='"+vy+"' stroke='#EDF1F3' stroke-width='1'/>";
+    s+="<text x='"+(W-2)+"' y='"+(vy+3.5)+"' font-size='9' fill='#8A99A4' text-anchor='end' font-family='Heebo'>"+Math.round(max*g)+"</text>";
+  });
+  var avgY=y(c.avg);
+  s+="<line x1='0' y1='"+avgY+"' x2='"+(W-padL+8)+"' y2='"+avgY+"' stroke='#8A99A4' stroke-width='1.6' stroke-dasharray='4 3'/>";
+  S.days.forEach(function(d,i){
+    var x=W-padL-(i+1)*(bw+gap)+gap/2;
+    var oH=plotH*d.o/max, fH=plotH*d.f/max;
+    var oY=padT+plotH-oH;
+    if(d.o>0)s+="<rect x='"+x+"' y='"+oY+"' width='"+bw+"' height='"+oH+"' rx='2' fill='#00897B'/>";
+    if(d.f>0)s+="<rect x='"+x+"' y='"+(oY-fH-2)+"' width='"+bw+"' height='"+fH+"' rx='2' fill='#9E6410'/>";
+    if(d.off)s+="<text x='"+(x+bw/2)+"' y='"+(padT+plotH-4)+"' font-size='8' fill='#B6C2CA' text-anchor='middle'>✕</text>";
+    var showL=n<=8||i%5===0;
+    if(showL)s+="<text x='"+(x+bw/2)+"' y='"+(H-5)+"' font-size='9' fill='#8A99A4' text-anchor='middle' font-family='Heebo'>"+d.l+"</text>";
+    s+="<rect class='hit' data-i='"+i+"' x='"+(x-gap/2)+"' y='0' width='"+(bw+gap)+"' height='"+H+"' fill='transparent'/>";
+  });
+  s+="</svg>";
+  $("chart").innerHTML=s;
+  var ctt=$("ctt");
+  $("chart").querySelectorAll(".hit").forEach(function(r){
+    function show(ev){
+      var d=S.days[+r.dataset.i];
+      ctt.innerHTML=(d.off?"יום חופש":("משרד "+hmm(d.o)+(d.f?" · שטח "+hmm(d.f):"")));
+      var br=r.getBoundingClientRect(),wr=$("chart").getBoundingClientRect();
+      ctt.style.left=(br.left-wr.left+br.width/2)+"px";
+      ctt.style.top=(br.top-wr.top+14)+"px";
+      ctt.style.opacity="1";
+    }
+    r.addEventListener("pointerenter",show);
+    r.addEventListener("pointerdown",show);
+    r.addEventListener("pointerleave",function(){ctt.style.opacity="0"});
+  });
+}
+$("seg").addEventListener("click",function(e){
+  var b=e.target.closest("button");if(!b)return;
+  period=b.dataset.per;renderStats();
+});
+$("share-period").addEventListener("click",function(){
+  var S=STATS[period],c=statCalc(S);
+  pendingText=[RLM+"📊 "+S.label,
+    RLM+"ימי עבודה: "+c.wd+" | סה״כ שעות: "+hmm(c.tot)+" | ממוצע ליום: "+hmm(c.avg),
+    RLM+"🚗 ימי שטח: "+c.fd+(S.off?" | חופש: "+S.off:"")+(S.hol?" | חגים: "+S.hol:""),
+    RLM+"✅ פעילויות: "+S.acats.map(function(a){return a[0]+" "+a[1]}).join(" · ")].join("\n");
+  monthly=true;shareUI();
 });
 
 /* settings interactivity */

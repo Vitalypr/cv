@@ -1,7 +1,7 @@
 # DayLog (יומן עבודה) — Consultant Daily Work Logger
 
 **Document type:** CONOPS + Technical Specification
-**Status:** Draft v0.3 — for review
+**Status:** Draft v0.4 — for review
 **Platform:** Android (native)
 **Language & locale:** Hebrew UI and reports, full RTL; Israel defaults (Sun–Thu work-week, Asia/Jerusalem, dd.MM.yyyy)
 **Author:** Vitaly (product owner) with Claude (co-author)
@@ -55,13 +55,18 @@ Total human effort: **3 taps per day** (notification action, group, Send). This 
 - Report time arrives with **arrival set but no departure** (still at the office) → notification *"עדיין במשרד? השלם יציאה ושלח"* with actions **עריכה** and **שליחה בכל זאת** (report renders without the Out line and without duration).
 - All times and activities are freely editable for **any past day**; a past day's report can be regenerated and sent late (report header carries the day's date, so late sending is unambiguous).
 
-**S4 — Non-working day and days off**
-No geofence prompts and no reminder fire on days outside the configured work-week (default Sun–Thu). Exceptions, both explicit:
+**S4 — Non-working day, days off, and holidays**
+No geofence prompts and no reminder fire on days outside the configured work-week (default Sun–Thu). Exceptions, all explicit:
 - **Worked on a weekend:** logging any fact for that day makes the reminder fire for it that evening like a normal day.
-- **Holiday / day off on a workday:** one tap marks the day as **חופש** (day off), which suppresses the "complete your log" nag for that date.
+- **Day off on a workday:** one tap marks the day as **חופש** (vacation/day off).
+- **Holiday:** one tap marks the day as **חג**.
+Both special day types suppress the "complete your log" nag and geofence prompts for that date, produce no report, and are counted separately in Statistics (vacation days vs. holidays). Marking is available on the Today screen and on any past day in History.
 
 **S5 — Reviewing history**
-Consultant opens the **History** tab: a calendar/list of past days with status badges (נשלח ✓ / נרשם, לא נשלח / חופש / ריק). Tapping a day opens the **Day Editor** (same layout as Today, bound to that date) with a **שליחה מחדש** action. The month header shows the monthly summary (hours, field jobs, activity breakdown) with its own **שיתוף** button that sends the summary through the same WhatsApp share flow as the daily report.
+Consultant opens the **History** tab: a calendar/list of past days with status badges (נשלח ✓ / נרשם, לא נשלח / חופש / חג / ריק). Tapping a day opens the **Day Editor** (same layout as Today, bound to that date) with a **שליחה מחדש** action.
+
+**S6 — Statistics**
+Consultant opens the **Statistics** tab and switches between **שבוע / חודש / שנה** views. Each view shows KPI tiles (total hours, work days, field days, average day length, average arrival, average departure), a stacked office/field hours chart (per day for week/month, per month for year) with an average reference line and tap tooltips, an activity-category breakdown, and a **שיתוף** button that sends that period's text summary (§2.5) through the same WhatsApp share flow as the daily report.
 
 ### 2.4 The daily report (the product)
 
@@ -85,9 +90,9 @@ Template rules:
 - **RTL correctness in WhatsApp:** every line begins with an invisible RLM (U+200F) so lines that start with emoji or digits still render right-to-left; times and number ranges are wrapped so `10:00–13:30` doesn't flip. `ReportBuilder` owns this and it is unit-tested against golden strings.
 - Fixed labels are string resources (Hebrew is the app's default locale); adding another language later is trivial.
 
-### 2.5 The monthly summary (shareable on demand)
+### 2.5 Period summaries (shareable on demand)
 
-Generated from History for any month and sent via the same share flow:
+Generated in the Statistics tab for the selected week, month, or year and sent via the same share flow (monthly example):
 
 ```
 ‏📊 סיכום חודשי — אוגוסט 2026
@@ -112,9 +117,9 @@ Generated from History for any month and sent via the same share flow:
 | F6 | Free-text daily notes field | Must |
 | F7 | Daily reminder notification at a configured time, on configured workdays **or any day that has data**, with the variants of §5.4 | Must |
 | F8 | Send action opens WhatsApp (or WhatsApp Business) with the report text; system chooser as fallback | Must |
-| F9 | Day status (derived): ריק / נרשם, לא נשלח / נשלח / נשלח (עודכן) / חופש; re-send possible any time and overwrites the sent timestamp | Must |
-| F10 | History view: browse, edit, and re-send any past day; mark a day as day-off | Must |
-| F11 | Monthly summary (per §2.5) viewable and shareable to WhatsApp like the daily report | Must |
+| F9 | Day status (derived): ריק / נרשם, לא נשלח / נשלח / נשלח (עודכן) / חופש / חג; re-send possible any time and overwrites the sent timestamp | Must |
+| F10 | History view: browse, edit, and re-send any past day; mark any day as day-off (חופש) or holiday (חג) — also available for today on the Today screen | Must |
+| F11 | Statistics tab with weekly/monthly/yearly views: KPI tiles (total hours, work days, field days, avg day length, avg arrival, avg departure, off/holiday counts), stacked office/field hours chart with average reference line and tooltips, activity breakdown; each period's summary (§2.5) shareable to WhatsApp | Must |
 | F12 | Export all data as JSON (full fidelity, versioned schema) and CSV via share sheet | Should |
 | F13 | Android Auto Backup of DB + settings (on by default, off toggle in Settings) | Should |
 | F14 | Works fully without location permission (geofencing simply off) | Must |
@@ -133,28 +138,35 @@ Generated from History for any month and sent via the same share flow:
 
 ## 5. UX Specification
 
-Three-tab bottom navigation, fully RTL. Visual language: Material 3, dynamic color, large touch targets, no decoration that doesn't serve logging speed.
+Four-tab bottom navigation (היום / היסטוריה / סטטיסטיקה / הגדרות), fully RTL. Visual language: Material 3, dynamic color, large touch targets, no decoration that doesn't serve logging speed.
 
 ### 5.1 Today (היום)
 - **Time card:** big `כניסה —:—` / `יציאה —:—` values; tap a value to set/adjust via time picker; **הגעתי** / **יצאתי** one-tap buttons when unset.
 - **Field jobs card:** list + **+ עבודת שטח** button (bottom-sheet form: title, optional location, start/end).
 - **Activities card:** category chips in a flow row; tapping a chip adds a new activity entry below — an inline row with optional start/end time pickers, a one-line note field, and an optional result field. Each entry has its own remove control; a chip is highlighted while it has at least one entry, and tapping it again adds another entry of the same category.
+- **Special-day row:** compact **חופש** / **חג** toggle chips in the time card; marking either suppresses the reminder and geofence prompts for the day and replaces the report preview with a "no report today" state (S4).
 - **Notes card:** single free-text field.
 - **Report preview card:** live-rendered report text + **שליחה לוואטסאפ** button + status badge.
 - On a non-workday the screen shows a "יום חופש" state with a **רישום יום בכל זאת** action (S4).
 
 ### 5.2 History (היסטוריה)
 - Month calendar strip with status dots; list of day cards below (date, hours, first activity categories, status badge).
-- Day tap → Day Editor (same layout as Today, bound to that date), with **שליחה מחדש** and **סימון כחופש**.
-- Month header: monthly summary (§2.5) + **שיתוף** button.
+- Day tap → Day Editor (same layout as Today, bound to that date), with **שליחה מחדש** and **חופש / חג** marking.
 
-### 5.3 Settings (הגדרות)
+### 5.3 Statistics (סטטיסטיקה)
+- **Period selector:** segmented control שבוע / חודש / שנה with previous/next arrows.
+- **KPI tiles** (2-column grid): סה״כ שעות, ימי עבודה, ימי שטח, ממוצע ליום, כניסה ממוצעת, יציאה ממוצעת; off/holiday counts as a secondary line.
+- **Hours chart:** stacked bars — office hours (`#00897B`) + field hours (`#9E6410`), a two-hue palette validated for color-vision deficiency and 3:1 surface contrast — per day (week/month) or per month (year), right-to-left time axis, dashed average reference line, 2px surface gaps between stacked segments, tap tooltip per bar with exact values, legend above the plot. Rendered with Compose Canvas (no chart library dependency); exact values always available via the KPI tiles and share text (accessibility relief).
+- **Activity breakdown:** horizontal single-hue bars with count labels per category.
+- **שיתוף** button: sends the selected period's text summary (§2.5).
+
+### 5.4 Settings (הגדרות)
 - Office location: **"קבע למיקום הנוכחי"** button (one-shot location fix while standing at the office) or manual coordinate entry — deliberately no map picker, keeping the app free of Maps SDK, API keys, and network (N3). Geofence radius (default 150 m) + on/off.
 - Work-week day toggles (default Sun–Thu); report reminder time.
 - Arrival/departure confirmation behavior: confirm-via-notification (default) or auto-log silently (opt-in; silent mode still never overwrites MANUAL values).
 - Manage activity categories; Auto Backup toggle; report template preview; export JSON/CSV; about.
 
-### 5.4 Notifications
+### 5.5 Notifications
 
 | Trigger | Content | Actions |
 |---|---|---|
@@ -208,7 +220,7 @@ WorkDay
   arrivalMin: Int?                           // minutes from midnight of `date`
   departureMin: Int?                         // may exceed 1440 (past midnight)
   notes: String
-  isDayOff: Boolean                          // suppresses reminder nag (S4)
+  dayType: WORK | OFF | HOLIDAY              // OFF=חופש, HOLIDAY=חג — suppress reminder/geofence, no report (S4)
   reportedAt: Instant?                       // null = never sent; overwritten on re-send
   editedAfterReport: Boolean                 // drives the "נשלח (עודכן)" badge
   arrivalSource / departureSource: MANUAL | GEOFENCE
@@ -239,7 +251,7 @@ Category
   sortOrder: Int
 ```
 
-`WorkDay` is created lazily on first fact logged for a date. A single `@Transaction` query (`DayWithEntries`) feeds the Today/Day-Editor screen. Status is derived: ריק (no row) / נרשם, לא נשלח (`reportedAt == null`) / נשלח / נשלח (עודכן) (`editedAfterReport`) / חופש (`isDayOff`).
+`WorkDay` is created lazily on first fact logged for a date. A single `@Transaction` query (`DayWithEntries`) feeds the Today/Day-Editor screen. Status is derived: ריק (no row) / נרשם, לא נשלח (`reportedAt == null`) / נשלח / נשלח (עודכן) (`editedAfterReport`) / חופש or חג (`dayType`).
 
 ### 6.4 Report generation & WhatsApp handoff
 
@@ -295,7 +307,7 @@ Intent(Intent.ACTION_SEND).apply {
 |---|---|---|
 | M1 | Core logging + report | Today screen (RTL/Hebrew), manual times incl. past-midnight, activities, field jobs, notes, day-off; report preview; WhatsApp handoff with fallbacks; Room + golden-string tests for `ReportBuilder` |
 | M2 | Reminder | AlarmManager scheduling, all §5.4 report-time variants, boot/timezone-safe; day status lifecycle incl. edited-after-report |
-| M3 | History + monthly | History tab, day editor for past dates, re-send, monthly summary + share (F11) |
+| M3 | History + statistics | History tab, day editor for past dates, re-send, day-off/holiday marking; Statistics tab with week/month/year KPIs, stacked hours chart, activity breakdown, period share (F11) |
 | M4 | Geofencing | Setup flow (current-location capture), §5.4 geofence variants, debounce/override invariants, background-location UX + Play declaration |
 | M5 | Polish | Category editor, export JSON/CSV, Auto Backup + toggle, template preview, app icon |
 
