@@ -17,6 +17,18 @@ fun formatDuration(minutes: Int): String {
     return "${minutes / 60}:${"%02d".format(minutes % 60)}"
 }
 
+/** LRM anchors keep the neutral en-dash inside an LTR run so ranges don't flip in RTL text. */
+const val LRM = "‎"
+
+/**
+ * Bidi-safe time range for RTL contexts (spec §2.4): "10:00–13:30" must render
+ * left-to-right even inside a Hebrew paragraph. Open ranges render "10:00–…".
+ */
+fun formatRange(startMin: Int, endMin: Int?): String {
+    val start = formatMinutes(startMin)
+    return if (endMin != null) "$start$LRM–$LRM${formatMinutes(endMin)}" else "$start$LRM–$LRM…"
+}
+
 /** Hebrew short day name, week starting Sunday: יום א׳ .. יום ש׳. */
 fun hebrewDayName(date: LocalDate): String {
     val letter = when (date.dayOfWeek) {

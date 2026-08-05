@@ -1,7 +1,7 @@
 # DayLog (יומן עבודה) — Consultant Daily Work Logger
 
 **Document type:** CONOPS + Technical Specification
-**Status:** Draft v0.4 — for review
+**Status:** Draft v0.5 — approved (v0.4) + PDF delivery amendment
 **Platform:** Android (native)
 **Language & locale:** Hebrew UI and reports, full RTL; Israel defaults (Sun–Thu work-week, Asia/Jerusalem, dd.MM.yyyy)
 **Author:** Vitaly (product owner) with Claude (co-author)
@@ -69,6 +69,8 @@ Consultant opens the **History** tab: a calendar/list of past days with status b
 Consultant opens the **Statistics** tab and switches between **שבוע / חודש / שנה** views. Each view shows KPI tiles (total hours, work days, field days, average day length, average arrival, average departure), a stacked office/field hours chart (per day for week/month, per month for year) with an average reference line and tap tooltips, an activity-category breakdown, and a **שיתוף** button that sends that period's text summary (§2.5) through the same WhatsApp share flow as the daily report.
 
 ### 2.4 The daily report (the product)
+
+**Delivery format (v0.5):** the daily report is sent to WhatsApp as a **styled PDF document** (A4, Hebrew RTL, brand-styled header) with the plain-text report attached as the message caption — the group reads the text instantly and opens the PDF for the styled record. The plain text below remains the single source of truth (`ReportBuilder`); the PDF is a visual rendering of the same content (`ReportPdf`, native `android.graphics.pdf` — no new dependencies, no network). If caption support is unavailable, WhatsApp delivers the document alone; the text is always recoverable from the preview card.
 
 Plain text in Hebrew (WhatsApp-friendly, no markdown dependency), rendered from a template:
 
@@ -323,7 +325,7 @@ Intent(Intent.ACTION_SEND).apply {
 | Marking day "נשלח" on intent launch, not actual send | Accepted inaccuracy; re-send always available and refreshes the timestamp |
 | RTL rendering glitches in WhatsApp (emoji/digit line starts) | RLM-prefixed lines, golden-string tests, manual verification on real device in M1 |
 
-**Resolved with the product owner:** language = Hebrew (v0.2 throughout); work-week = Sun–Thu; monthly summary is shareable like the daily report (F11, §2.5); activities carry optional start/end times and an optional result, with repeated categories allowed (v0.3).
+**Resolved with the product owner:** language = Hebrew (v0.2 throughout); work-week = Sun–Thu; monthly summary is shareable like the daily report (F11, §2.5); activities carry optional start/end times and an optional result, with repeated categories allowed (v0.3); daily report delivered as a styled PDF with text caption (v0.5).
 
 **Still open:**
 1. Should field jobs support photo attachments (site evidence) in a future version? Nothing in v1 changes either way, but a `FieldJobPhoto` table would be added later.

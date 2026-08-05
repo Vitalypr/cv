@@ -68,7 +68,7 @@ fun TodayScreen(viewModel: TodayViewModel = hiltViewModel()) {
         viewModel.effect.collect { effect ->
             when (effect) {
                 is TodayEffect.LaunchShare ->
-                    context.startActivity(ReportShare.intentFor(context, effect.reportText))
+                    context.startActivity(ReportShare.pdfIntent(context, effect.pdf, effect.caption))
             }
         }
     }
@@ -252,11 +252,7 @@ private fun FieldJobsCard(state: TodayUiState, cb: TodayCallbacks) {
             Row(Modifier.padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("🚗", Modifier.padding(end = 8.dp))
                 Text(job.title, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-                val range = when {
-                    job.startMin != null && job.endMin != null -> "${formatMinutes(job.startMin)}–${formatMinutes(job.endMin)}"
-                    job.startMin != null -> "${formatMinutes(job.startMin)}–…"
-                    else -> ""
-                }
+                val range = job.startMin?.let { com.vitalypr.daylog.domain.time.formatRange(it, job.endMin) } ?: ""
                 Text(range, style = MaterialTheme.typography.bodySmall, color = InkSecondary)
             }
         }

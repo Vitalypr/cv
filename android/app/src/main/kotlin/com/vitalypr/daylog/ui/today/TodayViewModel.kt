@@ -40,13 +40,14 @@ data class TodayUiState(
 }
 
 sealed interface TodayEffect {
-    /** Screen launches the share intent; day was already marked reported. */
-    data class LaunchShare(val reportText: String) : TodayEffect
+    /** Screen launches the PDF share intent; day was already marked reported. */
+    data class LaunchShare(val pdf: java.io.File, val caption: String) : TodayEffect
 }
 
 @HiltViewModel
 class TodayViewModel @Inject constructor(
     private val repository: DayRepository,
+    private val reportPdf: com.vitalypr.daylog.reporting.DailyPdfRenderer,
     @Now private val now: () -> LocalDateTime,
     savedStateHandle: androidx.lifecycle.SavedStateHandle,
 ) : ViewModel() {
@@ -95,11 +96,12 @@ class TodayViewModel @Inject constructor(
 
     fun setNotes(notes: String) = viewModelScope.launch { repository.setNotes(date, notes) }
 
-    /** Spec §6.4: mark reported on launch; re-send always available. */
+    /** Spec §6.4/§2.4 v0.5: styled PDF + text caption; mark reported on launch. */
     fun share() = viewModelScope.launch {
         val state = uiState.value
         if (state.isSpecialDay || !state.day.hasData) return@launch
+        val pdf = reportPdf.render(state.day)
         repository.markReported(date)
-        effects.send(TodayEffect.LaunchShare(state.reportText))
+        effects.send(TodayEffect.LaunchShare(pdf, state.reportText))
     }
 }

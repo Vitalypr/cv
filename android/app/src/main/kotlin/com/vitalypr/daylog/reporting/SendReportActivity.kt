@@ -22,6 +22,7 @@ import kotlinx.coroutines.launch
 class SendReportActivity : ComponentActivity() {
 
     @Inject lateinit var repository: DayRepository
+    @Inject lateinit var reportPdf: DailyPdfRenderer
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -32,9 +33,10 @@ class SendReportActivity : ComponentActivity() {
         lifecycleScope.launch {
             val day = repository.getDay(date)
             if (day != null && day.hasData) {
+                val pdf = reportPdf.render(day)
                 repository.markReported(date)
                 try {
-                    startActivity(ReportShare.intentFor(this@SendReportActivity, ReportBuilder.daily(day)))
+                    startActivity(ReportShare.pdfIntent(this@SendReportActivity, pdf, ReportBuilder.daily(day)))
                 } catch (_: ActivityNotFoundException) {
                     // No shareable target at all — nothing further to do; re-send stays available.
                 }

@@ -5,6 +5,7 @@ import com.vitalypr.daylog.domain.stats.PeriodSummary
 import com.vitalypr.daylog.domain.time.formatDate
 import com.vitalypr.daylog.domain.time.formatDuration
 import com.vitalypr.daylog.domain.time.formatMinutes
+import com.vitalypr.daylog.domain.time.formatRange
 import com.vitalypr.daylog.domain.time.hebrewDayName
 
 /**
@@ -16,7 +17,6 @@ import com.vitalypr.daylog.domain.time.hebrewDayName
 object ReportBuilder {
 
     const val RLM = "‏"
-    private const val EN_DASH = "–"
 
     fun daily(day: DaySnapshot): String {
         val lines = mutableListOf<String>()
@@ -34,12 +34,7 @@ object ReportBuilder {
 
         for (job in day.fieldJobs) {
             var r = "🚗 שטח: ${job.title}"
-            r += when {
-                job.startMin != null && job.endMin != null ->
-                    " (${formatMinutes(job.startMin)}$EN_DASH${formatMinutes(job.endMin)})"
-                job.startMin != null -> " (${formatMinutes(job.startMin)}$EN_DASH…)"
-                else -> ""
-            }
+            r += if (job.startMin != null) " (${formatRange(job.startMin, job.endMin)})" else ""
             lines += r
         }
 
@@ -48,12 +43,7 @@ object ReportBuilder {
             lines += "✅ פעילויות:"
             for (a in acts) {
                 var r = "• ${a.category}"
-                r += when {
-                    a.startMin != null && a.endMin != null ->
-                        " (${formatMinutes(a.startMin)}$EN_DASH${formatMinutes(a.endMin)})"
-                    a.startMin != null -> " (${formatMinutes(a.startMin)}$EN_DASH…)"
-                    else -> ""
-                }
+                r += if (a.startMin != null) " (${formatRange(a.startMin, a.endMin)})" else ""
                 if (a.note.isNotBlank()) r += " — ${a.note.trim()}"
                 if (a.result.isNotBlank()) r += " · תוצאה: ${a.result.trim()}"
                 lines += r

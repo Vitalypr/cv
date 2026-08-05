@@ -27,6 +27,7 @@ import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
+@org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
 class TodayViewModelTest {
 
     private lateinit var db: DayLogDb
@@ -43,7 +44,11 @@ class TodayViewModelTest {
             .allowMainThreadQueries()
             .build()
         val repo = DayRepository(db.dayDao(), db.categoryDao()) { Instant.parse("2026-08-04T12:00:00Z") }
-        vm = TodayViewModel(repo, { fixedNow }, androidx.lifecycle.SavedStateHandle())
+        // PdfDocument can't run on Robolectric — fake the renderer (drawing is covered by ReportPdfTest).
+        val fakePdf = com.vitalypr.daylog.reporting.DailyPdfRenderer { day ->
+            java.io.File.createTempFile("daylog-${day.date}", ".pdf").apply { writeText("%PDF-fake") }
+        }
+        vm = TodayViewModel(repo, fakePdf, { fixedNow }, androidx.lifecycle.SavedStateHandle())
     }
 
     @After fun teardown() {
@@ -96,7 +101,9 @@ class TodayViewModelTest {
                 vm.share()
                 val effect = awaitItem()
                 assertTrue(effect is TodayEffect.LaunchShare)
-                assertTrue((effect as TodayEffect.LaunchShare).reportText.contains("דוח יומי"))
+                val share = effect as TodayEffect.LaunchShare
+                assertTrue(share.caption.contains("דוח יומי"))
+                assertTrue(share.pdf.exists() && share.pdf.name.endsWith(".pdf"))
             }
             val state = expectMostRecentItemAfter { it.day.reported }
             assertEquals(DayStatus.REPORTED, state.status)
