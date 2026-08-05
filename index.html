@@ -1,0 +1,1156 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#2f6bff">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="חשמל שכן">
+<title>חישוב חשמל לשכן</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<style>
+  :root{
+    --bg:#eef0f3; --card:#ffffff; --ink:#11151b; --muted:#8b9199; --muted2:#a2a8b0;
+    --field:#f4f6f8; --line:#e7eaee; --blue:#2f6bff; --blue2:#4f8bff; --blue-tint:#eaf0ff;
+    --ok:#1a9b54; --ok-bg:#e7f7ee; --danger:#d23b3b; --danger-bg:#fdecea;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent; font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+  html,body{margin:0;padding:0}
+  body{background:var(--bg); color:var(--ink); font-size:16px; line-height:1.4; padding-bottom:34px}
+  main{padding:14px 16px 24px; max-width:520px; margin:0 auto}
+
+  .appbar{display:flex; align-items:center; justify-content:space-between; padding:8px 2px 14px}
+  .appbar .title{font-size:18px; font-weight:700}
+  .appbar .ava{width:38px;height:38px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-size:17px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+  .gear{border:none; background:#fff; width:38px; height:38px; border-radius:50%; font-size:16px; box-shadow:0 2px 8px rgba(0,0,0,.06); cursor:pointer; padding:0}
+  .setrow{display:flex; align-items:center; justify-content:space-between; margin-bottom:6px}
+  .setrow b{font-size:15px; color:var(--ink)}
+  .installbtn{border:none; background:#2f6bff; color:#fff; font-size:13px; font-weight:700; padding:9px 13px; border-radius:999px; cursor:pointer; box-shadow:0 3px 10px rgba(47,107,255,.3)}
+
+  .seg{display:flex; background:#e3e6ea; border-radius:14px; padding:4px; margin-bottom:16px}
+  .seg span{flex:1; text-align:center; padding:10px; border-radius:10px; font-size:14px; font-weight:600; color:#7a818b; cursor:pointer}
+  .seg span.on{background:#fff; color:var(--ink); box-shadow:0 1px 4px rgba(0,0,0,.08)}
+
+  .view{display:none} .view.active{display:block}
+
+  .card{background:var(--card); border-radius:22px; padding:18px; margin-bottom:13px; box-shadow:0 1px 3px rgba(20,24,35,.05)}
+  label.field{display:block; margin:8px 0 5px; font-size:12.5px; color:var(--muted); font-weight:600}
+
+  /* amount hero */
+  .amtcard .caplbl{font-size:12.5px; color:var(--muted); font-weight:500}
+  .bigamt{font-size:48px; font-weight:800; letter-spacing:-1.5px; line-height:1; margin:6px 0 13px}
+  .bigamt i{font-style:normal; font-size:22px; font-weight:600; color:var(--muted2)}
+  .tags{display:flex; flex-wrap:wrap; gap:7px}
+  .tag{background:var(--field); color:#5b626b; font-size:12px; font-weight:600; padding:6px 11px; border-radius:999px}
+  .tag.ok{background:var(--ok-bg); color:var(--ok)}
+  .tag.wait{background:#fff4e5; color:#b7791f}
+
+  /* reading */
+  .prev{display:flex; justify-content:space-between; align-items:center; font-size:13px; color:var(--muted); margin-bottom:14px}
+  .prev b{color:var(--ink); font-weight:600}
+  .linkbtn{border:none; background:none; color:var(--blue); font-size:13px; font-weight:600; cursor:pointer; padding:2px 4px}
+  .flbl{font-size:12.5px; color:var(--muted); font-weight:500; margin-bottom:8px}
+  .field{position:relative}
+  .field>input, #prevInput{width:100%; border:none; background:var(--field); border-radius:16px; padding:17px 58px 17px 16px; font-size:29px; font-weight:700; text-align:center; color:var(--ink); letter-spacing:-.5px}
+  #prevInput{font-size:18px; padding:13px 14px; margin-bottom:6px}
+  .field>input:focus, #prevInput:focus{outline:2px solid var(--blue)}
+  .cam{position:absolute; left:9px; top:50%; transform:translateY(-50%); width:42px;height:42px;border-radius:13px; background:var(--blue-tint); color:var(--blue); display:flex;align-items:center;justify-content:center; font-size:19px; border:none; cursor:pointer}
+
+  .g2{display:grid; grid-template-columns:1fr 1fr; gap:11px; margin-top:13px}
+  .tile{background:var(--field); border-radius:16px; padding:13px 14px}
+  .tile .t{font-size:11px; color:var(--muted); font-weight:600}
+  .tile .v{font-size:20px; font-weight:700; color:var(--ink); margin-top:3px; letter-spacing:-.3px}
+  .tile .v small{font-size:11.5px; font-weight:500; color:var(--muted2)}
+  .tile.rate .rr{display:flex; align-items:center; gap:6px; margin-top:2px}
+  .tile.rate .rr input{width:78px; border:none; background:transparent; font-size:20px; font-weight:700; color:var(--ink); padding:0; text-align:right}
+  .tile.rate .rr input:focus{outline:none}
+  .tile.rate .rr .doc{color:var(--blue); font-size:16px; cursor:pointer}
+
+  .ratedate{display:flex; align-items:center; gap:7px; font-size:12px; color:var(--muted); margin-top:11px}
+  .ratedate input{flex:1; border:1px solid var(--line); border-radius:9px; padding:7px 9px; font-size:13px; text-align:center; background:#fff; color:var(--ink)}
+
+  /* actions */
+  .acts{display:grid; grid-template-columns:1fr 1fr; gap:11px}
+  .btn{border:none; border-radius:16px; padding:16px; font-size:15px; font-weight:700; text-align:center; cursor:pointer}
+  .btn:disabled{opacity:.55}
+  .btn.p{grid-column:1/-1; color:#fff; background:linear-gradient(180deg,var(--blue2),var(--blue)); box-shadow:0 8px 20px rgba(47,107,255,.35), inset 0 1px 0 rgba(255,255,255,.45)}
+  .btn.s{background:#fff; color:var(--ink); box-shadow:0 1px 3px rgba(0,0,0,.06)}
+  .btn.g{background:#fff; color:var(--blue); box-shadow:0 1px 3px rgba(0,0,0,.06)}
+
+  .photo-wrap{margin-top:12px}
+  .hint{font-size:12px; color:var(--muted); margin-top:8px; text-align:center}
+
+  .canvas-box{position:relative; width:100%; text-align:center}
+  #photoCanvas{max-width:100%; border-radius:14px; border:1px solid var(--line); touch-action:auto; background:#000}
+  #photoCanvas.selecting{touch-action:none; cursor:crosshair; outline:2px solid var(--blue); outline-offset:2px}
+  .crop-rect{position:absolute; border:2px dashed #ffd54a; background:rgba(255,213,74,.15); pointer-events:none; box-shadow:0 0 0 9999px rgba(0,0,0,.30)}
+  .ocr-controls{display:flex; gap:8px; margin-top:10px}
+  .oc{flex:1; border:none; border-radius:13px; padding:12px 6px; font-size:13px; font-weight:700; cursor:pointer; background:var(--field); color:var(--ink)}
+  .oc.sel.on{background:var(--blue); color:#fff}
+  .oc.read{background:var(--blue); color:#fff; flex:1.3; box-shadow:0 6px 16px rgba(47,107,255,.3)}
+  .clearsel{display:none; margin:8px auto 0; border:none; background:none; color:var(--danger); font-size:12.5px; font-weight:600; cursor:pointer}
+  .ocr-result{margin-top:11px; padding:13px; border-radius:14px; background:var(--field); text-align:center}
+  .ocr-result .detected{font-size:24px; font-weight:800; color:var(--ink); margin:2px 0}
+  .chips{display:flex; flex-wrap:wrap; gap:7px; justify-content:center; margin-top:9px}
+  .chip{background:#fff; border:1px solid var(--blue); color:var(--blue); border-radius:999px; padding:6px 13px; font-size:15px; font-weight:700; cursor:pointer}
+  .ocr-settings{margin-top:11px; font-size:13px; color:var(--muted)}
+  .ocr-settings summary{cursor:pointer; padding:6px 0; font-weight:600}
+  .ocr-settings input,.ocr-settings select{font-size:14px; padding:10px; text-align:right; width:100%; border:1px solid var(--line); border-radius:10px; background:#fff; color:var(--ink)}
+  .ocr-settings a{color:var(--blue)}
+  .spin{display:inline-block; width:15px; height:15px; border:2px solid #fff; border-top-color:transparent;
+    border-radius:50%; animation:sp .7s linear infinite; vertical-align:-3px; margin-right:6px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .warn{color:var(--danger); font-size:13px; text-align:center; margin-top:8px; font-weight:600}
+
+  table{width:100%; border-collapse:collapse; font-size:13.5px}
+  th,td{padding:10px 6px; text-align:center; border-bottom:1px solid var(--line)}
+  th{color:var(--muted); font-weight:600; font-size:11.5px}
+  td.amt{font-weight:800; color:var(--ink); white-space:nowrap}
+  .del{color:var(--danger); background:none; border:none; font-size:17px; cursor:pointer; padding:2px 6px}
+  .empty{text-align:center; color:var(--muted); padding:28px 10px; font-size:14px}
+
+  .toolbar{display:grid; grid-template-columns:1fr 1fr; gap:9px; margin-bottom:13px}
+  .toolbar button{border:none; border-radius:13px; padding:12px; font-size:13.5px; font-weight:700; background:#fff; color:var(--ink); box-shadow:0 1px 3px rgba(0,0,0,.05); cursor:pointer}
+  textarea#pasteArea{width:100%; border:1px solid var(--line); border-radius:12px; padding:11px; font-size:13px; direction:ltr; text-align:left; font-family:monospace; background:#fff}
+
+  .toast{
+    position:fixed; left:50%; bottom:26px; transform:translateX(-50%);
+    background:#11151b; color:#fff; padding:12px 20px; border-radius:30px; font-size:14px;
+    opacity:0; transition:opacity .25s, bottom .25s; pointer-events:none; z-index:50; max-width:90%; text-align:center;
+  }
+  .toast.show{opacity:.97; bottom:36px}
+
+  /* total paid box */
+  .totalbox{background:#fff; border-radius:22px; padding:18px; margin-top:13px; box-shadow:0 1px 3px rgba(20,24,35,.05); text-align:center}
+  .totalbox .cap{font-size:12.5px; color:var(--muted); font-weight:600}
+  .totalbox .sum{font-size:36px; font-weight:800; color:var(--ink); letter-spacing:-1px; margin-top:4px}
+  .totalbox .sum i{font-style:normal; font-size:18px; color:var(--muted2); font-weight:600}
+  .totalbox .sub{font-size:12px; color:var(--muted); margin-top:5px}
+
+  /* stat tiles (ממוצע/מקס/מין) */
+  .statrow{display:grid; grid-template-columns:repeat(3,1fr); gap:9px; margin-top:13px}
+  .stat{background:#fff; border-radius:16px; padding:13px 6px; text-align:center; box-shadow:0 1px 3px rgba(20,24,35,.05)}
+  .stat .t{font-size:10.5px; color:var(--muted); font-weight:600}
+  .stat .v{font-size:18px; font-weight:800; color:var(--ink); margin-top:4px; letter-spacing:-.3px}
+  .stat .v small{font-size:11px; color:var(--muted2); font-weight:600}
+
+  /* graph tab (תצוגת רוחב אוטומטית) */
+  .graphbar{position:fixed; top:10px; left:12px; right:12px; z-index:40; display:flex; align-items:flex-start; justify-content:space-between; gap:10px; pointer-events:none}
+  .graphbar>*{pointer-events:auto}
+  .gleft{display:flex; flex-direction:column; gap:6px; align-items:flex-start}
+  .gtoggle{display:inline-flex; background:#fff; border-radius:12px; padding:4px; box-shadow:0 3px 14px rgba(0,0,0,.15)}
+  .gtoggle span{padding:8px 15px; border-radius:9px; font-size:13px; font-weight:700; color:#7a818b; cursor:pointer}
+  .gtoggle span.on{background:#2f6bff; color:#fff}
+  .gsub{font-size:11.5px; color:#5b626b; font-weight:600; background:rgba(255,255,255,.92); padding:5px 11px; border-radius:999px; box-shadow:0 2px 8px rgba(0,0,0,.1)}
+  .gclose{border:none; background:#fff; width:40px; height:40px; border-radius:50%; font-size:17px; box-shadow:0 3px 14px rgba(0,0,0,.15); cursor:pointer; color:var(--ink); flex:none}
+  .graphrot{position:fixed; inset:0; background:var(--bg); z-index:30; padding:66px 14px 16px}
+  .graphrot.rot{inset:auto; top:0; left:100vw; width:100vh; height:100vw; transform-origin:0 0; transform:rotate(90deg); padding:18px 16px}
+  .charthost{width:100%; height:100%}
+  .charthost svg{width:100%; height:100%; display:block}
+</style>
+</head>
+<body>
+
+<main>
+  <div class="appbar"><span class="title">חישוב חשמל</span>
+    <div style="display:flex; gap:8px; align-items:center">
+      <button class="gear" onclick="toggleSettings()">⚙️</button>
+      <span class="ava">⚡</span>
+    </div>
+  </div>
+  <div class="seg">
+    <span id="tab-calc" class="on" onclick="showView('calc')">חישוב</span>
+    <span id="tab-hist" onclick="showView('hist')">היסטוריה</span>
+    <span id="tab-graph" onclick="showView('graph')">גרף</span>
+  </div>
+
+  <!-- ===== חישוב חדש ===== -->
+  <section id="view-calc" class="view active">
+
+    <div id="settingsCard" class="card ocr-settings" style="display:none">
+      <div class="setrow"><b>⚙️ הגדרות זיהוי (OCR)</b><button class="linkbtn" onclick="toggleSettings()">סגור</button></div>
+      <label class="field">מנוע זיהוי</label>
+      <select id="ocrEngine" onchange="saveEngine()">
+        <option value="gemini">AI Vision — Google Gemini (מדויק, חינם)</option>
+        <option value="tesseract">מקומי — seven-segment</option>
+        <option value="ocrspace">ענן — OCR.space</option>
+      </select>
+      <div id="geminiOpts">
+        <label class="field">מפתח Gemini (חינמי)</label>
+        <input type="text" id="gKey" placeholder="הדבק מפתח מ-Google AI Studio" oninput="saveGKey()">
+        <div class="hint">מפתח חינמי תוך דקה ב-<a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com/apikey</a> (בלי כרטיס אשראי).</div>
+        <label class="field">מודל</label>
+        <input type="text" id="gModel" placeholder="gemini-2.5-flash" oninput="saveGModel()">
+        <div class="hint">ברירת מחדל gemini-2.5-flash. לדיוק מירבי gemini-2.5-pro; חלופה קלה gemini-2.5-flash-lite.</div>
+      </div>
+      <div id="tessOpts">
+        <label class="field">מודל</label>
+        <select id="ocrModel" onchange="saveModel()">
+          <option value="ssd">מדויק (~11MB, הורדה חד-פעמית)</option>
+          <option value="ssd_int">מהיר (~1.4MB)</option>
+        </select>
+        <div class="hint">בפעם הראשונה המודל יורד ונשמר במטמון; אחר כך מהיר וגם בלי אינטרנט.</div>
+      </div>
+      <div id="ocrspaceOpts" style="display:none">
+        <label class="field">מפתח OCR.space (חינמי)</label>
+        <input type="text" id="ocrKey" placeholder="helloworld" oninput="saveKey()">
+        <div class="hint">מפתח חינמי ב-<a href="https://ocr.space/ocrapi/freekey" target="_blank">ocr.space</a>.</div>
+      </div>
+    </div>
+
+    <div class="card amtcard">
+      <div class="caplbl">סכום לתשלום</div>
+      <div class="bigamt"><span id="amountNum">0</span><i> ₪</i></div>
+      <div class="tags">
+        <span class="tag" id="consumeTag">0 קוט"ש</span>
+        <span class="tag" id="agorotTag">— אג'</span>
+        <span class="tag wait" id="statusTag">ממתין</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="prev">
+        <span>קודם <b id="prevDisplay">—</b> · <span id="prevDate">—</span></span>
+        <button class="linkbtn" onclick="togglePrevEdit()">תיקון</button>
+      </div>
+      <div id="prevEditWrap" style="display:none">
+        <input type="number" id="prevInput" inputmode="decimal" placeholder="קריאת מונה התחלתית" oninput="recalc()">
+      </div>
+
+      <div class="flbl">קריאה חדשה</div>
+      <div class="field">
+        <input type="number" id="newInput" inputmode="decimal" placeholder="—" oninput="recalc()">
+        <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="loadPhoto(event)">
+        <button class="cam" onclick="document.getElementById('photoInput').click()">📷</button>
+      </div>
+
+      <div class="photo-wrap">
+        <div id="ocrArea" style="display:none">
+          <div class="canvas-box" id="canvasBox">
+            <canvas id="photoCanvas"></canvas>
+            <div id="cropRect" class="crop-rect" style="display:none"></div>
+          </div>
+          <div class="ocr-controls">
+            <button class="oc" onclick="rotatePhoto()">⟳ סובב</button>
+            <button class="oc sel" id="selBtn" onclick="toggleSelectMode()">✂️ בחר אזור</button>
+            <button class="oc read" id="ocrBtn" onclick="runOCR()">🔍 קרא</button>
+          </div>
+          <button class="clearsel" id="clearSel" onclick="clearCrop()">✕ נקה סימון</button>
+          <div class="hint">סובב לכיוון הנכון ואז 🔍 קרא. "בחר אזור" — לסימון המסך בלבד (אופציונלי).</div>
+          <div id="ocrResult" class="ocr-result" style="display:none"></div>
+        </div>
+      </div>
+
+      <div class="g2">
+        <div class="tile"><div class="t">צריכה</div><div class="v"><span id="consumeNum">0</span> <small>קוט"ש</small></div></div>
+        <div class="tile rate">
+          <div class="t">עלות · אג'</div>
+          <div class="rr">
+            <input type="number" id="rateAgorot" inputmode="decimal" step="0.01" oninput="onAgorotChange()">
+            <span class="doc" onclick="openTariffSite()">📄</span>
+          </div>
+        </div>
+      </div>
+      <div id="warnNeg" class="warn" style="display:none">⚠️ הקריאה החדשה קטנה מהקודמת</div>
+      <input type="hidden" id="rateInput" value="0.6432">
+      <div class="ratedate">תעריף עודכן <input type="text" id="rateDate" placeholder="1.02.26" oninput="saveRateDate()"></div>
+    </div>
+
+    <div class="acts">
+      <button class="btn p" onclick="save()">✓ אישור ושמירה</button>
+      <button class="btn s" onclick="shareMsg()">💬 לשכן</button>
+      <button class="btn g" onclick="shareBackup()">💾 גיבוי</button>
+    </div>
+  </section>
+
+  <!-- ===== היסטוריה ===== -->
+  <section id="view-hist" class="view">
+    <div class="toolbar">
+      <button onclick="shareBackup()">💾 גבה לוואטסאפ</button>
+      <button onclick="exportData()">⬇️ הורדת JSON</button>
+      <button onclick="document.getElementById('importInput').click()">📂 שחזור מקובץ</button>
+      <button onclick="togglePaste()">📋 שחזור מהדבקה</button>
+      <input type="file" id="importInput" accept="application/json,.json,.txt,text/plain" style="display:none" onchange="importData(event)">
+    </div>
+    <div id="pasteBox" class="card" style="display:none">
+      <label class="field">הדבק כאן את ה-JSON מגיבוי קודם (למשל מהודעת וואטסאפ לעצמך):</label>
+      <textarea id="pasteArea" rows="5" placeholder='{"history":[...]}'></textarea>
+      <button class="btn p" style="margin-top:8px" onclick="restoreFromText()">שחזר מההדבקה</button>
+    </div>
+    <div class="card" style="padding:6px">
+      <table>
+        <thead>
+          <tr><th>תאריך</th><th>קריאה</th><th>קוט"ש</th><th>₪/קוט"ש</th><th>סכום</th><th></th></tr>
+        </thead>
+        <tbody id="histBody"></tbody>
+      </table>
+      <div id="histEmpty" class="empty">עדיין אין רשומות. בצע חישוב ראשון בלשונית "חישוב חדש".</div>
+    </div>
+    <div class="statrow" id="statRow" style="display:none"></div>
+    <div class="totalbox" id="totalBox" style="display:none"></div>
+  </section>
+
+  <!-- ===== גרף ===== -->
+  <section id="view-graph" class="view">
+    <div class="graphbar">
+      <div class="gleft">
+        <div class="gtoggle">
+          <span id="gm-cons" class="on" onclick="setMetric('cons')">צריכה</span>
+          <span id="gm-pay" onclick="setMetric('pay')">תשלום/חודש</span>
+        </div>
+        <span class="gsub" id="graphSub">גע בנקודה לפרטים</span>
+      </div>
+      <button class="gclose" onclick="showView('calc')">✕</button>
+    </div>
+    <div id="graphRot" class="graphrot">
+      <div class="charthost" id="chartHost"></div>
+    </div>
+  </section>
+</main>
+
+<div id="toast" class="toast"></div>
+
+<script>
+const RATE_DEFAULT = 0.6432;
+const READING_RE = /^\d{6}\.\d$/;          // פורמט קריאת המונה: 6 ספרות, נקודה, ספרה
+const READING_DESC = '6 ספרות, נקודה, וספרה אחת (למשל 033095.1)';
+const LS_HIST = 'elec_history_v1';
+const LS_RATE = 'elec_rate_v1';
+const LS_RATEDATE = 'elec_ratedate_v1';
+
+// היסטוריה מוטמעת (seed) — נטענת אוטומטית בריצה ראשונה בלבד, ואז נשמרת מקומית
+const SEED_HISTORY = [
+  {date:"16/01/2023",ts:1673827200000,prevReading:0,newReading:1236.1,consumption:1236.1,rate:0.574,amount:725},
+  {date:"31/03/2023",ts:1680220800000,prevReading:1236.1,newReading:3411.4,consumption:2175.3,rate:0.6155,amount:1322},
+  {date:"20/06/2023",ts:1687219200000,prevReading:3411.4,newReading:4475.8,consumption:1064.4,rate:0.6007,amount:640},
+  {date:"20/08/2023",ts:1692489600000,prevReading:4475.8,newReading:5730.9,consumption:1255.1,rate:0.6007,amount:762},
+  {date:"19/09/2023",ts:1695081600000,prevReading:5730.9,newReading:6404.9,consumption:674,rate:0.6007,amount:404},
+  {date:"26/11/2023",ts:1700956800000,prevReading:6404.9,newReading:7624.1,consumption:1219.2,rate:0.6007,amount:732},
+  {date:"22/01/2024",ts:1705881600000,prevReading:7624.1,newReading:9530.1,consumption:1906,rate:0.6007,amount:1145},
+  {date:"28/03/2024",ts:1711584000000,prevReading:9530.1,newReading:12463.6,consumption:2933.5,rate:0.6145,amount:1800},
+  {date:"23/06/2024",ts:1719100800000,prevReading:12463.6,newReading:14087.3,consumption:1623.7,rate:0.6145,amount:998},
+  {date:"01/08/2024",ts:1722470400000,prevReading:14087.3,newReading:15044.9,consumption:957.6,rate:0.6145,amount:588},
+  {date:"09/10/2024",ts:1728432000000,prevReading:15044.9,newReading:17044.2,consumption:1999.3,rate:0.6145,amount:1228},
+  {date:"19/12/2024",ts:1734566400000,prevReading:17044.2,newReading:18677.2,consumption:1633,rate:0.6145,amount:1033},
+  {date:"03/02/2025",ts:1738540800000,prevReading:18677.2,newReading:20362.8,consumption:1685.6,rate:0.6402,amount:1080},
+  {date:"06/04/2025",ts:1743897600000,prevReading:20362.8,newReading:22592.5,consumption:2229.7,rate:0.6402,amount:1427},
+  {date:"22/05/2025",ts:1747872000000,prevReading:22592.5,newReading:23298.6,consumption:706.1,rate:0.6402,amount:452},
+  {date:"04/08/2025",ts:1754265600000,prevReading:23298.6,newReading:25245.9,consumption:1947.3,rate:0.6402,amount:1246},
+  {date:"15/10/2025",ts:1760486400000,prevReading:25245.9,newReading:27062,consumption:1816.1,rate:0.6402,amount:1162},
+  {date:"19/11/2025",ts:1763510400000,prevReading:27062,newReading:27610,consumption:548,rate:0.6402,amount:350},
+  {date:"19/01/2026",ts:1768780800000,prevReading:27610,newReading:29504.3,consumption:1894.3,rate:0.6402,amount:1210},
+  {date:"19/03/2026",ts:1773878400000,prevReading:29504.3,newReading:31240.2,consumption:1735.9,rate:0.6432,amount:1116},
+  {date:"14/06/2026",ts:1781395200000,prevReading:31240.2,newReading:33095.1,consumption:1854.9,rate:0.6432,amount:1193}
+];
+let history = [];
+let prevEditOpen = false;
+
+function load(){
+  const stored = localStorage.getItem(LS_HIST);
+  if(stored === null && SEED_HISTORY.length){          // ריצה ראשונה — טוענים את ההיסטוריה המוטמעת ושומרים
+    history = SEED_HISTORY.slice();
+    localStorage.setItem(LS_HIST, JSON.stringify(history));
+  }else{
+    try{ history = JSON.parse(stored) || []; }catch(e){ history = []; }
+  }
+  const savedRate = localStorage.getItem(LS_RATE);
+  document.getElementById('rateInput').value = savedRate !== null ? savedRate : RATE_DEFAULT;
+  syncAgorotFromShekel();
+  document.getElementById('rateDate').value = localStorage.getItem(LS_RATEDATE) || '1.02.26';
+  document.getElementById('ocrKey').value = localStorage.getItem(LS_KEY) || DEFAULT_KEY;
+  document.getElementById('gKey').value = localStorage.getItem(LS_GKEY) || DEFAULT_GKEY;
+  let gm = localStorage.getItem(LS_GMODEL);
+  if(!gm || /gemini-(2\.0|1\.5)/.test(gm)){ gm = 'gemini-2.5-flash'; localStorage.setItem(LS_GMODEL, gm); }  // מעבר ממודלים שהוצאו משימוש
+  document.getElementById('gModel').value = gm;
+  document.getElementById('ocrEngine').value = localStorage.getItem(LS_ENGINE) || 'gemini';
+  document.getElementById('ocrModel').value = localStorage.getItem(LS_MODEL) || 'ssd';
+  toggleEngineOpts();
+  updateSettingsVisibility();
+  setupCropEvents();
+  renderPrev();
+  renderHist();
+  recalc();
+}
+
+function lastRecord(){ return history.length ? history[history.length-1] : null; }
+
+function renderPrev(){
+  const last = lastRecord();
+  const editWrap = document.getElementById('prevEditWrap');
+  if(last){
+    document.getElementById('prevDisplay').textContent = fmt(last.newReading);
+    document.getElementById('prevDate').textContent = last.date;
+    if(!prevEditOpen) editWrap.style.display = 'none';
+  }else{
+    document.getElementById('prevDisplay').textContent = '—';
+    document.getElementById('prevDate').textContent = '—';
+    editWrap.style.display = 'block';
+  }
+}
+
+function togglePrevEdit(){
+  prevEditOpen = !prevEditOpen;
+  const w = document.getElementById('prevEditWrap');
+  w.style.display = prevEditOpen ? 'block' : (lastRecord() ? 'none' : 'block');
+  if(prevEditOpen){
+    const inp = document.getElementById('prevInput');
+    const last = lastRecord();
+    if(last && !inp.value) inp.value = last.newReading;
+    inp.focus();
+  }
+  recalc();
+}
+
+function getPrevReading(){
+  const w = document.getElementById('prevEditWrap');
+  if(w.style.display !== 'none'){
+    const v = parseFloat(document.getElementById('prevInput').value);
+    if(!isNaN(v)) return v;
+  }
+  const last = lastRecord();
+  return last ? last.newReading : null;
+}
+
+function recalc(){
+  const prev = getPrevReading();
+  const nw = parseFloat(document.getElementById('newInput').value);
+  const rate = parseFloat(document.getElementById('rateInput').value) || 0;
+  let consume = 0;
+  if(prev !== null && !isNaN(nw)) consume = nw - prev;
+  const amount = consume > 0 ? Math.round(consume * rate) : 0;
+  document.getElementById('consumeNum').textContent = fmt(consume);
+  document.getElementById('amountNum').textContent = amount;
+  document.getElementById('warnNeg').style.display = (consume < 0) ? 'block' : 'none';
+  // צ'יפים חיים בכרטיס הסכום
+  document.getElementById('consumeTag').textContent = fmt(consume) + ' קוט"ש';
+  const ag = document.getElementById('rateAgorot').value;
+  document.getElementById('agorotTag').textContent = (ag !== '' ? ag : Math.round(rate*10000)/100) + ' אג\'';
+  const st = document.getElementById('statusTag');
+  if(amount > 0){ st.textContent = '✓ מוכן'; st.className = 'tag ok'; }
+  else { st.textContent = 'ממתין'; st.className = 'tag wait'; }
+}
+
+function onRateChange(){
+  const r = document.getElementById('rateInput').value;
+  localStorage.setItem(LS_RATE, r);
+  syncAgorotFromShekel();
+  recalc();
+}
+
+// אגורות → שקלים (חלוקה ב-100)
+function onAgorotChange(){
+  const a = parseFloat(document.getElementById('rateAgorot').value);
+  if(isNaN(a)) return;
+  const s = Math.round((a/100)*10000)/10000;   // עד 4 ספרות עשרוניות
+  document.getElementById('rateInput').value = s;
+  localStorage.setItem(LS_RATE, String(s));
+  recalc();
+}
+// שקלים → אגורות (לשמירה על סנכרון בשני הכיוונים)
+function syncAgorotFromShekel(){
+  const rv = parseFloat(document.getElementById('rateInput').value);
+  if(!isNaN(rv)) document.getElementById('rateAgorot').value = Math.round(rv*10000)/100;
+}
+
+// פותח את עמוד התעריף הרשמי של חברת החשמל לבדיקה ועדכון ידני
+const IEC_TARIFF_URL = 'https://www.iec.co.il/content/tariffs/contentpages/businesselectricitytariff';
+function openTariffSite(){ window.open(IEC_TARIFF_URL, '_blank'); }
+
+// ===== תמונה + OCR =====
+const LS_KEY = 'elec_ocrkey_v1';
+const LS_ENGINE = 'elec_engine_v1';
+const LS_MODEL = 'elec_model_v1';
+const LS_GKEY = 'elec_gkey_v1';
+const LS_GMODEL = 'elec_gmodel_v1';
+const DEFAULT_KEY = 'K86913368388957';
+const DEFAULT_GKEY = '';  // לא נשמר בקוד (ציבורי) — מודבק פעם אחת בהגדרות ונשמר מקומית במכשיר
+let srcImg = null;        // Image שנטען
+let rotation = 0;         // 0/90/180/270
+let workCanvas = null;    // קנבס ברזולוציה מלאה אחרי סיבוב
+let dispScale = 1;        // יחס הקטנה לתצוגה
+let crop = null;          // {x,y,w,h} בקואורדינטות תצוגה
+let dragStart = null;
+let selectMode = false;   // מצב בחירת אזור
+
+function loadPhoto(ev){
+  const file = ev.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e=>{
+    const img = new Image();
+    img.onload = ()=>{
+      srcImg = img; rotation = 0; crop = null;
+      document.getElementById('ocrArea').style.display = 'block';
+      document.getElementById('ocrResult').style.display = 'none';
+      exitSelectMode();
+      rebuildWork();
+      // אין קריאה אוטומטית — המשתמש מסובב לכיוון הנכון ואז לוחץ "קרא"
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function rotatePhoto(){ if(!srcImg) return; rotation = (rotation+90)%360; crop=null; hideCrop(); rebuildWork(); }
+
+function rebuildWork(){
+  if(!srcImg) return;
+  const w = srcImg.naturalWidth, h = srcImg.naturalHeight;
+  workCanvas = document.createElement('canvas');
+  const swap = (rotation===90||rotation===270);
+  workCanvas.width = swap ? h : w;
+  workCanvas.height = swap ? w : h;
+  const ctx = workCanvas.getContext('2d');
+  ctx.save();
+  ctx.translate(workCanvas.width/2, workCanvas.height/2);
+  ctx.rotate(rotation*Math.PI/180);
+  ctx.drawImage(srcImg, -w/2, -h/2);
+  ctx.restore();
+  renderDisplay();
+}
+
+function renderDisplay(){
+  const cv = document.getElementById('photoCanvas');
+  const box = document.getElementById('canvasBox');
+  const maxW = box.clientWidth || 320;
+  const maxH = 340;
+  dispScale = Math.min(maxW/workCanvas.width, maxH/workCanvas.height, 1);
+  cv.width = Math.round(workCanvas.width*dispScale);
+  cv.height = Math.round(workCanvas.height*dispScale);
+  cv.getContext('2d').drawImage(workCanvas, 0, 0, cv.width, cv.height);
+}
+
+// ---- מצב בחירת אזור: כניסה/יציאה ----
+function toggleSelectMode(){
+  if(!srcImg){ toast('צרף תמונה קודם'); return; }
+  selectMode ? exitSelectMode() : enterSelectMode();
+}
+function enterSelectMode(){
+  selectMode = true;
+  const b = document.getElementById('selBtn');
+  b.textContent = '✓ סיום בחירה'; b.classList.add('on');
+  document.getElementById('photoCanvas').classList.add('selecting');
+  toast('גרור על המסך לסימון האזור');
+}
+function exitSelectMode(){
+  selectMode = false;
+  const b = document.getElementById('selBtn');
+  if(b){ b.textContent = '✂️ בחר אזור'; b.classList.remove('on'); }
+  const cv = document.getElementById('photoCanvas');
+  if(cv) cv.classList.remove('selecting');
+}
+
+// ---- סימון אזור (חיתוך) במגע/עכבר ----
+function setupCropEvents(){
+  const cv = document.getElementById('photoCanvas');
+  const getXY = e=>{
+    const r = cv.getBoundingClientRect();
+    const p = e.touches ? e.touches[0] : e;
+    return {x: p.clientX - r.left, y: p.clientY - r.top};
+  };
+  const start = e=>{ if(!srcImg || !selectMode) return; e.preventDefault(); dragStart = getXY(e); };
+  const move = e=>{
+    if(!dragStart) return; e.preventDefault();
+    const p = getXY(e);
+    crop = {
+      x: Math.min(dragStart.x, p.x), y: Math.min(dragStart.y, p.y),
+      w: Math.abs(p.x-dragStart.x), h: Math.abs(p.y-dragStart.y)
+    };
+    drawCrop();
+  };
+  const end = ()=>{ dragStart = null; if(crop && (crop.w<8||crop.h<8)){ crop=null; hideCrop(); } };
+  cv.addEventListener('mousedown',start); cv.addEventListener('mousemove',move); window.addEventListener('mouseup',end);
+  cv.addEventListener('touchstart',start,{passive:false}); cv.addEventListener('touchmove',move,{passive:false}); cv.addEventListener('touchend',end);
+}
+
+function drawCrop(){
+  const el = document.getElementById('cropRect');
+  const cv = document.getElementById('photoCanvas');
+  if(!crop){ el.style.display='none'; document.getElementById('clearSel').style.display='none'; return; }
+  el.style.display='block';
+  el.style.left = (cv.offsetLeft+crop.x)+'px';
+  el.style.top = (cv.offsetTop+crop.y)+'px';
+  el.style.width = crop.w+'px';
+  el.style.height = crop.h+'px';
+  document.getElementById('clearSel').style.display='block';
+}
+function hideCrop(){ document.getElementById('cropRect').style.display='none'; document.getElementById('clearSel').style.display='none'; }
+function clearCrop(){ crop=null; hideCrop(); }
+
+// ---- הפעלת OCR ----
+// ---- מנוע ענן: OCR.space ----
+async function ocrRequest(dataUrl, key, engine){
+  const fd = new FormData();
+  fd.append('base64Image', dataUrl);
+  fd.append('OCREngine', engine);
+  fd.append('scale','true');
+  fd.append('isOverlayRequired','false');
+  fd.append('detectOrientation','true');
+  const res = await fetch('https://api.ocr.space/parse/image', {method:'POST', headers:{apikey:key}, body:fd});
+  const data = await res.json();
+  if(data.IsErroredOnProcessing) throw new Error((data.ErrorMessage&&data.ErrorMessage[0])||'OCR error');
+  return (data.ParsedResults && data.ParsedResults[0] && data.ParsedResults[0].ParsedText) || '';
+}
+
+// ---- מנוע מקומי: Tesseract + מודל seven-segment ----
+let tesseractWorker = null;
+function loadScript(src){
+  return new Promise((res,rej)=>{
+    const s=document.createElement('script'); s.src=src; s.async=true;
+    s.onload=()=>res(); s.onerror=()=>rej(new Error('טעינת ספריית OCR נכשלה — בדוק חיבור לאינטרנט'));
+    document.head.appendChild(s);
+  });
+}
+async function getTessWorker(onProg){
+  if(tesseractWorker) return tesseractWorker;
+  if(!window.Tesseract) await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js');
+  const model = localStorage.getItem(LS_MODEL) || 'ssd';
+  const w = await Tesseract.createWorker(model, 1, {
+    langPath: 'https://cdn.jsdelivr.net/gh/Shreeshrii/tessdata_ssd@master',
+    gzip: false,
+    logger: onProg
+  });
+  await w.setParameters({ tessedit_char_whitelist:'0123456789.', tessedit_pageseg_mode:'13' });
+  tesseractWorker = w;
+  return w;
+}
+
+async function runOCR(){
+  if(!workCanvas){ toast('צרף תמונה קודם'); return; }
+  const btn = document.getElementById('ocrBtn');
+  btn.disabled = true;
+  try{
+    const engine = localStorage.getItem(LS_ENGINE) || 'gemini';
+    let text;
+    if(engine === 'gemini'){
+      btn.innerHTML = 'מזהה…<span class="spin"></span>';
+      const gkey = (document.getElementById('gKey').value || DEFAULT_GKEY).trim();
+      if(!gkey){ throw new Error('הדבק מפתח Gemini חינמי בהגדרות OCR (⚙️)'); }
+      text = await geminiOCR(buildVisionImage(), gkey);
+    }else if(engine === 'ocrspace'){
+      btn.innerHTML = 'קורא…<span class="spin"></span>';
+      const dataUrl = buildOcrImage();
+      const key = (document.getElementById('ocrKey').value || DEFAULT_KEY).trim();
+      text = await ocrRequest(dataUrl, key, '2');
+      if(!/\d/.test(text)){ const t1 = await ocrRequest(dataUrl, key, '1'); if(/\d/.test(t1)||!text) text = t1||text; }
+    }else{
+      const dataUrl = buildOcrImage();
+      const w = await getTessWorker(m=>{
+        const pct = Math.round((m.progress||0)*100);
+        const label = (m.status==='recognizing text') ? 'מזהה' : 'טוען מודל';
+        btn.innerHTML = label+' '+pct+'%';
+      });
+      btn.innerHTML = 'מזהה…<span class="spin"></span>';
+      const { data } = await w.recognize(dataUrl);
+      text = data.text;
+    }
+    showOcrResult(text);
+  }catch(e){
+    const el = document.getElementById('ocrResult');
+    el.style.display='block'; el.style.border='2px solid var(--danger)'; el.style.background='#fdecea';
+    el.innerHTML = '⚠️ שגיאת זיהוי: '+e.message+'<br><small>נסה שוב, החלף מנוע בהגדרות, או הקלד ידנית.</small>';
+  }finally{
+    btn.innerHTML = '🔍 קרא'; btn.disabled = false;
+  }
+}
+
+function saveEngine(){ localStorage.setItem(LS_ENGINE, document.getElementById('ocrEngine').value); toggleEngineOpts(); }
+function saveModel(){
+  localStorage.setItem(LS_MODEL, document.getElementById('ocrModel').value);
+  if(tesseractWorker){ tesseractWorker.terminate(); tesseractWorker=null; }  // לטעון מחדש עם המודל החדש
+}
+function saveGKey(){ localStorage.setItem(LS_GKEY, document.getElementById('gKey').value); }
+// בטעינה: מציג את כרטיס ההגדרות רק כשאין מפתח Gemini; אם יש מפתח — מוסתר (ונגיש דרך ⚙️)
+function updateSettingsVisibility(){
+  const c = document.getElementById('settingsCard');
+  if(!c) return;
+  const hasKey = ((document.getElementById('gKey').value || DEFAULT_GKEY).trim().length > 0);
+  c.style.display = hasKey ? 'none' : 'block';
+}
+function toggleSettings(){
+  const c = document.getElementById('settingsCard');
+  if(c) c.style.display = (c.style.display === 'none' || !c.style.display) ? 'block' : 'none';
+}
+function saveGModel(){ localStorage.setItem(LS_GMODEL, document.getElementById('gModel').value); }
+function toggleEngineOpts(){
+  const eng = document.getElementById('ocrEngine').value;
+  document.getElementById('geminiOpts').style.display = (eng==='gemini')?'block':'none';
+  document.getElementById('tessOpts').style.display = (eng==='tesseract')?'block':'none';
+  document.getElementById('ocrspaceOpts').style.display = (eng==='ocrspace')?'block':'none';
+}
+
+// האזור לשליחה: החיתוך המסומן, או התמונה המלאה אם אין סימון
+function regionRect(){
+  if(crop && crop.w>8 && crop.h>8)
+    return { sx:crop.x/dispScale, sy:crop.y/dispScale, sw:crop.w/dispScale, sh:crop.h/dispScale };
+  return { sx:0, sy:0, sw:workCanvas.width, sh:workCanvas.height };
+}
+
+// תמונה מעובדת ל-OCR קלאסי: גווני אפור + מתיחת ניגודיות אדפטיבית
+function buildOcrImage(){
+  const {sx,sy,sw,sh} = regionRect();
+  let k = 220/sh;
+  k = Math.max(1.2, Math.min(k, 2400/sw));
+  const out = document.createElement('canvas');
+  out.width = Math.round(sw*k); out.height = Math.round(sh*k);
+  const ctx = out.getContext('2d');
+  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(workCanvas, sx, sy, sw, sh, 0, 0, out.width, out.height);
+  const im = ctx.getImageData(0,0,out.width,out.height);
+  const d = im.data, n = out.width*out.height;
+  const gray = new Float32Array(n);
+  for(let i=0,p=0;i<d.length;i+=4,p++) gray[p]=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];
+  const sorted = Float32Array.from(gray).sort();
+  const lo = sorted[Math.floor(n*0.05)], hi = sorted[Math.floor(n*0.95)];
+  const range = Math.max(1, hi-lo);
+  for(let i=0,p=0;i<d.length;i+=4,p++){
+    let g = (gray[p]-lo)/range*255;
+    g = g<0?0:(g>255?255:g);
+    d[i]=d[i+1]=d[i+2]=g;
+  }
+  ctx.putImageData(im,0,0);
+  return out.toDataURL('image/png');
+}
+
+// תמונה צבעונית באיכות טובה ל-AI Vision: שולח את התמונה המלאה (או החיתוך) ברזולוציה נאותה
+function buildVisionImage(){
+  const {sx,sy,sw,sh} = regionRect();
+  let k = 1500/Math.max(sw,sh);
+  k = Math.min(k, 3);  // מאפשר הגדלה לחיתוך קטן; לתמונה מלאה גדולה k<1 (הקטנה)
+  const out = document.createElement('canvas');
+  out.width = Math.round(sw*k); out.height = Math.round(sh*k);
+  const ctx = out.getContext('2d');
+  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(workCanvas, sx, sy, sw, sh, 0, 0, out.width, out.height);
+  return out.toDataURL('image/jpeg', 0.85);
+}
+
+// ---- מנוע AI Vision: Google Gemini (ישירות מהדפדפן) ----
+async function geminiOCR(dataUrl, key){
+  const model = (localStorage.getItem(LS_GMODEL) || 'gemini-2.5-flash').trim();
+  const b64 = dataUrl.split(',')[1];
+  const mime = dataUrl.substring(5, dataUrl.indexOf(';'));
+  const body = {
+    contents:[{ parts:[
+      { text: 'This photo shows a home electrical panel. Find the single-phase kWh electricity meter (brand "GREEN") and read the number on its digital seven-segment LCD screen. The screen shows exactly 6 digits, then a decimal point, then 1 more digit (format DDDDDD.D, for example 033095.1). The screen may be rotated in the photo. Ignore every other number or text in the image (circuit-breaker labels, voltage/current ratings, etc.). Output ONLY the meter reading: exactly 6 digits, a decimal point, and 1 digit, including any leading zeros. No spaces, units, or other text.' },
+      { inline_data:{ mime_type: mime, data: b64 } }
+    ]}],
+    generationConfig:{ temperature:0 }
+  };
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/'+model+':generateContent?key='+encodeURIComponent(key);
+  const res = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+  const data = await res.json();
+  if(data.error) throw new Error(data.error.message || 'Gemini error');
+  const c = data.candidates && data.candidates[0];
+  const t = c && c.content && c.content.parts && c.content.parts.map(p=>p.text||'').join('');
+  return (t||'').trim();
+}
+
+// המרת אותיות שמנוע ה-OCR מחזיר בטעות במקום ספרות שבע-מקטעים
+function digitize(s){
+  const map = {
+    O:'0',o:'0',D:'0',Q:'0',U:'0',C:'0',
+    I:'1',l:'1',i:'1','|':'1',L:'1','!':'1','/':'1','\\':'1',J:'1',T:'1','[':'1',']':'1',
+    Z:'2',z:'2',
+    E:'3',
+    A:'4',h:'4',H:'4',
+    S:'5',s:'5','$':'5',
+    G:'6',b:'6',
+    '?':'7',
+    B:'8','&':'8',
+    g:'9',q:'9',
+    '·':'.','•':'.',',':'.'
+  };
+  return s.replace(/[^\d.\s]/g, c => map[c] !== undefined ? map[c] : ' ');
+}
+
+function rawDetails(text){
+  return `<details style="margin-top:8px"><summary style="font-size:12px;color:var(--muted)">טקסט גולמי מה-OCR</summary><div style="font-size:12px;direction:ltr;text-align:left;white-space:pre-wrap">${(text||'(ריק)').trim()}</div></details>`;
+}
+
+function showOcrResult(text){
+  const el = document.getElementById('ocrResult');
+  el.style.display='block';
+  const mapped = digitize(text||'');
+  const tokens = mapped.match(/\d+(?:\.\d+)?/g) || [];
+
+  // 1) קריאה תקינה בפורמט המדויק (6 ספרות . ספרה)
+  const valid = tokens.find(t => READING_RE.test(t));
+  if(valid){
+    fillReading(valid);
+    el.style.border = '2px solid var(--ok)'; el.style.background = 'var(--ok-bg)';
+    el.innerHTML = `✅ זוהה (פורמט תקין): <div class="detected">${valid}</div>` + rawDetails(text);
+    return;
+  }
+
+  // 2) אין התאמה לפורמט → שגיאה. לא ממלאים אוטומטית; מציגים מועמדים ללחיצה
+  el.style.border = '2px solid var(--danger)'; el.style.background = '#fdecea';
+  const uniq = [...new Set(tokens)]
+    .filter(t => t.replace(/\D/g,'').length >= 2)
+    .sort((a,b)=> b.replace(/\D/g,'').length - a.replace(/\D/g,'').length);
+  if(!uniq.length){
+    el.innerHTML = `❌ לא זוהו ספרות. צלם מהמסך מקרוב וישר, או הקלד ידנית.` + rawDetails(text);
+    return;
+  }
+  const chips = uniq.slice(0,6).map(n=>`<span class="chip" onclick="fillReading('${n}')">${n}</span>`).join('');
+  el.innerHTML = `❌ הזיהוי אינו בפורמט הנדרש (${READING_DESC}).<br>` +
+                 `בדוק, בחר מועמד או הקלד ידנית:` +
+                 `<div class="chips">${chips}</div>` + rawDetails(text);
+}
+
+function fillReading(v){
+  document.getElementById('newInput').value = v;
+  recalc();
+  toast('הוזן: '+v);
+}
+
+function saveKey(){ localStorage.setItem(LS_KEY, document.getElementById('ocrKey').value); }
+
+function resetPhoto(){
+  srcImg=null; workCanvas=null; crop=null; rotation=0;
+  exitSelectMode();
+  document.getElementById('ocrArea').style.display='none';
+  document.getElementById('ocrResult').style.display='none';
+  hideCrop();
+  document.getElementById('photoInput').value='';
+}
+
+function save(){
+  const prev = getPrevReading();
+  const nw = parseFloat(document.getElementById('newInput').value);
+  const rate = parseFloat(document.getElementById('rateInput').value);
+  if(prev === null){ toast('הזן קודם קריאת מונה התחלתית'); return; }
+  if(isNaN(nw)){ toast('הזן קריאת מונה חדשה'); return; }
+  if(isNaN(rate) || rate <= 0){ toast('הזן עלות קוט"ש תקינה'); return; }
+  const consume = nw - prev;
+  if(consume < 0){ if(!confirm('הקריאה החדשה קטנה מהקודמת. לשמור בכל זאת?')) return; }
+  const rec = {
+    date: todayStr(),
+    ts: Date.now(),
+    prevReading: prev,
+    newReading: nw,
+    consumption: +(consume).toFixed(2),
+    rate: rate,
+    amount: Math.round(Math.max(consume,0) * rate)
+  };
+  history.push(rec);
+  localStorage.setItem(LS_HIST, JSON.stringify(history));
+  localStorage.setItem(LS_RATE, String(rate));
+  // איפוס לקראת הזנה הבאה
+  document.getElementById('newInput').value = '';
+  document.getElementById('prevInput').value = '';
+  prevEditOpen = false;
+  resetPhoto();
+  renderPrev();
+  renderHist();
+  recalc();
+  toast('נשמר! סכום: ' + rec.amount + ' ₪');
+}
+
+// מספר נקי להודעה: עד 4 ספרות עשרוניות, בלי אפסים מיותרים ובלי פסיקי אלפים
+function num(n){ return parseFloat(Number(n).toFixed(4)).toString(); }
+
+function buildMessage(){
+  const prev = getPrevReading();
+  const nw = parseFloat(document.getElementById('newInput').value);
+  const rate = parseFloat(document.getElementById('rateInput').value);
+  if(prev===null || isNaN(nw) || isNaN(rate)) return null;
+  const consume = nw - prev;
+  const amount = Math.round(consume * rate);
+  const rateAgorot = num(rate*100);
+  const rateDate = (document.getElementById('rateDate').value||'').trim();
+  const since = rateDate ? ` (updated since ${rateDate})` : '';
+  return `Current count ${num(nw)} - Last count ${num(prev)}= *${num(consume)}kwh*\n\n`+
+         `Current rate is ${rateAgorot}${since} agorot per kwh.\n`+
+         `So its ${num(consume)}×${num(rate)}= *${amount} shekel*`;
+}
+
+function shareMsg(){
+  const msg = buildMessage();
+  if(!msg){ toast('השלם קודם את החישוב (קריאה חדשה ותעריף)'); return; }
+  if(navigator.share){
+    navigator.share({text:msg}).catch(()=>{});
+  }else{
+    navigator.clipboard.writeText(msg).then(()=>toast('ההודעה הועתקה')).catch(()=>toast(msg));
+  }
+}
+
+function saveRateDate(){ localStorage.setItem(LS_RATEDATE, document.getElementById('rateDate').value); }
+
+function renderHist(){
+  const body = document.getElementById('histBody');
+  const empty = document.getElementById('histEmpty');
+  const tb = document.getElementById('totalBox');
+  const sr = document.getElementById('statRow');
+  body.innerHTML = '';
+  if(!history.length){ empty.style.display='block'; tb.style.display='none'; sr.style.display='none'; return; }
+  empty.style.display='none';
+  // החדש למעלה
+  for(let i=history.length-1; i>=0; i--){
+    const r = history[i];
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${r.date}</td>
+      <td>${fmt(r.newReading)}</td>
+      <td>${fmt(r.consumption)}</td>
+      <td>${r.rate}</td>
+      <td class="amt">${Math.round(r.amount)} ₪</td>
+      <td><button class="del" onclick="delRec(${i})">🗑</button></td>`;
+    body.appendChild(tr);
+  }
+  const s = computeStats();
+  const sumKwh = s.recs.reduce((a,r)=>a+r.consumption,0);
+  // משבצות: ממוצע/חודש, מקסימלי, מינימלי
+  sr.style.display='grid';
+  sr.innerHTML =
+    `<div class="stat"><div class="t">ממוצע / חודש</div><div class="v">${s.avgMonthP?fmt(Math.round(s.avgMonthP)):'—'}<small> ₪</small></div></div>`+
+    `<div class="stat"><div class="t">מקסימום / חודש</div><div class="v">${s.maxPM?fmt(Math.round(s.maxPM)):'—'}<small> ₪</small></div></div>`+
+    `<div class="stat"><div class="t">מינימום / חודש</div><div class="v">${s.minPM?fmt(Math.round(s.minPM)):'—'}<small> ₪</small></div></div>`;
+  // סה"כ ששולם
+  tb.style.display='block';
+  tb.innerHTML = `<div class="cap">סה"כ שולם</div>`+
+                 `<div class="sum">${fmt(s.totalP)}<i> ₪</i></div>`+
+                 `<div class="sub">${s.count} תשלומים · ${fmt(Math.round(sumKwh))} קוט"ש</div>`;
+}
+
+function delRec(i){
+  if(!confirm('למחוק רשומה זו?')) return;
+  history.splice(i,1);
+  localStorage.setItem(LS_HIST, JSON.stringify(history));
+  renderPrev(); renderHist(); recalc();
+  toast('נמחק');
+}
+
+// גיבוי מלא: כל ההיסטוריה + התעריף + התאריך
+function buildBackup(pretty){
+  return JSON.stringify({
+    app: 'electricity-splitter', version: 1,
+    history,
+    rate: localStorage.getItem(LS_RATE) || String(RATE_DEFAULT),
+    rateDate: localStorage.getItem(LS_RATEDATE) || '',
+    exportedAt: new Date().toISOString()
+  }, null, pretty ? 2 : 0);
+}
+function backupName(){ return 'electricity-backup-'+todayStr().replace(/\//g,'-')+'.json'; }
+
+// שיתוף הגיבוי — קובץ (HTTPS), טקסט, קישור וואטסאפ (גם בקובץ מקומי), ולבסוף הורדה
+async function shareBackup(){
+  const payload = buildBackup(true);
+  // 1) Web Share כקובץ (דורש HTTPS)
+  try{
+    const file = new File([payload], backupName(), {type:'application/json'});
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      await navigator.share({files:[file], title:'גיבוי חשמל', text:'גיבוי היסטוריית חשמל'});
+      return;
+    }
+  }catch(e){ if(e && e.name==='AbortError') return; }
+  // 2) Web Share כטקסט (דורש HTTPS)
+  try{
+    if(navigator.share){ await navigator.share({title:'גיבוי חשמל', text:payload}); return; }
+  }catch(e){ if(e && e.name==='AbortError') return; }
+  // 3) קישור וואטסאפ ישיר (עובד גם בקובץ מקומי) — בחר את עצמך
+  const compact = buildBackup(false);
+  if(compact.length < 12000){
+    window.open('https://wa.me/?text='+encodeURIComponent(compact), '_blank');
+    toast('בחר את עצמך בוואטסאפ לשמירת הגיבוי');
+    return;
+  }
+  // 4) נפילה אחרונה: הורדת קובץ
+  exportData();
+  toast('הגיבוי ארוך לשיתוף בוואטסאפ — הקובץ הורד למכשיר');
+}
+
+function exportData(){
+  const blob = new Blob([buildBackup()], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = backupName();
+  a.click(); URL.revokeObjectURL(url);
+  toast('קובץ גיבוי נוצר');
+}
+
+// החלת גיבוי מאובייקט מפוענח. מחזיר true אם בוצע
+function applyBackup(data){
+  const arr = Array.isArray(data) ? data : (data && data.history);
+  if(!Array.isArray(arr)) throw new Error('format');
+  history = arr;
+  localStorage.setItem(LS_HIST, JSON.stringify(history));   // נשמר במכשיר מיד
+  if(data && data.rate){ localStorage.setItem(LS_RATE, String(data.rate)); document.getElementById('rateInput').value = data.rate; syncAgorotFromShekel(); }
+  if(data && data.rateDate){ localStorage.setItem(LS_RATEDATE, data.rateDate); document.getElementById('rateDate').value = data.rateDate; }
+  renderPrev(); renderHist(); recalc();
+  return true;
+}
+
+function importData(ev){
+  const file = ev.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e=>{
+    try{ if(applyBackup(JSON.parse(e.target.result))) toast('שוחזר ונשמר במכשיר · ' + history.length + ' רשומות'); }
+    catch(err){ toast('קובץ גיבוי לא תקין'); }
+  };
+  reader.readAsText(file);
+  ev.target.value='';
+}
+
+function togglePaste(){
+  const b = document.getElementById('pasteBox');
+  b.style.display = (b.style.display==='none') ? 'block' : 'none';
+}
+function restoreFromText(){
+  const txt = document.getElementById('pasteArea').value.trim();
+  if(!txt){ toast('הדבק קודם את ה-JSON'); return; }
+  try{
+    if(applyBackup(JSON.parse(txt))){
+      toast('שוחזר ונשמר במכשיר · ' + history.length + ' רשומות');
+      document.getElementById('pasteArea').value='';
+      document.getElementById('pasteBox').style.display='none';
+    }
+  }catch(err){ toast('הטקסט שהודבק אינו JSON תקין'); }
+}
+
+// עזרים
+function fmt(n){ return Number(n).toLocaleString('he-IL', {maximumFractionDigits:2}); }
+function todayStr(){
+  const d = new Date();
+  return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();
+}
+function showView(v){
+  ['calc','hist','graph'].forEach(x=>{
+    document.getElementById('view-'+x).classList.toggle('active', v===x);
+    document.getElementById('tab-'+x).classList.toggle('on', v===x);
+  });
+  if(v==='graph') layoutGraph();
+}
+
+// ---- גרף צריכה לאורך זמן (תצוגת רוחב) ----
+function layoutGraph(){
+  const rot = window.innerHeight >= window.innerWidth;  // אם הטלפון במצב לאורך — מסובבים לרוחב
+  document.getElementById('graphRot').classList.toggle('rot', rot);
+  renderChart();
+}
+// סטטיסטיקות (ממוצע חודשי, מקס, מין) — אקסטרפולציה נכונה: ללא הרשומה הפותחת, חלקי טווח החודשים
+function computeStats(){
+  if(!history.length) return null;
+  const toTs=d=>{ const p=String(d).split('/').map(Number); return new Date(p[2],p[1]-1,p[0]).getTime(); };
+  const recs=history.map(r=>({date:r.date, consumption:r.consumption||0, amount:Math.round(r.amount||0), ts:toTs(r.date)})).sort((x,y)=>x.ts-y.ts);
+  const out={ count:recs.length, recs, totalP:recs.reduce((s,r)=>s+r.amount,0), avgMonthP:0, avgMonthC:0, maxPM:0, minPM:0 };
+  if(recs.length>=2){
+    const MS=30.4375*86400000; let paid=0, cons=0, months=0; const pm=[];
+    for(let i=1;i<recs.length;i++){                       // מדלגים על הרשומה הפותחת (תקופתה לא ידועה)
+      const mo=(recs[i].ts-recs[i-1].ts)/MS;              // אורך התקופה בחודשים
+      recs[i].months=mo;
+      recs[i].pmPay = mo>0 ? recs[i].amount/mo : null;    // תשלום מנורמל לחודש עבור אותה תקופה
+      months+=mo; paid+=recs[i].amount; cons+=recs[i].consumption;
+      if(mo>0) pm.push(recs[i].amount/mo);
+    }
+    if(months>0){ out.avgMonthP=paid/months; out.avgMonthC=cons/months; }
+    if(pm.length){ out.maxPM=Math.max(...pm); out.minPM=Math.min(...pm); }
+  }
+  return out;
+}
+
+// גרף מקצועי עם ApexCharts — שני מצבים: צריכה לתקופה / תשלום לחודש
+let apexChart=null;
+let graphMetric='cons';
+function setMetric(m){
+  graphMetric=m;
+  document.getElementById('gm-cons').classList.toggle('on', m==='cons');
+  document.getElementById('gm-pay').classList.toggle('on', m==='pay');
+  renderChart();
+}
+async function renderChart(){
+  const host=document.getElementById('chartHost');
+  if(!history.length){ host.innerHTML='<div class="empty">אין נתונים להצגה</div>'; return; }
+  if(!window.ApexCharts){
+    try{ await loadScript('https://cdn.jsdelivr.net/npm/apexcharts'); }
+    catch(e){ host.innerHTML='<div class="empty">טעינת ספריית הגרף נכשלה — בדוק חיבור לאינטרנט</div>'; return; }
+  }
+  const s=computeStats();
+  const pay = graphMetric==='pay';
+  let rows, data, curve;
+  if(pay){
+    // נקודה לכל חודש; הגובה = הממוצע החודשי של התקופה שהחודש שייך אליה (אותו גובה לכל חודשי אותה תקופה)
+    curve='stepline';
+    const periods=[];
+    for(let i=1;i<s.recs.length;i++){ const r=s.recs[i]; if(r.pmPay==null) continue;
+      periods.push({ start:s.recs[i-1].ts, end:r.ts, rate:Math.round(r.pmPay), date:r.date, amount:r.amount, months:r.months }); }
+    rows=[]; data=[];
+    if(periods.length){
+      let yy=new Date(periods[0].start).getFullYear(), mm=new Date(periods[0].start).getMonth();
+      const endT=periods[periods.length-1].end;
+      for(let cur=new Date(yy,mm,1).getTime(); cur<=endT; ){
+        const p=periods.find(pp=>cur>=pp.start&&cur<pp.end) || periods.find(pp=>cur<pp.end) || periods[periods.length-1];
+        data.push({ x:cur, y:p.rate }); rows.push({ month:cur, p });
+        mm++; if(mm>11){ mm=0; yy++; } cur=new Date(yy,mm,1).getTime();
+      }
+    }
+  }else{
+    curve='smooth';
+    rows=s.recs;
+    data=rows.map(r=>({ x:r.ts, y:r.consumption }));
+  }
+  const avgLine = Math.round(pay ? s.avgMonthP : s.avgMonthC);
+  document.getElementById('graphSub').textContent = 'ממוצע חודשי · ' + fmt(avgLine) + (pay ? ' ₪' : ' קוט"ש');
+  const chH = host.clientHeight || Math.round(window.innerWidth*0.78);
+  // קו אנכי מקווקו בהיר לכל חודש
+  const monthAnns=[];
+  if(data.length){
+    const t0=data[0].x, t1=data[data.length-1].x;
+    let yy=new Date(t0).getFullYear(), mm=new Date(t0).getMonth();
+    for(let cur=new Date(yy,mm,1).getTime(); cur<=t1; ){
+      if(cur>=t0) monthAnns.push({ x:cur, borderColor:'#e6e9ee', strokeDashArray:3, opacity:0.85 });
+      mm++; if(mm>11){ mm=0; yy++; } cur=new Date(yy,mm,1).getTime();
+    }
+  }
+  const options={
+    chart:{ type:'area', height:chH, width:'100%', fontFamily:'Inter, sans-serif', foreColor:'#8b9199', toolbar:{show:false}, zoom:{enabled:false}, animations:{enabled:true, speed:600} },
+    colors:['#2f6bff'],
+    series:[{ name: pay?'תשלום לחודש':'צריכה', data }],
+    stroke:{ curve:curve, width:3 },
+    fill:{ type:'gradient', gradient:{ shadeIntensity:1, opacityFrom:0.42, opacityTo:0.03, stops:[0,95] } },
+    markers:{ size:4, colors:['#ffffff'], strokeColors:'#2f6bff', strokeWidth:2.5, hover:{ size:6 } },
+    dataLabels:{ enabled:false },
+    grid:{ borderColor:'#eceef1', strokeDashArray:0, padding:{ left:8, right:10, top:0 } },
+    xaxis:{ type:'datetime', axisBorder:{ show:true, color:'#dfe3e8' }, axisTicks:{ show:true, color:'#dfe3e8', height:5 }, tickPlacement:'on',
+      labels:{ datetimeUTC:false, rotate:0, hideOverlappingLabels:true, style:{ colors:'#8b9199', fontSize:'12px' }, datetimeFormatter:{ year:'yyyy', month:"MMM ''yy", day:'dd/MM' } } },
+    yaxis:{ labels:{ style:{ colors:'#8b9199', fontSize:'12px' }, formatter:v=>Math.round(v) },
+      title:{ text: pay?'₪ לחודש':'קוט"ש לתקופה', style:{ color:'#a2a8b0', fontSize:'12px', fontWeight:600 } } },
+    tooltip:{ custom:function(o){ const r=rows[o.dataPointIndex];
+      if(pay){ const d=new Date(r.month); const mon=String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();
+        return '<div style="padding:8px 11px;font-family:Inter"><div style="font-weight:700;color:#11151b">'+mon+'</div>'
+          +'<div style="color:#2f6bff;font-weight:700;margin-top:2px">'+fmt(r.p.rate)+' ₪/חודש</div>'
+          +'<div style="color:#5b626b">תקופה '+r.p.date+' · '+fmt(r.p.amount)+' ₪ · '+r.p.months.toFixed(1)+' חד\'</div></div>'; }
+      return '<div style="padding:8px 11px;font-family:Inter"><div style="font-weight:700;color:#11151b">'+r.date+'</div>'
+        +'<div style="color:#2f6bff;font-weight:700;margin-top:2px">'+fmt(r.consumption)+' קוט"ש</div>'
+        +'<div style="color:#5b626b">'+fmt(r.amount)+' ₪</div></div>'; } },
+    annotations:{ xaxis: monthAnns, yaxis: avgLine>0 ? [{ y:avgLine, borderColor:'#11151b', strokeDashArray:6, borderWidth:1.5 }] : [] }
+  };
+  if(apexChart){ apexChart.destroy(); apexChart=null; }
+  host.innerHTML='';
+  apexChart=new ApexCharts(host, options);
+  apexChart.render();
+}
+window.addEventListener('resize', ()=>{ if(document.getElementById('view-graph').classList.contains('active')) layoutGraph(); });
+window.addEventListener('orientationchange', ()=>{ setTimeout(()=>{ if(document.getElementById('view-graph').classList.contains('active')) layoutGraph(); }, 200); });
+let toastT;
+function toast(msg){
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(toastT); toastT = setTimeout(()=>el.classList.remove('show'), 2600);
+}
+
+// ===== PWA: רישום service worker (התקנה מתפריט הדפדפן + מטמון) =====
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{ navigator.serviceWorker.register('service-worker.js').catch(()=>{}); });
+}
+
+load();
+</script>
+</body>
+</html>

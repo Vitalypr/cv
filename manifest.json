@@ -1,0 +1,17 @@
+{
+  "name": "חישוב חשמל לשכן",
+  "short_name": "חשמל",
+  "description": "חישוב חלוקת חשמל עם השכן — קריאת מונה, סכום לתשלום, היסטוריה וגרפים",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#eef0f3",
+  "theme_color": "#2f6bff",
+  "lang": "he",
+  "dir": "rtl",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
