@@ -16,22 +16,23 @@ import com.vitalypr.daylog.domain.time.formatDate
 import com.vitalypr.daylog.domain.time.formatDuration
 import com.vitalypr.daylog.domain.time.formatMinutes
 import com.vitalypr.daylog.domain.time.formatRange
-import com.vitalypr.daylog.domain.time.hebrewDayName
+import com.vitalypr.daylog.domain.time.hebrewDayNameFull
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * Styled PDF rendering of the daily report (spec §2.4 v0.5). Native
- * android.graphics.pdf — offline, dependency-free. RTL text via StaticLayout
- * with the RTL heuristic; brand tokens mirror ui/theme (petrol/ink/ground).
- */
 /** Seam for tests — Robolectric cannot run the native PdfDocument writer. */
 fun interface DailyPdfRenderer {
     fun render(day: DaySnapshot): File
 }
 
+/**
+ * Styled PDF of the daily report (spec §2.4 v0.5) in the approved "Ledger"
+ * design: petrol double rule, title block, boxed summary row, hairline table
+ * with time/activity/result columns, notes callout, numbered footer. Native
+ * android.graphics.pdf — offline, dependency-free. RTL via StaticLayout.
+ */
 @Singleton
 class ReportPdf @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -39,19 +40,22 @@ class ReportPdf @Inject constructor(
 
     private object C {
         val petrol = Color.rgb(0x0B, 0x6E, 0x6A)
-        val petrolDeep = Color.rgb(0x08, 0x52, 0x50)
         val ink = Color.rgb(0x1B, 0x27, 0x33)
         val inkSecondary = Color.rgb(0x5A, 0x6B, 0x77)
-        val card = Color.rgb(0xF2, 0xF6, 0xF7)
+        val inkMuted = Color.rgb(0x8A, 0x99, 0xA4)
+        val line = Color.rgb(0xD8, 0xE1, 0xE5)
+        val hairline = Color.rgb(0xED, 0xF1, 0xF3)
         val sendGreen = Color.rgb(0x17, 0x8A, 0x4C)
-        val white = Color.WHITE
     }
 
     private companion object {
         const val PAGE_W = 595 // A4 points
         const val PAGE_H = 842
-        const val MARGIN = 44f
-        const val CONTENT_W = (PAGE_W - 2 * MARGIN).toInt()
+        const val MARGIN = 48f
+        const val CONTENT_W = PAGE_W - 2 * MARGIN
+        const val COL_TIME = 104f // right column: time ranges
+        const val COL_RESULT = 74f // left column: results
+        const val COL_GAP = 10f
     }
 
     override fun render(day: DaySnapshot): File {
@@ -69,119 +73,151 @@ class ReportPdf @Inject constructor(
 
     /** All drawing, PdfDocument-free — unit-tested against a bitmap canvas. */
     fun drawReport(canvas: Canvas, day: DaySnapshot) {
-        var y = drawHeader(canvas, day)
-
-        y = drawTimesRow(canvas, day, y + 24f)
+        var y = drawRulesAndTitle(canvas, day)
+        y = drawSummaryBox(canvas, day, y + 26f)
 
         if (day.fieldJobs.isNotEmpty()) {
-            y = drawSection(canvas, "🚗  עבודות שטח", y + 20f)
+            y = drawSectionLabel(canvas, "עבודות שטח", y + 30f)
             day.fieldJobs.forEach { job ->
-                val js = job.startMin
-                val range = if (js != null) " (${formatRange(js, job.endMin)})" else ""
-                y = drawBody(canvas, "• ${job.title}$range", y + 6f)
+                val range = job.startMin?.let { formatRange(it, job.endMin) } ?: ""
+                val text = job.title + (job.locationText?.let { " · $it" } ?: "")
+                y = drawTableRow(canvas, range, text, result = "", y)
             }
         }
 
         val acts = day.activities.sortedWith(compareBy(nullsLast()) { it.startMin })
         if (acts.isNotEmpty()) {
-            y = drawSection(canvas, "✅  פעילויות", y + 20f)
+            y = drawSectionLabel(canvas, "פעילויות", y + 30f)
             acts.forEach { a ->
-                val s0 = a.startMin
-                var line = "• ${a.category}"
-                line += if (s0 != null) " (${formatRange(s0, a.endMin)})" else ""
-                if (a.note.isNotBlank()) line += " — ${a.note.trim()}"
-                y = drawBody(canvas, line, y + 6f)
-                if (a.result.isNotBlank()) {
-                    y = drawBody(canvas, "   תוצאה: ${a.result.trim()}", y + 2f, color = C.sendGreen)
-                }
+                val range = a.startMin?.let { formatRange(it, a.endMin) } ?: ""
+                val text = a.category + (if (a.note.isNotBlank()) " — ${a.note.trim()}" else "")
+                y = drawTableRow(canvas, range, text, a.result.trim(), y)
             }
         }
 
         if (day.notes.isNotBlank()) {
-            y = drawSection(canvas, "📝  הערות", y + 20f)
-            y = drawBody(canvas, day.notes.trim(), y + 6f)
+            y = drawSectionLabel(canvas, "הערות", y + 30f)
+            y = drawNotes(canvas, day.notes.trim(), y + 4f)
         }
 
-        drawFooter(canvas)
+        drawFooter(canvas, day)
     }
 
-    private fun drawHeader(canvas: Canvas, day: DaySnapshot): Float {
-        val headerH = 110f
-        canvas.drawRect(0f, 0f, PAGE_W.toFloat(), headerH, fill(C.petrol))
-        canvas.drawRect(0f, headerH, PAGE_W.toFloat(), headerH + 4f, fill(C.petrolDeep))
+    private fun drawRulesAndTitle(canvas: Canvas, day: DaySnapshot): Float {
+        // Double rule: 3pt + 1pt petrol.
+        canvas.drawRect(MARGIN, 40f, PAGE_W - MARGIN, 43f, fill(C.petrol))
+        canvas.drawRect(MARGIN, 48f, PAGE_W - MARGIN, 49f, fill(C.petrol))
 
-        rtlText(canvas, "דוח יומי", MARGIN, 30f, textPaint(24f, C.white, bold = true))
-        rtlText(
-            canvas, "${hebrewDayName(day.date)} ${formatDate(day.date)}",
-            MARGIN, 66f, textPaint(14f, Color.argb(230, 255, 255, 255)),
-        )
-        return headerH + 4f
+        // Title at the right, date block at the left.
+        rtlText(canvas, "דוח עבודה יומי", 68f, textPaint(27f, C.ink, bold = true), CONTENT_W)
+        val datePaint = textPaint(16f, C.petrol, bold = true).apply { textAlign = Paint.Align.LEFT }
+        canvas.drawText(formatDate(day.date), MARGIN, 88f, datePaint)
+        val dayPaint = textPaint(12f, C.inkSecondary).apply { textAlign = Paint.Align.LEFT }
+        canvas.drawText(hebrewDayNameFull(day.date), MARGIN, 106f, dayPaint)
+        return 116f
     }
 
-    private fun drawTimesRow(canvas: Canvas, day: DaySnapshot, top: Float): Float {
-        val cardH = 74f
-        canvas.drawRoundRect(
-            RectF(MARGIN, top, PAGE_W - MARGIN, top + cardH), 12f, 12f, fill(C.card),
-        )
-        val third = (PAGE_W - 2 * MARGIN) / 3f
+    private fun drawSummaryBox(canvas: Canvas, day: DaySnapshot, top: Float): Float {
+        val boxH = 56f
+        val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = C.line; style = Paint.Style.STROKE; strokeWidth = 1f
+        }
+        canvas.drawRoundRect(RectF(MARGIN, top, PAGE_W - MARGIN, top + boxH), 4f, 4f, stroke)
+
+        val fieldMin = day.fieldJobs
+            .filter { it.startMin != null && it.endMin != null && it.endMin!! > it.startMin!! }
+            .sumOf { it.endMin!! - it.startMin!! }
         val arr = day.arrivalMin
         val dep = day.departureMin
-        val dur = if (arr != null && dep != null && dep > arr) formatDuration(dep - arr) else "—"
+        val total = if (arr != null && dep != null && dep > arr) formatDuration(dep - arr) else "—"
         val cells = listOf(
-            "כניסה" to (day.arrivalMin?.let(::formatMinutes) ?: "—"),
-            "יציאה" to (day.departureMin?.let(::formatMinutes) ?: "—"),
-            "סה״כ" to dur,
+            "כניסה" to (arr?.let(::formatMinutes) ?: "—"),
+            "יציאה" to (dep?.let(::formatMinutes) ?: "—"),
+            "סה״כ שעות" to total,
+            "שטח" to (if (fieldMin > 0) formatDuration(fieldMin) else "—"),
         )
-        // RTL order: first cell at the right.
+        val cellW = CONTENT_W / cells.size
         cells.forEachIndexed { i, (label, value) ->
-            val cellRight = PAGE_W - MARGIN - i * third
-            val cx = cellRight - third / 2
-            centeredText(canvas, label, cx, top + 24f, textPaint(11f, C.inkSecondary))
-            centeredText(canvas, value, cx, top + 52f, textPaint(20f, C.petrolDeep, bold = true))
+            // RTL: first cell at the right.
+            val cellRight = PAGE_W - MARGIN - i * cellW
+            val cx = cellRight - cellW / 2
+            centered(canvas, label, cx, top + 19f, textPaint(9.5f, C.inkMuted))
+            centered(canvas, value, cx, top + 43f, textPaint(18f, C.ink, bold = true))
+            if (i > 0) {
+                canvas.drawRect(cellRight - 0.5f, top + 8f, cellRight + 0.5f, top + boxH - 8f, fill(C.hairline))
+            }
         }
-        return top + cardH
+        return top + boxH
     }
 
-    private fun drawSection(canvas: Canvas, title: String, top: Float): Float {
-        rtlText(canvas, title, MARGIN, top, textPaint(14f, C.petrol, bold = true))
-        return top + 22f
+    private fun drawSectionLabel(canvas: Canvas, label: String, top: Float): Float {
+        // No letterSpacing: it breaks Hebrew glyph shaping (Latin-caps convention only).
+        rtlText(canvas, label, top, textPaint(10.5f, C.inkMuted, bold = true), CONTENT_W)
+        return top + 18f
     }
 
-    private fun drawBody(canvas: Canvas, text: String, top: Float, color: Int = C.ink): Float {
-        val paint = textPaint(12f, color)
-        val layout = staticLayout(text, paint)
+    /** One hairline table row: time (right col), text (middle), result (left col, green). */
+    private fun drawTableRow(canvas: Canvas, time: String, text: String, result: String, top: Float): Float {
+        val textW = (CONTENT_W - COL_TIME - COL_RESULT - 2 * COL_GAP).toInt()
+        val layout = staticLayout(text, textPaint(12f, C.ink), textW)
+        val rowH = maxOf(layout.height.toFloat() + 12f, 26f)
+
+        if (time.isNotBlank()) {
+            val timePaint = textPaint(11f, C.inkSecondary).apply { textAlign = Paint.Align.RIGHT }
+            canvas.drawText(time, PAGE_W - MARGIN, top + 15f, timePaint)
+        }
         canvas.save()
-        canvas.translate(MARGIN, top)
+        canvas.translate(MARGIN + COL_RESULT + COL_GAP, top + 4f)
         layout.draw(canvas)
         canvas.restore()
-        return top + layout.height
+        if (result.isNotBlank()) {
+            val resPaint = textPaint(11f, C.sendGreen, bold = true).apply { textAlign = Paint.Align.LEFT }
+            canvas.drawText(result, MARGIN, top + 15f, resPaint)
+        }
+        canvas.drawRect(MARGIN, top + rowH - 1f, PAGE_W - MARGIN, top + rowH - 0.25f, fill(C.hairline))
+        return top + rowH
     }
 
-    private fun drawFooter(canvas: Canvas) {
-        centeredText(
-            canvas, "הופק על ידי יומן עבודה · DayLog",
-            PAGE_W / 2f, PAGE_H - 30f, textPaint(9f, C.inkSecondary),
-        )
-    }
-
-    private fun rtlText(canvas: Canvas, text: String, x: Float, top: Float, paint: TextPaint) {
-        val layout = staticLayout(text, paint)
+    private fun drawNotes(canvas: Canvas, notes: String, top: Float): Float {
+        val textW = (CONTENT_W - 16f).toInt()
+        val layout = staticLayout(notes, textPaint(12f, C.ink), textW)
+        // Petrol callout bar on the reading (right) side.
+        canvas.drawRect(PAGE_W - MARGIN - 3f, top, PAGE_W - MARGIN, top + layout.height + 8f, fill(C.petrol))
         canvas.save()
-        canvas.translate(x, top)
+        canvas.translate(MARGIN, top + 4f)
+        layout.draw(canvas)
+        canvas.restore()
+        return top + layout.height + 8f
+    }
+
+    private fun drawFooter(canvas: Canvas, day: DaySnapshot) {
+        canvas.drawRect(MARGIN, PAGE_H - 46f, PAGE_W - MARGIN, PAGE_H - 45.5f, fill(C.line))
+        val right = textPaint(9f, C.inkMuted).apply { textAlign = Paint.Align.RIGHT }
+        canvas.drawText("יומן עבודה · DayLog", PAGE_W - MARGIN, PAGE_H - 30f, right)
+        val left = textPaint(9f, C.inkMuted).apply { textAlign = Paint.Align.LEFT }
+        canvas.drawText("דוח ${day.date.dayOfYear}/${day.date.year}", MARGIN, PAGE_H - 30f, left)
+    }
+
+    // --- primitives ---
+
+    private fun rtlText(canvas: Canvas, text: String, top: Float, paint: TextPaint, width: Float) {
+        val layout = staticLayout(text, paint, width.toInt())
+        canvas.save()
+        canvas.translate(MARGIN, top - paint.textSize)
         layout.draw(canvas)
         canvas.restore()
     }
 
-    private fun centeredText(canvas: Canvas, text: String, cx: Float, baseline: Float, paint: TextPaint) {
+    private fun centered(canvas: Canvas, text: String, cx: Float, baseline: Float, paint: TextPaint) {
         paint.textAlign = Paint.Align.CENTER
         canvas.drawText(text, cx, baseline, paint)
     }
 
-    private fun staticLayout(text: String, paint: TextPaint): StaticLayout =
-        StaticLayout.Builder.obtain(text, 0, text.length, paint, CONTENT_W)
+    private fun staticLayout(text: String, paint: TextPaint, width: Int): StaticLayout =
+        StaticLayout.Builder.obtain(text, 0, text.length, paint, width)
             .setTextDirection(TextDirectionHeuristics.RTL)
             .setAlignment(Layout.Alignment.ALIGN_NORMAL)
-            .setLineSpacing(4f, 1f)
+            .setLineSpacing(3f, 1f)
             .build()
 
     private fun fill(color: Int) = Paint(Paint.ANTI_ALIAS_FLAG).apply {

@@ -32,3 +32,8 @@
 - AGP is pinned to the 8.x line to match Gradle 8.14 (AGP 9 needs Gradle 9). Version bumps go through `libs.versions.toml` + a full test run.
 - No INTERNET permission: `ManifestGuardTest` fails if a dependency merges it in — fix by excluding the dep, not deleting the test.
 - Room schema exports are committed under `app/schemas/`; every schema bump ships a Migration + MigrationTest.
+
+## PDF / typography
+- **Never set letterSpacing on Hebrew text** — it breaks glyph shaping (renders as split words). Latin-caps convention only.
+- PdfDocument cannot run under Robolectric ("document is closed") — drawing is bitmap-tested via ReportPdf.drawReport; the container path is device-verified.
+- FileProvider caches its path strategy statically — multiple Robolectric tests hitting it must share one test method/context.

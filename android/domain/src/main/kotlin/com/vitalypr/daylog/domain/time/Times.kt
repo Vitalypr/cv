@@ -43,6 +43,17 @@ fun hebrewDayName(date: LocalDate): String {
     return "יום $letter"
 }
 
+/** Full Hebrew day name: יום ראשון .. שבת. */
+fun hebrewDayNameFull(date: LocalDate): String = when (date.dayOfWeek) {
+    DayOfWeek.SUNDAY -> "יום ראשון"
+    DayOfWeek.MONDAY -> "יום שני"
+    DayOfWeek.TUESDAY -> "יום שלישי"
+    DayOfWeek.WEDNESDAY -> "יום רביעי"
+    DayOfWeek.THURSDAY -> "יום חמישי"
+    DayOfWeek.FRIDAY -> "יום שישי"
+    DayOfWeek.SATURDAY -> "שבת"
+}
+
 /** dd.MM.yyyy with Western digits. */
 fun formatDate(date: LocalDate): String =
     "%02d.%02d.%04d".format(date.dayOfMonth, date.monthValue, date.year)

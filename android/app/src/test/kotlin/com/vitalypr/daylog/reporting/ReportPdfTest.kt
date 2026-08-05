@@ -34,7 +34,7 @@ class ReportPdfTest {
         return bitmap
     }
 
-    @Test fun `full day draws with brand header`() {
+    @Test fun `full day draws ledger layout`() {
         val day = DaySnapshot(
             date = LocalDate.of(2026, 8, 4),
             arrivalMin = 492, departureMin = 1055,
@@ -43,19 +43,23 @@ class ReportPdfTest {
             notes = "הערה",
         )
         val bitmap = draw(day)
-        // Header band is brand petrol (#0B6E6A).
-        assertEquals(Color.rgb(0x0B, 0x6E, 0x6A), bitmap.getPixel(10, 10))
-        // Body area received ink (not blank white everywhere below the header).
-        val bodyHasInk = (200..800 step 10).any { y ->
+        // Top double rule is brand petrol (#0B6E6A).
+        assertEquals(Color.rgb(0x0B, 0x6E, 0x6A), bitmap.getPixel(297, 41))
+        // Page ground stays white (ledger, not banner).
+        assertEquals(Color.WHITE, bitmap.getPixel(297, 20))
+        // Body area received ink.
+        val bodyHasInk = (130..800 step 10).any { y ->
             (50..545 step 15).any { x -> bitmap.getPixel(x, y) != Color.WHITE }
         }
         kotlin.test.assertTrue(bodyHasInk, "nothing drawn in the body area")
     }
 
-    @Test fun `empty day still draws header and times card`() {
+    @Test fun `empty day still draws rules, title and summary box`() {
         val bitmap = draw(DaySnapshot(date = LocalDate.of(2026, 8, 5)))
-        assertEquals(Color.rgb(0x0B, 0x6E, 0x6A), bitmap.getPixel(10, 10))
-        // Times card background under the header is the light card tone, not white.
-        assertNotEquals(Color.WHITE, bitmap.getPixel(297, 175))
+        assertEquals(Color.rgb(0x0B, 0x6E, 0x6A), bitmap.getPixel(297, 41))
+        // Summary box border row exists (non-white pixel along the box top edge).
+        val boxBorder = (140..160).any { y -> bitmap.getPixel(297, y) != Color.WHITE }
+        kotlin.test.assertTrue(boxBorder, "summary box border missing")
+        assertNotEquals(Color.WHITE, bitmap.getPixel(297, 41))
     }
 }
