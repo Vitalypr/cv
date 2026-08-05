@@ -53,6 +53,9 @@ interface DayDao {
     @Insert
     suspend fun insertFieldJob(job: FieldJobEntity): Long
 
+    @Query("SELECT * FROM field_job WHERE date = :date AND jobLocationId = :jobLocationId LIMIT 1")
+    suspend fun fieldJobForLocation(date: String, jobLocationId: Long): FieldJobEntity?
+
     @Update
     suspend fun updateFieldJob(job: FieldJobEntity)
 

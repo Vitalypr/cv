@@ -82,6 +82,12 @@
     <string name="settings_data_section">נתונים</string>
     <string name="settings_export_json">ייצוא JSON</string>
     <string name="settings_export_csv">ייצוא CSV</string>
+    <string name="suggested_tag">מוצע</string>
+    <string name="settings_job_locations">מיקומי עבודה</string>
+    <string name="settings_job_locations_sub">רדיוס 2 ק״מ — כניסה ראשונה ויציאה אחרונה ביום מוצעות אוטומטית</string>
+    <string name="settings_job_name_hint">שם האתר / הלקוח…</string>
+    <string name="settings_add_job_here">הוסף במיקום הנוכחי</string>
+    <string name="settings_job_radius">רדיוס %1$d מ׳</string>
     <string name="settings_battery">סוללה (Samsung)</string>
     <string name="settings_battery_sub">להצעות גדר אמינות, בחר ״ללא הגבלה״ בהגדרות הסוללה</string>
     <string name="settings_open">פתיחה</string>

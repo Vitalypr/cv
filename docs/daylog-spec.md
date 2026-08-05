@@ -1,7 +1,7 @@
 # DayLog (יומן עבודה) — Consultant Daily Work Logger
 
 **Document type:** CONOPS + Technical Specification
-**Status:** Draft v0.5 — approved (v0.4) + PDF delivery amendment
+**Status:** Draft v0.6 — v0.5 + job-location tracking amendment
 **Platform:** Android (native)
 **Language & locale:** Hebrew UI and reports, full RTL; Israel defaults (Sun–Thu work-week, Asia/Jerusalem, dd.MM.yyyy)
 **Author:** Vitaly (product owner) with Claude (co-author)
@@ -232,8 +232,18 @@ FieldJob
   date: LocalDate (FK → WorkDay, indexed)
   title: String                              // client / site
   locationText: String?
-  startMin: Int?
+  startMin: Int?                             // MANUAL times — always win
   endMin: Int?
+  jobLocationId: Long?                       // v0.6: link to JobLocation when geo-created
+  suggestedStartMin: Int?                    // v0.6: first geofence ENTER of the day
+  suggestedEndMin: Int?                      // v0.6: last geofence EXIT (each exit overwrites)
+
+JobLocation                                  // v0.6
+  id: Long (PK)
+  name: String
+  lat: Double, lon: Double
+  radiusM: Int                               // default 2000
+  isActive: Boolean
 
 Activity
   id: Long (PK)
@@ -285,6 +295,15 @@ Intent(Intent.ACTION_SEND).apply {
 - `GeofenceReceiver` implements the §5.4 decision table with these invariants: nothing is written without user confirmation (unless silent mode is opted in); a geofence confirmation **never overwrites a MANUAL-source value**; confirm writes the event time; a 10-minute exit debounce absorbs boundary jitter; re-enter cancels a pending departure suggestion. A mid-day exit (e.g., lunch) that the user confirms simply sets a departure that a later exit offers to update — last confirmed exit wins.
 - Office location is captured via a one-shot `FusedLocationProvider` fix ("קבע למיקום הנוכחי") — no Maps SDK, no network.
 - Permissions: `ACCESS_FINE_LOCATION` in-app, then `ACCESS_BACKGROUND_LOCATION`, which on Android 11+ **cannot be granted from an in-app dialog** — the flow explains and deep-links to system settings ("אפשר תמיד"). Requested only when the user enables geofencing; denial leaves the app fully functional (F14) and reverts the toggle. Play Console background-location declaration is an M4 deliverable.
+
+### 6.6b Job-location tracking (v0.6)
+
+Beyond the office fence, the user saves **job locations** (client sites): name + one-shot coordinate capture, each with a **2 km radius** geofence (client-site arrival doesn't need office-grade precision; 2 km absorbs parking, gates, and large sites).
+
+- **First-enter / last-exit per day:** the first ENTER of a day writes the field job's *suggested start*; **every EXIT overwrites the suggested end** — so a lunch exit is automatically superseded by the final exit. No dwell heuristics needed; the surviving pair is first arrival / last leave.
+- On first ENTER the field job row for that day/location is **auto-created** (titled by the location name) if the user hasn't already added one.
+- Suggested times live in separate columns (`suggestedStartMin/EndMin`) and render **in amber with a מוצע tag**; a manually entered time always wins and is never overwritten (same invariant as F2). Reports and statistics use manual-if-set-else-suggested.
+- Job fences are registered alongside the office fence (single GeofencingClient request set, request IDs `office` / `job_<id>`), governed by the same geofence master toggle and permissions.
 
 ### 6.7 Export & backup
 

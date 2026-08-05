@@ -35,8 +35,31 @@ class SettingsViewModel @Inject constructor(
     private val geofenceManager: GeofenceManager,
     private val exporter: Exporter,
     private val officeLocator: com.vitalypr.daylog.geofence.OfficeLocator,
+    private val jobLocationRepository: com.vitalypr.daylog.data.repo.JobLocationRepository,
     @Now private val now: () -> LocalDateTime,
 ) : ViewModel() {
+
+    val jobLocations: StateFlow<List<com.vitalypr.daylog.data.db.JobLocationEntity>> =
+        jobLocationRepository.observeAll()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Captures the current position as a named job location (2 km fence, spec §6.6b). */
+    fun addJobLocation(name: String) = viewModelScope.launch {
+        if (name.isBlank()) return@launch
+        val fix = officeLocator.currentLocation()
+        if (fix == null) {
+            effects.send(SettingsEffect.Toast("לא נמצא מיקום — ודא ש־GPS פעיל"))
+        } else {
+            jobLocationRepository.add(name, fix.first, fix.second)
+            geofenceManager.sync()
+            effects.send(SettingsEffect.Toast("מיקום העבודה נשמר"))
+        }
+    }
+
+    fun removeJobLocation(location: com.vitalypr.daylog.data.db.JobLocationEntity) = viewModelScope.launch {
+        jobLocationRepository.remove(location)
+        geofenceManager.sync()
+    }
 
     private val effects = Channel<SettingsEffect>(Channel.BUFFERED)
     val effect = effects.receiveAsFlow()

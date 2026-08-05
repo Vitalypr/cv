@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.background
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -129,9 +130,13 @@ fun TodayContent(state: TodayUiState, callbacks: TodayCallbacks) {
         }
 
         TimeCard(state, callbacks)
-        FieldJobsCard(state, callbacks)
-        ActivitiesCard(state, callbacks)
-        NotesCard(state, callbacks)
+        // חופש/חג: no hours and no tasks can be entered — only the chips and the
+        // "no report" card remain (product-owner rule; spec S4).
+        if (!state.isSpecialDay) {
+            FieldJobsCard(state, callbacks)
+            ActivitiesCard(state, callbacks)
+            NotesCard(state, callbacks)
+        }
         ReportCard(state, callbacks)
         Spacer(Modifier.padding(bottom = 8.dp))
     }
@@ -143,7 +148,7 @@ private fun TimeCard(state: TodayUiState, cb: TodayCallbacks) {
     var pickDeparture by remember { mutableStateOf(false) }
 
     SectionCard {
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        if (!state.isSpecialDay) Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             TimeSlot(
                 label = stringResource(R.string.arrival),
                 minutes = state.day.arrivalMin,
@@ -165,7 +170,7 @@ private fun TimeCard(state: TodayUiState, cb: TodayCallbacks) {
                 modifier = Modifier.weight(1f),
             )
         }
-        HorizontalDivider(Modifier.padding(vertical = 6.dp))
+        if (!state.isSpecialDay) HorizontalDivider(Modifier.padding(vertical = 6.dp))
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             val arr = state.day.arrivalMin
             val dep = state.day.departureMin
@@ -275,8 +280,26 @@ private fun FieldJobsCard(state: TodayUiState, cb: TodayCallbacks) {
             Row(Modifier.padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("🚗", Modifier.padding(end = 8.dp))
                 Text(job.title, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-                val range = job.startMin?.let { com.vitalypr.daylog.domain.time.formatRange(it, job.endMin) } ?: ""
-                Text(range, style = MaterialTheme.typography.bodySmall, color = InkSecondary)
+                val suggested = job.isStartSuggested || job.isEndSuggested
+                if (suggested) {
+                    Text(
+                        stringResource(R.string.suggested_tag),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = com.vitalypr.daylog.ui.theme.Amber,
+                        modifier = Modifier
+                            .padding(end = 6.dp)
+                            .background(com.vitalypr.daylog.ui.theme.AmberTint, RoundedCornerShape(99.dp))
+                            .padding(horizontal = 6.dp, vertical = 1.dp),
+                    )
+                }
+                val range = job.startMin?.let { com.vitalypr.daylog.domain.time.formatRange(it, job.endMin) }
+                    ?: job.endMin?.let { "…‎–‎" + formatMinutes(it) } ?: ""
+                Text(
+                    range,
+                    style = MaterialTheme.typography.bodySmall,
+                    // Geofence-suggested times wear amber until confirmed/edited (spec §6.6b).
+                    color = if (suggested) com.vitalypr.daylog.ui.theme.Amber else InkSecondary,
+                )
             }
         }
         OutlinedButton(

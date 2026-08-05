@@ -35,6 +35,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -51,6 +53,7 @@ import java.time.DayOfWeek
 @Composable
 fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
+    val jobLocations by viewModel.jobLocations.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
     val locationPermission = rememberLauncherForActivityResult(
@@ -87,6 +90,9 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
 
     SettingsContent(
         settings = settings,
+        jobLocations = jobLocations,
+        onAddJobLocation = viewModel::addJobLocation,
+        onRemoveJobLocation = viewModel::removeJobLocation,
         onToggleWorkDay = viewModel::toggleWorkDay,
         onSetReportTime = viewModel::setReportTime,
         onGeofenceEnabled = { enabled ->
@@ -113,6 +119,9 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
 @Composable
 fun SettingsContent(
     settings: Settings,
+    jobLocations: List<com.vitalypr.daylog.data.db.JobLocationEntity> = emptyList(),
+    onAddJobLocation: (String) -> Unit = {},
+    onRemoveJobLocation: (com.vitalypr.daylog.data.db.JobLocationEntity) -> Unit = {},
     onToggleWorkDay: (DayOfWeek) -> Unit = {},
     onSetReportTime: (Int) -> Unit = {},
     onGeofenceEnabled: (Boolean) -> Unit = {},
@@ -161,6 +170,50 @@ fun SettingsContent(
                 subtitle = stringResource(R.string.settings_silent_sub),
             ) {
                 Switch(checked = settings.silentGeofence, onCheckedChange = onSilent)
+            }
+        }
+
+        SectionCard(title = stringResource(R.string.settings_job_locations)) {
+            Text(
+                stringResource(R.string.settings_job_locations_sub),
+                style = MaterialTheme.typography.bodySmall,
+                color = InkMuted,
+                modifier = Modifier.padding(bottom = 6.dp),
+            )
+            jobLocations.forEach { loc ->
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                    Text("📍", Modifier.padding(end = 6.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(loc.name, style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            stringResource(R.string.settings_job_radius, loc.radiusM),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = InkMuted,
+                        )
+                    }
+                    androidx.compose.material3.IconButton(onClick = { onRemoveJobLocation(loc) }) {
+                        androidx.compose.material3.Icon(
+                            Icons.Default.Close,
+                            contentDescription = stringResource(R.string.remove),
+                            tint = InkMuted,
+                        )
+                    }
+                }
+            }
+            var newName by remember { mutableStateOf("") }
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                androidx.compose.material3.OutlinedTextField(
+                    value = newName,
+                    onValueChange = { newName = it },
+                    placeholder = { Text(stringResource(R.string.settings_job_name_hint), style = MaterialTheme.typography.bodySmall) },
+                    textStyle = MaterialTheme.typography.bodySmall,
+                    singleLine = true,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(
+                    onClick = { onAddJobLocation(newName); newName = "" },
+                    enabled = newName.isNotBlank(),
+                ) { Text(stringResource(R.string.settings_add_job_here)) }
             }
         }
 

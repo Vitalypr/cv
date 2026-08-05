@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.first
 class GeofenceManager @Inject constructor(
     @ApplicationContext private val context: Context,
     private val settingsRepository: SettingsSource,
+    private val jobLocationRepository: com.vitalypr.daylog.data.repo.JobLocationRepository,
 ) {
 
     private val client: GeofencingClient by lazy { LocationServices.getGeofencingClient(context) }
@@ -37,23 +38,23 @@ class GeofenceManager @Inject constructor(
             context, Manifest.permission.ACCESS_FINE_LOCATION,
         ) == PackageManager.PERMISSION_GRANTED
 
-        if (!settings.geofenceEnabled || !hasPermission ||
-            settings.officeLat == null || settings.officeLon == null
-        ) {
+        val fences = mutableListOf<Geofence>()
+        if (settings.officeLat != null && settings.officeLon != null) {
+            fences += fence(FENCE_ID, settings.officeLat, settings.officeLon, settings.officeRadiusM)
+        }
+        // Job locations (spec §6.6b): wide client-site fences, request id "job_<id>".
+        jobLocationRepository.activeLocations().forEach { loc ->
+            fences += fence("$JOB_PREFIX${loc.id}", loc.lat, loc.lon, loc.radiusM)
+        }
+
+        if (!settings.geofenceEnabled || !hasPermission || fences.isEmpty()) {
             runCatching { client.removeGeofences(pendingIntent()) }
             return
         }
 
-        val fence = Geofence.Builder()
-            .setRequestId(FENCE_ID)
-            .setCircularRegion(settings.officeLat, settings.officeLon, settings.officeRadiusM.toFloat())
-            .setExpirationDuration(Geofence.NEVER_EXPIRE)
-            .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER or Geofence.GEOFENCE_TRANSITION_EXIT)
-            .build()
-
         val request = GeofencingRequest.Builder()
             .setInitialTrigger(0) // deliberately no initial trigger
-            .addGeofence(fence)
+            .addGeofences(fences)
             .build()
 
         runCatching {
@@ -69,8 +70,17 @@ class GeofenceManager @Inject constructor(
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE,
     )
 
+    private fun fence(id: String, lat: Double, lon: Double, radiusM: Int): Geofence =
+        Geofence.Builder()
+            .setRequestId(id)
+            .setCircularRegion(lat, lon, radiusM.toFloat())
+            .setExpirationDuration(Geofence.NEVER_EXPIRE)
+            .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER or Geofence.GEOFENCE_TRANSITION_EXIT)
+            .build()
+
     companion object {
         const val FENCE_ID = "office"
+        const val JOB_PREFIX = "job_"
         private const val RC_GEOFENCE = 310
     }
 }

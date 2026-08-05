@@ -17,17 +17,30 @@ import kotlinx.coroutines.launch
 class GeofenceReceiver : BroadcastReceiver() {
 
     @Inject lateinit var engine: GeofenceEngine
+    @Inject lateinit var jobEngine: JobLocationEngine
 
     override fun onReceive(context: Context, intent: Intent) {
         val event = GeofencingEvent.fromIntent(intent) ?: return
         if (event.hasError()) return
         val transition = event.geofenceTransition
+        val ids = event.triggeringGeofences?.map { it.requestId }.orEmpty()
         val pending = goAsync()
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             try {
-                when (transition) {
-                    Geofence.GEOFENCE_TRANSITION_ENTER -> engine.onEnter()
-                    Geofence.GEOFENCE_TRANSITION_EXIT -> engine.onExitDetected()
+                ids.forEach { id ->
+                    when {
+                        id == GeofenceManager.FENCE_ID -> when (transition) {
+                            Geofence.GEOFENCE_TRANSITION_ENTER -> engine.onEnter()
+                            Geofence.GEOFENCE_TRANSITION_EXIT -> engine.onExitDetected()
+                        }
+                        id.startsWith(GeofenceManager.JOB_PREFIX) ->
+                            id.removePrefix(GeofenceManager.JOB_PREFIX).toLongOrNull()?.let { locId ->
+                                when (transition) {
+                                    Geofence.GEOFENCE_TRANSITION_ENTER -> jobEngine.onEnter(locId)
+                                    Geofence.GEOFENCE_TRANSITION_EXIT -> jobEngine.onExit(locId)
+                                }
+                            }
+                    }
                 }
             } finally {
                 pending.finish()

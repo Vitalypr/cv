@@ -5,3 +5,4 @@ captures/
 .kotlin/
 *.iml
 .idea/
+src/test/assets/

@@ -37,3 +37,4 @@
 - **Never set letterSpacing on Hebrew text** — it breaks glyph shaping (renders as split words). Latin-caps convention only.
 - PdfDocument cannot run under Robolectric ("document is closed") — drawing is bitmap-tested via ReportPdf.drawReport; the container path is device-verified.
 - FileProvider caches its path strategy statically — multiple Robolectric tests hitting it must share one test method/context.
+- MigrationTestHelper cannot see app assets under Robolectric (instrumentation.context serves framework assets only) — MigrationTest builds a real v1 DB from the exported schema SQL and lets Room migrate+validate on open instead.

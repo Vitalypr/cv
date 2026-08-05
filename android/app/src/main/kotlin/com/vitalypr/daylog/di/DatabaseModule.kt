@@ -24,10 +24,12 @@ object DatabaseModule {
     fun database(@ApplicationContext context: Context): DayLogDb =
         Room.databaseBuilder(context, DayLogDb::class.java, "daylog.db")
             .addCallback(SeedCallback)
+            .addMigrations(*DayLogDb.ALL_MIGRATIONS)
             .build()
 
     @Provides fun dayDao(db: DayLogDb): DayDao = db.dayDao()
     @Provides fun categoryDao(db: DayLogDb): CategoryDao = db.categoryDao()
+    @Provides fun jobLocationDao(db: DayLogDb): com.vitalypr.daylog.data.db.JobLocationDao = db.jobLocationDao()
 
     @Provides fun clock(): () -> Instant = Instant::now
 

@@ -49,7 +49,13 @@ class DayRepository @Inject constructor(
                         )
                     },
                     fieldJobRows = it.fieldJobs.map { j ->
-                        FieldJobRow(j.id, j.title, j.locationText, j.startMin, j.endMin)
+                        FieldJobRow(
+                            id = j.id, title = j.title, locationText = j.locationText,
+                            startMin = j.startMin ?: j.suggestedStartMin,
+                            endMin = j.endMin ?: j.suggestedEndMin,
+                            isStartSuggested = j.startMin == null && j.suggestedStartMin != null,
+                            isEndSuggested = j.endMin == null && j.suggestedEndMin != null,
+                        )
                     },
                 )
             }
@@ -180,8 +186,10 @@ data class FieldJobRow(
     val id: Long,
     val title: String,
     val locationText: String?,
-    val startMin: Int?,
+    val startMin: Int?, // effective: manual if set, else suggested
     val endMin: Int?,
+    val isStartSuggested: Boolean = false,
+    val isEndSuggested: Boolean = false,
 )
 
 data class EditableDay(
@@ -198,7 +206,10 @@ internal fun DayWithEntries.toSnapshot(): DaySnapshot = DaySnapshot(
     departureSource = TimeSource.valueOf(day.departureSource),
     dayType = DayType.valueOf(day.dayType),
     notes = day.notes,
-    fieldJobs = fieldJobs.map { FieldJob(it.title, it.locationText, it.startMin, it.endMin) },
+    // Effective times: MANUAL wins, else geofence suggestion (spec §6.6b).
+    fieldJobs = fieldJobs.map {
+        FieldJob(it.title, it.locationText, it.startMin ?: it.suggestedStartMin, it.endMin ?: it.suggestedEndMin)
+    },
     activities = activities
         .sortedBy { it.activity.sortOrder }
         .map { ActivityEntry(it.category.name, it.activity.startMin, it.activity.endMin, it.activity.note, it.activity.result) },
