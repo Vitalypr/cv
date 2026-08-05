@@ -41,13 +41,13 @@ fun SectionCard(
         tonalElevation = 0.dp,
         shadowElevation = 1.dp,
     ) {
-        Column(Modifier.padding(16.dp)) {
+        Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
             if (title != null) {
                 Text(
                     title,
                     style = MaterialTheme.typography.labelLarge,
                     color = InkSecondary,
-                    modifier = Modifier.padding(bottom = 10.dp),
+                    modifier = Modifier.padding(bottom = 6.dp),
                 )
             }
             content()

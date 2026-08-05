@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -111,18 +112,19 @@ fun TodayContent(state: TodayUiState, callbacks: TodayCallbacks) {
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+            .padding(horizontal = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
-            Column(Modifier.weight(1f)) {
-                Text(stringResource(R.string.tab_today), style = MaterialTheme.typography.headlineSmall)
-                Text(
-                    "${hebrewDayName(state.date)}, ${formatDate(state.date)}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = InkSecondary,
-                )
-            }
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 2.dp)) {
+            Text(stringResource(R.string.tab_today), style = MaterialTheme.typography.titleLarge)
+            Text(
+                "${hebrewDayName(state.date)}, ${formatDate(state.date)}",
+                style = MaterialTheme.typography.bodySmall,
+                color = InkSecondary,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 8.dp),
+            )
             StatusBadge(state.status)
         }
 
@@ -163,30 +165,29 @@ private fun TimeCard(state: TodayUiState, cb: TodayCallbacks) {
                 modifier = Modifier.weight(1f),
             )
         }
-        val arr = state.day.arrivalMin
-        val dep = state.day.departureMin
-        if (arr != null && dep != null && dep > arr) {
-            Text(
-                stringResource(R.string.total_at_office, formatDuration(dep - arr)),
-                style = MaterialTheme.typography.bodyMedium,
-                color = InkSecondary,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 10.dp),
-            )
-        }
-        HorizontalDivider(Modifier.padding(vertical = 10.dp))
+        HorizontalDivider(Modifier.padding(vertical = 6.dp))
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(stringResource(R.string.special_day), style = MaterialTheme.typography.bodySmall, color = InkSecondary)
+            val arr = state.day.arrivalMin
+            val dep = state.day.departureMin
+            Text(
+                if (arr != null && dep != null && dep > arr) {
+                    stringResource(R.string.total_at_office, formatDuration(dep - arr))
+                } else {
+                    stringResource(R.string.special_day)
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = InkSecondary,
+                modifier = Modifier.weight(1f),
+            )
             FilterChip(
                 selected = state.day.dayType == DayType.OFF,
                 onClick = { cb.onToggleDayType(DayType.OFF) },
-                label = { Text(stringResource(R.string.day_off)) },
+                label = { Text(stringResource(R.string.day_off), style = MaterialTheme.typography.labelMedium) },
             )
             FilterChip(
                 selected = state.day.dayType == DayType.HOLIDAY,
                 onClick = { cb.onToggleDayType(DayType.HOLIDAY) },
-                label = { Text(stringResource(R.string.holiday)) },
+                label = { Text(stringResource(R.string.holiday), style = MaterialTheme.typography.labelMedium) },
             )
         }
     }
@@ -219,28 +220,50 @@ private fun TimeSlot(
     modifier: Modifier = Modifier,
 ) {
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(label, style = MaterialTheme.typography.bodySmall, color = InkSecondary)
-        TextButton(onClick = onEdit, enabled = minutes != null) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(label, style = MaterialTheme.typography.bodySmall, color = InkSecondary)
+            if (minutes != null && source == TimeSource.GEOFENCE) {
+                Text(stringResource(R.string.source_geofence), style = MaterialTheme.typography.labelSmall, color = InkMuted)
+            }
+        }
+        TextButton(
+            onClick = onEdit,
+            enabled = minutes != null,
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp),
+            modifier = Modifier.height(34.dp),
+        ) {
             Text(
                 minutes?.let(::formatMinutes) ?: stringResource(R.string.time_unset),
-                style = MaterialTheme.typography.headlineMedium,
+                style = MaterialTheme.typography.headlineSmall,
                 color = if (minutes != null) MaterialTheme.colorScheme.onSurface else InkMuted,
             )
         }
         if (minutes == null) {
-            Button(onClick = onAction, modifier = Modifier.fillMaxWidth()) { Text(actionLabel) }
+            Button(
+                onClick = onAction,
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(34.dp),
+            ) { Text(actionLabel) }
         } else {
-            Text(
-                if (source == TimeSource.GEOFENCE) stringResource(R.string.source_geofence) else stringResource(R.string.source_manual),
-                style = MaterialTheme.typography.labelSmall,
-                color = InkMuted,
-            )
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                OutlinedButton(onClick = { onNudge(-5) }) { Text(stringResource(R.string.minus_5)) }
-                OutlinedButton(onClick = { onNudge(+5) }) { Text(stringResource(R.string.plus_5)) }
+                CompactOutlined(stringResource(R.string.minus_5)) { onNudge(-5) }
+                CompactOutlined(stringResource(R.string.plus_5)) { onNudge(+5) }
             }
         }
     }
+}
+
+@Composable
+private fun CompactOutlined(label: String, onClick: () -> Unit) {
+    OutlinedButton(
+        onClick = onClick,
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
+        modifier = Modifier
+            .height(28.dp)
+            .width(46.dp),
+    ) { Text(label, style = MaterialTheme.typography.labelMedium) }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -256,9 +279,13 @@ private fun FieldJobsCard(state: TodayUiState, cb: TodayCallbacks) {
                 Text(range, style = MaterialTheme.typography.bodySmall, color = InkSecondary)
             }
         }
-        OutlinedButton(onClick = { showSheet = true }, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.add_field_job))
-        }
+        OutlinedButton(
+            onClick = { showSheet = true },
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(32.dp),
+        ) { Text(stringResource(R.string.add_field_job), style = MaterialTheme.typography.labelMedium) }
     }
     if (showSheet) {
         FieldJobSheet(
@@ -330,7 +357,7 @@ private fun ActivitiesCard(state: TodayUiState, cb: TodayCallbacks) {
 @Composable
 private fun ActivityEditor(row: ActivityRow, cb: TodayCallbacks) {
     var picking by remember { mutableStateOf<String?>(null) }
-    HorizontalDivider(Modifier.padding(vertical = 8.dp))
+    HorizontalDivider(Modifier.padding(vertical = 5.dp))
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
             row.category,
@@ -344,19 +371,15 @@ private fun ActivityEditor(row: ActivityRow, cb: TodayCallbacks) {
             onChange = { cb.onUpdateActivity(row.copy(note = it)) },
             modifier = Modifier.weight(1f),
         )
-        IconButton(onClick = { cb.onRemoveActivity(row.id) }) {
+        IconButton(onClick = { cb.onRemoveActivity(row.id) }, modifier = Modifier.height(28.dp).width(32.dp)) {
             Icon(Icons.Default.Close, contentDescription = stringResource(R.string.remove), tint = InkMuted)
         }
     }
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(stringResource(R.string.activity_times), style = MaterialTheme.typography.labelSmall, color = InkMuted)
-        TextButton(onClick = { picking = "start" }) {
-            Text(row.startMin?.let(::formatMinutes) ?: stringResource(R.string.time_unset))
-        }
-        Text("–", color = InkMuted)
-        TextButton(onClick = { picking = "end" }) {
-            Text(row.endMin?.let(::formatMinutes) ?: stringResource(R.string.time_unset))
-        }
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        CompactTimeButton(row.startMin) { picking = "start" }
+        Text("–", color = InkMuted, style = MaterialTheme.typography.labelMedium)
+        CompactTimeButton(row.endMin) { picking = "end" }
+        Spacer(Modifier.width(6.dp))
         NoteField(
             value = row.result,
             hint = stringResource(R.string.activity_result_hint),
@@ -376,17 +399,44 @@ private fun ActivityEditor(row: ActivityRow, cb: TodayCallbacks) {
     }
 }
 
-/** Local-state text field that pushes updates upward without losing the cursor. */
+@Composable
+private fun CompactTimeButton(minutes: Int?, onClick: () -> Unit) {
+    TextButton(
+        onClick = onClick,
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp),
+        modifier = Modifier.height(28.dp),
+    ) {
+        Text(
+            minutes?.let(::formatMinutes) ?: stringResource(R.string.time_unset),
+            style = MaterialTheme.typography.labelMedium,
+        )
+    }
+}
+
+/** Compact single-line field (32dp vs OutlinedTextField's 56dp minimum). */
 @Composable
 private fun NoteField(value: String, hint: String, onChange: (String) -> Unit, modifier: Modifier = Modifier) {
     var text by remember(value) { mutableStateOf(value) }
-    OutlinedTextField(
+    androidx.compose.foundation.text.BasicTextField(
         value = text,
         onValueChange = { text = it; onChange(it) },
-        placeholder = { Text(hint, style = MaterialTheme.typography.bodySmall, color = InkMuted) },
-        textStyle = MaterialTheme.typography.bodySmall,
+        textStyle = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurface),
         singleLine = true,
-        modifier = modifier,
+        modifier = modifier.height(28.dp),
+        decorationBox = { inner ->
+            Column {
+                androidx.compose.foundation.layout.Box(
+                    Modifier.weight(1f),
+                    contentAlignment = Alignment.CenterStart,
+                ) {
+                    if (text.isEmpty()) {
+                        Text(hint, style = MaterialTheme.typography.bodySmall, color = InkMuted)
+                    }
+                    inner()
+                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+            }
+        },
     )
 }
 
@@ -411,17 +461,21 @@ private fun ReportCard(state: TodayUiState, cb: TodayCallbacks) {
         } else {
             Text(
                 state.reportText,
-                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Default),
+                style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Default, lineHeight = MaterialTheme.typography.labelSmall.lineHeight * 1.25),
+                color = InkSecondary,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 12.dp),
+                    .padding(bottom = 8.dp),
             )
             Button(
                 onClick = cb.onShare,
                 enabled = state.day.hasData,
                 colors = ButtonDefaults.buttonColors(containerColor = SendGreen),
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(40.dp),
             ) {
                 Text(
                     if (state.day.reported) stringResource(R.string.resend_whatsapp) else stringResource(R.string.send_whatsapp),
