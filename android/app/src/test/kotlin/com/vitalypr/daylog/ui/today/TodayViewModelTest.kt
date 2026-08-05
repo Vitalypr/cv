@@ -43,7 +43,7 @@ class TodayViewModelTest {
             .allowMainThreadQueries()
             .build()
         val repo = DayRepository(db.dayDao(), db.categoryDao()) { Instant.parse("2026-08-04T12:00:00Z") }
-        vm = TodayViewModel(repo) { fixedNow }
+        vm = TodayViewModel(repo, { fixedNow }, androidx.lifecycle.SavedStateHandle())
     }
 
     @After fun teardown() {

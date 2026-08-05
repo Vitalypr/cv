@@ -48,9 +48,11 @@ sealed interface TodayEffect {
 class TodayViewModel @Inject constructor(
     private val repository: DayRepository,
     @Now private val now: () -> LocalDateTime,
+    savedStateHandle: androidx.lifecycle.SavedStateHandle,
 ) : ViewModel() {
 
-    val date: LocalDate = now().toLocalDate()
+    /** Bound day: today by default; History passes a "date" nav argument to edit past days. */
+    val date: LocalDate = savedStateHandle.get<String>("date")?.let(LocalDate::parse) ?: now().toLocalDate()
 
     private val effects = Channel<TodayEffect>(Channel.BUFFERED)
     val effect = effects.receiveAsFlow()

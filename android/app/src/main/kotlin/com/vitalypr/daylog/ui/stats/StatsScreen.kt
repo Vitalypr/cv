@@ -1,0 +1,340 @@
+package com.vitalypr.daylog.ui.stats
+
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.vitalypr.daylog.R
+import com.vitalypr.daylog.domain.time.formatDuration
+import com.vitalypr.daylog.domain.time.formatMinutes
+import com.vitalypr.daylog.reporting.ReportShare
+import com.vitalypr.daylog.ui.components.SectionCard
+import com.vitalypr.daylog.ui.theme.ChartField
+import com.vitalypr.daylog.ui.theme.ChartOffice
+import com.vitalypr.daylog.ui.theme.InkMuted
+import com.vitalypr.daylog.ui.theme.InkSecondary
+import com.vitalypr.daylog.ui.theme.Line
+import com.vitalypr.daylog.ui.theme.SendGreen
+
+@Composable
+fun StatsScreen(viewModel: StatsViewModel = hiltViewModel()) {
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    LaunchedEffect(Unit) {
+        viewModel.effect.collect { effect ->
+            when (effect) {
+                is StatsEffect.LaunchShare ->
+                    context.startActivity(ReportShare.intentFor(context, effect.text))
+            }
+        }
+    }
+    StatsContent(
+        state = state,
+        onPeriod = viewModel::setPeriod,
+        onSelectBar = viewModel::selectBar,
+        onShare = viewModel::share,
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun StatsContent(
+    state: StatsUiState,
+    onPeriod: (StatsPeriod) -> Unit = {},
+    onSelectBar: (Int?) -> Unit = {},
+    onShare: () -> Unit = {},
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(
+            stringResource(R.string.tab_stats),
+            style = MaterialTheme.typography.headlineSmall,
+            modifier = Modifier.padding(top = 8.dp),
+        )
+
+        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+            val labels = listOf(
+                StatsPeriod.WEEK to stringResource(R.string.period_week),
+                StatsPeriod.MONTH to stringResource(R.string.period_month),
+                StatsPeriod.YEAR to stringResource(R.string.period_year),
+            )
+            labels.forEachIndexed { i, (p, label) ->
+                SegmentedButton(
+                    selected = state.period == p,
+                    onClick = { onPeriod(p) },
+                    shape = SegmentedButtonDefaults.itemShape(index = i, count = labels.size),
+                ) { Text(label) }
+            }
+        }
+
+        state.summary?.let { s ->
+            KpiGrid(
+                listOf(
+                    formatDuration(s.totalMinutes) to stringResource(R.string.kpi_total_hours),
+                    "${s.workDays}" to stringResource(R.string.kpi_work_days),
+                    "${s.fieldDays}" to stringResource(R.string.kpi_field_days),
+                    (if (s.workDays > 0) formatDuration(s.totalMinutes / s.workDays) else "—") to stringResource(R.string.kpi_avg_day),
+                    (s.avgArrivalMin?.let(::formatMinutes) ?: "—") to stringResource(R.string.kpi_avg_arrival),
+                    (s.avgDepartureMin?.let(::formatMinutes) ?: "—") to stringResource(R.string.kpi_avg_departure),
+                ),
+            )
+            if (s.offDays > 0 || s.holidays > 0) {
+                Text(
+                    buildString {
+                        if (s.offDays > 0) append("${s.offDays} ימי חופש")
+                        if (s.offDays > 0 && s.holidays > 0) append(" · ")
+                        if (s.holidays > 0) append("${s.holidays} חגים")
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = InkSecondary,
+                )
+            }
+        }
+
+        SectionCard(title = state.chartTitle) {
+            ChartLegend()
+            Spacer(Modifier.height(8.dp))
+            HoursChart(
+                bars = state.bars,
+                avgMinutes = state.summary?.let { if (it.workDays > 0) it.totalMinutes / it.workDays else null },
+                selected = state.selectedBar,
+                onSelect = onSelectBar,
+            )
+            state.selectedBar?.let { i ->
+                state.bars.getOrNull(i)?.let { bar ->
+                    val offLabel = stringResource(R.string.day_off)
+                    val officeLabel = stringResource(R.string.legend_office)
+                    val fieldLabel = stringResource(R.string.legend_field)
+                    val detail = if (bar.isOff) {
+                        "${bar.label}: $offLabel"
+                    } else {
+                        buildString {
+                            append("${bar.label}: $officeLabel ${formatDuration(bar.officeMin)}")
+                            if (bar.fieldMin > 0) append(" · $fieldLabel ${formatDuration(bar.fieldMin)}")
+                        }
+                    }
+                    Text(
+                        detail,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = InkSecondary,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                }
+            }
+        }
+
+        state.summary?.let { s ->
+            if (s.categoryCounts.isNotEmpty()) {
+                SectionCard(title = stringResource(R.string.activities_by_category)) {
+                    val max = s.categoryCounts.first().second
+                    s.categoryCounts.take(6).forEach { (name, count) ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(vertical = 4.dp),
+                        ) {
+                            Text(name, Modifier.width(64.dp), style = MaterialTheme.typography.bodySmall)
+                            Box(
+                                Modifier
+                                    .weight(1f)
+                                    .height(13.dp),
+                            ) {
+                                Surface(
+                                    color = ChartOffice,
+                                    shape = RoundedCornerShape(5.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth(count.toFloat() / max)
+                                        .height(13.dp),
+                                ) {}
+                            }
+                            Text(
+                                "$count",
+                                Modifier.width(32.dp),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = InkSecondary,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        Button(
+            onClick = onShare,
+            enabled = state.summary != null && state.summary.workDays > 0,
+            colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = SendGreen),
+            shape = RoundedCornerShape(14.dp),
+            modifier = Modifier.fillMaxWidth(),
+        ) { Text(stringResource(R.string.share_period_summary)) }
+        Spacer(Modifier.height(8.dp))
+    }
+}
+
+@Composable
+private fun KpiGrid(items: List<Pair<String, String>>) {
+    Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+        items.chunked(2).forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                row.forEach { (value, label) ->
+                    SectionCard(modifier = Modifier.weight(1f)) {
+                        Text(value, style = MaterialTheme.typography.titleLarge)
+                        Text(label, style = MaterialTheme.typography.labelSmall, color = InkMuted)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChartLegend() {
+    Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
+        LegendDot(ChartOffice, stringResource(R.string.legend_office))
+        LegendDot(ChartField, stringResource(R.string.legend_field))
+        Text("– – ${stringResource(R.string.legend_avg)}", style = MaterialTheme.typography.labelSmall, color = InkSecondary)
+    }
+}
+
+@Composable
+private fun LegendDot(color: androidx.compose.ui.graphics.Color, label: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Surface(color = color, shape = RoundedCornerShape(3.dp), modifier = Modifier.size(9.dp)) {}
+        Spacer(Modifier.width(4.dp))
+        Text(label, style = MaterialTheme.typography.labelSmall, color = InkSecondary)
+    }
+}
+
+/**
+ * Stacked office/field bars, RTL time axis (first bar at the right), dashed
+ * average line, 2dp gaps between stacked segments (dataviz mark specs).
+ */
+@Composable
+fun HoursChart(
+    bars: List<StatsBar>,
+    avgMinutes: Int?,
+    selected: Int?,
+    onSelect: (Int?) -> Unit,
+) {
+    if (bars.isEmpty()) return
+    val textMeasurer = rememberTextMeasurer()
+    val labelStyle = TextStyle(fontSize = 9.sp, color = InkMuted)
+    val density = LocalDensity.current
+    val maxTotal = (bars.maxOf { it.totalMin }).coerceAtLeast(60)
+
+    Canvas(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(170.dp)
+            .pointerInput(bars) {
+                detectTapGestures { offset ->
+                    val w = size.width.toFloat()
+                    val slot = w / bars.size
+                    val idxFromLeft = (offset.x / slot).toInt().coerceIn(0, bars.lastIndex)
+                    onSelect(bars.lastIndex - idxFromLeft) // RTL: first bar rightmost
+                }
+            },
+    ) {
+        val labelSpace = with(density) { 16.dp.toPx() }
+        val plotH = size.height - labelSpace
+        val slot = size.width / bars.size
+        val gap = with(density) { if (bars.size > 15) 2.dp.toPx() else 6.dp.toPx() }
+        val barW = (slot - gap).coerceAtLeast(with(density) { 2.dp.toPx() })
+        val segGap = with(density) { 2.dp.toPx() }
+        val corner = with(density) { 2.dp.toPx() }
+
+        // grid lines at 0 / half / max
+        listOf(0f, 0.5f, 1f).forEach { g ->
+            val y = plotH * (1 - g)
+            drawLine(Line, Offset(0f, y), Offset(size.width, y), strokeWidth = 1f)
+        }
+
+        bars.forEachIndexed { i, bar ->
+            // RTL axis: bar i sits i slots from the RIGHT edge.
+            val x = size.width - (i + 1) * slot + gap / 2
+            val officeH = plotH * bar.officeMin / maxTotal
+            val fieldH = plotH * bar.fieldMin / maxTotal
+            val highlight = selected == null || selected == i
+            if (bar.officeMin > 0) {
+                drawRoundRect(
+                    ChartOffice.copy(alpha = if (highlight) 1f else 0.35f),
+                    topLeft = Offset(x, plotH - officeH),
+                    size = Size(barW, officeH),
+                    cornerRadius = CornerRadius(corner),
+                )
+            }
+            if (bar.fieldMin > 0) {
+                drawRoundRect(
+                    ChartField.copy(alpha = if (highlight) 1f else 0.35f),
+                    topLeft = Offset(x, plotH - officeH - segGap - fieldH),
+                    size = Size(barW, fieldH),
+                    cornerRadius = CornerRadius(corner),
+                )
+            }
+            val showLabel = bars.size <= 12 || i % 5 == 0
+            if (showLabel) {
+                val measured = textMeasurer.measure(bar.label, labelStyle)
+                drawText(
+                    measured,
+                    topLeft = Offset(x + barW / 2 - measured.size.width / 2, plotH + 2f),
+                )
+            }
+        }
+
+        avgMinutes?.let { avg ->
+            val y = plotH * (1 - avg.toFloat() / maxTotal)
+            if (y in 0f..plotH) {
+                drawLine(
+                    InkMuted,
+                    Offset(0f, y), Offset(size.width, y),
+                    strokeWidth = 2f,
+                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 8f)),
+                )
+            }
+        }
+    }
+}

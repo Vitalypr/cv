@@ -50,4 +50,19 @@
 
     <string name="coming_soon">בקרוב</string>
     <string name="confirm_time">אישור</string>
+
+    <string name="period_week">שבוע</string>
+    <string name="period_month">חודש</string>
+    <string name="period_year">שנה</string>
+    <string name="kpi_total_hours">סה״כ שעות</string>
+    <string name="kpi_work_days">ימי עבודה</string>
+    <string name="kpi_field_days">ימי שטח</string>
+    <string name="kpi_avg_day">ממוצע ליום</string>
+    <string name="kpi_avg_arrival">כניסה ממוצעת</string>
+    <string name="kpi_avg_departure">יציאה ממוצעת</string>
+    <string name="legend_office">משרד</string>
+    <string name="legend_field">שטח</string>
+    <string name="legend_avg">ממוצע</string>
+    <string name="activities_by_category">פעילויות לפי קטגוריה</string>
+    <string name="share_period_summary">שיתוף סיכום התקופה</string>
 </resources>
