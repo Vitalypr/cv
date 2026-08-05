@@ -1,4 +1,4 @@
-<title>DayLog · יומן עבודה — Clickable Mockup (spec v0.2)</title>
+<title>DayLog · יומן עבודה — Clickable Mockup (spec v0.3)</title>
 <style>
 @font-face {
   font-family: 'Heebo';
@@ -143,10 +143,20 @@ header.page .sub{color:var(--ink-2);font-size:14px}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
 .chip{border:1px solid #D8E1E5;border-radius:99px;padding:7px 14px;font-size:13.5px;background:#fff;transition:all .15s;color:#33434f}
 .chip.on{background:#0B6E6A;border-color:#0B6E6A;color:#fff;font-weight:500}
-.anote{display:flex;align-items:center;gap:8px;margin-top:8px}
-.anote input{flex:1;border:0;border-bottom:1.5px solid #D8E1E5;background:transparent;padding:4px 2px;font:400 13.5px 'Heebo';color:#1B2733;direction:rtl}
-.anote input:focus{outline:none;border-color:#0B6E6A}
-.anote .cat{font-size:12.5px;font-weight:600;color:#0B6E6A;flex:none}
+.aentry{border-bottom:1px solid #EFF3F5;padding:9px 0}
+.aentry:last-child{border-bottom:0;padding-bottom:2px}
+.aehead{display:flex;align-items:center;gap:8px}
+.aehead .cat{font-size:12.5px;font-weight:600;color:#0B6E6A;flex:none;background:#E4F1F0;border-radius:8px;padding:3px 9px}
+.aehead input{flex:1;border:0;border-bottom:1.5px solid #D8E1E5;background:transparent;padding:4px 2px;font:400 13.5px 'Heebo';color:#1B2733;direction:rtl;min-width:0}
+.aehead input:focus{outline:none;border-color:#0B6E6A}
+.aehead .del{color:#B6C2CA;font-size:17px;line-height:1;padding:2px 6px;flex:none}
+.aehead .del:hover{color:#A9770F}
+.aextra{display:flex;align-items:center;gap:6px;margin-top:7px;flex-wrap:wrap}
+.aextra .tl{font-size:11.5px;color:#8A99A4;flex:none}
+.aextra input[type=time]{border:1px solid #D8E1E5;border-radius:8px;padding:2px 5px;font:400 12px 'Heebo';color:#1B2733;background:#fff;width:74px}
+.aextra input[type=time]:focus{outline:none;border-color:#0B6E6A}
+.aextra .res{flex:1;border:0;border-bottom:1.5px dashed #D8E1E5;background:transparent;padding:3px 2px;font:400 12.5px 'Heebo';color:#1B2733;direction:rtl;min-width:110px}
+.aextra .res:focus{outline:none;border-color:#0B6E6A}
 
 /* field jobs */
 .fj{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #EFF3F5;font-size:13.5px}
@@ -273,7 +283,7 @@ footer.pg{margin-top:40px;border-top:1px solid var(--line);padding-top:16px;colo
 <div class="wrap">
 <header class="page">
   <div class="logo"><div class="mark">יו</div><h1>DayLog · יומן עבודה</h1></div>
-  <div class="sub">Clickable mockup of every screen &amp; scenario in spec v0.2</div>
+  <div class="sub">Clickable mockup of every screen &amp; scenario in spec v0.3</div>
   <div class="approve-pill">FOR APPROVAL</div>
 </header>
 
@@ -291,7 +301,7 @@ footer.pg{margin-top:40px;border-top:1px solid var(--line);padding-top:16px;colo
 
     <h2>Also clickable</h2>
     <ul class="map">
-      <li><b>Today</b> — tap הגעתי/יצאתי, adjust with ±5, toggle activity chips, add the field job, watch the live report rebuild <span class="sec">(§2.4 ReportBuilder, RLM marks included)</span></li>
+      <li><b>Today</b> — tap הגעתי/יצאתי, adjust with ±5, tap a chip to add an activity entry (optional start/end times, note, result — same category can repeat), add the field job, watch the live report rebuild <span class="sec">(§2.4 ReportBuilder, RLM marks included)</span></li>
       <li><b>Send</b> — share sheet → WhatsApp → group picker → sent bubble; day flips to נשלח <span class="sec">(§2.2 — 3 taps)</span></li>
       <li><b>History</b> — month summary with its own שיתוף, seeded days with status dots <span class="sec">(§2.5, F11)</span></li>
       <li><b>Settings</b> — work-week (Sun–Thu), geofence, silent mode, backup toggles <span class="sec">(§5.3)</span></li>
@@ -455,7 +465,7 @@ footer.pg{margin-top:40px;border-top:1px solid var(--line);padding-top:16px;colo
 </div>
 
 <footer class="pg">
-  <span>DayLog spec v0.2 · docs/daylog-spec.md · every interaction here maps to a numbered spec section</span>
+  <span>DayLog spec v0.3 · docs/daylog-spec.md · every interaction here maps to a numbered spec section</span>
   <span>Rubik + Heebo, embedded · Material 3, light</span>
 </footer>
 </div>
@@ -465,7 +475,7 @@ footer.pg{margin-top:40px;border-top:1px solid var(--line);padding-top:16px;colo
 "use strict";
 var RLM="‏";
 var CATS=["דיון","התקנה","בדיקות","פיתוח","תכנון","תיעוד","תמיכה","אחר"];
-var st={arrival:null,departure:null,aSrc:"",dSrc:"",acts:{},fj:[],notes:"",reported:false,edited:false,exitFired:false};
+var st={arrival:null,departure:null,aSrc:"",dSrc:"",acts:[],fj:[],notes:"",reported:false,edited:false,exitFired:false};
 var $=function(id){return document.getElementById(id)};
 
 function fmt(m){if(m==null)return "—:—";var mm=m%1440,h=Math.floor(mm/60),x=mm%60;return (h<10?"0":"")+h+":"+(x<10?"0":"")+x+(m>=1440?" (למחרת)":"")}
@@ -485,15 +495,20 @@ function buildReport(){
     else if(f.s!=null)r+=" ("+fmt(f.s)+"–…)";
     L.push(r);
   });
-  var keys=CATS.filter(function(c){return c in st.acts});
-  if(keys.length){L.push(RLM+"✅ פעילויות:");keys.forEach(function(c){L.push(RLM+"• "+c+(st.acts[c]?" — "+st.acts[c]:""))})}
+  if(st.acts.length){L.push(RLM+"✅ פעילויות:");st.acts.forEach(function(a){
+    var r=RLM+"• "+a.cat;
+    if(a.s&&a.e)r+=" ("+a.s+"–"+a.e+")";else if(a.s)r+=" ("+a.s+"–…)";
+    if(a.note)r+=" — "+a.note;
+    if(a.result)r+=" · תוצאה: "+a.result;
+    L.push(r);
+  })}
   if(st.notes.trim())L.push(RLM+"📝 הערות: "+st.notes.trim());
   return L.join("\n");
 }
 
 function badge(){
   var b=$("badge");
-  var has=st.arrival!=null||st.fj.length||Object.keys(st.acts).length||st.notes.trim();
+  var has=st.arrival!=null||st.fj.length||st.acts.length||st.notes.trim();
   if(st.reported&&st.edited){b.className="badge b-edit";b.textContent="נשלח (עודכן)"}
   else if(st.reported){b.className="badge b-sent";b.textContent="נשלח ✓"}
   else if(has){b.className="badge b-logged";b.textContent="נרשם, לא נשלח"}
@@ -515,15 +530,33 @@ function render(){
   st.fj.forEach(function(f){var r=document.createElement("div");r.className="fj";
     r.innerHTML="<span>🚗</span><span>"+f.title+"</span><span class='rng'>"+(f.s!=null?fmt(f.s):"")+(f.e!=null?"–"+fmt(f.e):(f.s!=null?"–…":""))+"</span>";fl.appendChild(r)});
   var an=$("anotes");an.innerHTML="";
-  CATS.forEach(function(c){
-    if(!(c in st.acts))return;
-    var w=document.createElement("div");w.className="anote";
-    w.innerHTML="<span class='cat'>"+c+"</span>";
-    var inp=document.createElement("input");inp.placeholder="הערה (לא חובה)…";inp.value=st.acts[c];
-    inp.addEventListener("input",function(){st.acts[c]=inp.value;$("rep").textContent=buildReport();badge()});
-    w.appendChild(inp);an.appendChild(w);
+  st.acts.forEach(function(a,i){
+    var w=document.createElement("div");w.className="aentry";
+    var head=document.createElement("div");head.className="aehead";
+    var cat=document.createElement("span");cat.className="cat";cat.textContent=a.cat;head.appendChild(cat);
+    var note=document.createElement("input");note.placeholder="מה נעשה… (לא חובה)";note.value=a.note;
+    note.addEventListener("input",function(){a.note=note.value;$("rep").textContent=buildReport();badge()});
+    head.appendChild(note);
+    var del=document.createElement("button");del.className="del";del.textContent="×";del.setAttribute("aria-label","הסרה");
+    del.addEventListener("click",function(){st.acts.splice(i,1);touch();render()});
+    head.appendChild(del);w.appendChild(head);
+    var ex=document.createElement("div");ex.className="aextra";
+    var tl=document.createElement("span");tl.className="tl";tl.textContent="שעות:";ex.appendChild(tl);
+    var ts=document.createElement("input");ts.type="time";ts.value=a.s;
+    ts.addEventListener("input",function(){a.s=ts.value;$("rep").textContent=buildReport()});
+    ex.appendChild(ts);
+    var dash=document.createElement("span");dash.className="tl";dash.textContent="–";ex.appendChild(dash);
+    var te=document.createElement("input");te.type="time";te.value=a.e;
+    te.addEventListener("input",function(){a.e=te.value;$("rep").textContent=buildReport()});
+    ex.appendChild(te);
+    var res=document.createElement("input");res.className="res";res.placeholder="תוצאה (לא חובה)…";res.value=a.result;
+    res.addEventListener("input",function(){a.result=res.value;$("rep").textContent=buildReport()});
+    ex.appendChild(res);w.appendChild(ex);
+    an.appendChild(w);
   });
-  document.querySelectorAll("#chips .chip").forEach(function(ch){ch.classList.toggle("on",ch.dataset.c in st.acts)});
+  document.querySelectorAll("#chips .chip").forEach(function(ch){
+    ch.classList.toggle("on",st.acts.some(function(a){return a.cat===ch.dataset.c}));
+  });
   $("rep").textContent=buildReport();
   $("send-l").textContent=st.reported?"שליחה מחדש":"שליחה לוואטסאפ";
   $("send").classList.toggle("resend",st.reported);
@@ -546,7 +579,7 @@ var chipWrap=$("chips");
 CATS.forEach(function(c){
   var b=document.createElement("button");b.className="chip";b.dataset.c=c;b.textContent=c;
   b.addEventListener("click",function(){
-    if(c in st.acts)delete st.acts[c];else st.acts[c]="";
+    st.acts.push({cat:c,s:"",e:"",note:"",result:""});
     touch();render();
   });
   chipWrap.appendChild(b);
@@ -598,7 +631,12 @@ $("ev-enter").addEventListener("click",function(){
   ]);
 });
 $("ev-work").addEventListener("click",function(){
-  toast("גע בצ׳יפים של הפעילויות למטה ↓");
+  if(!st.acts.length){
+    st.acts.push({cat:"התקנה",s:"09:00",e:"11:30",note:"חיווט לוח, תא 4",result:"הושלם"});
+    touch();render();toast("נוספה פעילות לדוגמה — הוסף עוד עם הצ׳יפים");
+  }else{
+    toast("גע בצ׳יפים כדי להוסיף פעילויות ↓");
+  }
   document.querySelector("#pane-today .scroll").scrollTo({top:260,behavior:"smooth"});
 });
 $("ev-exit").addEventListener("click",function(){
@@ -632,7 +670,7 @@ $("ev-report").addEventListener("click",function(){
   ]);
 });
 $("ev-reset").addEventListener("click",function(){
-  st={arrival:null,departure:null,aSrc:"",dSrc:"",acts:{},fj:[],notes:"",reported:false,edited:false,exitFired:false};
+  st={arrival:null,departure:null,aSrc:"",dSrc:"",acts:[],fj:[],notes:"",reported:false,edited:false,exitFired:false};
   $("notes").value="";setClock("07:58");render();toast("היום אופס");
 });
 function setClock(t){$("clock").textContent=t}
