@@ -39,6 +39,20 @@
         <receiver android:name=".geofence.GeofenceReceiver" android:exported="false" />
         <receiver android:name=".geofence.GeofenceExitDebounceReceiver" android:exported="false" />
         <receiver android:name=".geofence.GeofenceActionReceiver" android:exported="false" />
+        <!-- 4x1 home-screen widget: one-tap arrival/departure logging. -->
+        <receiver android:name=".widget.DayWidgetProvider" android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="android.intent.action.DATE_CHANGED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/day_widget_info" />
+        </receiver>
+        <receiver android:name=".widget.WidgetActionReceiver" android:exported="false" />
+
         <receiver android:name=".reminder.BootReceiver" android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />

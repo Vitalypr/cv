@@ -36,6 +36,10 @@
     <string name="time_unset">—:—</string>
     <string name="clear_time">איפוס %1$s</string>
 
+    <string name="widget_description">רישום כניסה ויציאה בלחיצה אחת</string>
+    <string name="widget_recorded">%1$s ✓</string>
+    <string name="widget_special_day">%1$s — לא נרשמות שעות</string>
+
     <string name="notes">הערות</string>
     <string name="notes_hint">הערות ליום…</string>
 

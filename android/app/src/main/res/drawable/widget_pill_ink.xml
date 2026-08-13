@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Departure pill — neutral dark, so the two actions are distinguishable at a
+     glance without borrowing send-green or amber status semantics. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@color/ink" />
+    <corners android:radius="99dp" />
+</shape>

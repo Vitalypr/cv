@@ -21,6 +21,7 @@ TDD is the workflow, not a phase: failing test → implementation → green → 
 | §5.5 notification variants table | `ReminderVariantsTest` — one test per table row |
 | §6.6 geofence decision table + invariants | `GeofenceReceiverTest` — one test per row, incl. never-overwrite-MANUAL |
 | §6.4/§6.5 share intent, trampoline activity, alarm re-arm | `ReportShareTest`, `SendReportActivityTest`, `ReminderSchedulerTest`, `BootReceiverTest` |
+| §5.6 widget: override rules, special day, state selection | `WidgetActionsTest`, `WidgetStateTest`, `DayWidgetScreenshotTest` (inflates the real RemoteViews at 250x40dp) |
 | N3 no INTERNET | `ManifestGuardTest` (parses merged manifest) |
 | UI per mockup | Roborazzi snapshots per screen × config |
 

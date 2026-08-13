@@ -21,6 +21,7 @@ class MainActivity : ComponentActivity() {
 
     @Inject lateinit var reminderScheduler: ReminderScheduler
     @Inject lateinit var geofenceManager: com.vitalypr.daylog.geofence.GeofenceManager
+    @Inject lateinit var widgetRefresher: com.vitalypr.daylog.widget.DayWidgetRefresher
 
     private val notificationPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { /* app works either way */ }
@@ -37,6 +38,12 @@ class MainActivity : ComponentActivity() {
         setContent {
             DayLogRoot()
         }
+    }
+
+    /** One choke point for every in-app edit: the widget is only seen after we leave. */
+    override fun onStop() {
+        super.onStop()
+        widgetRefresher.refresh()
     }
 
     private fun requestNotificationPermissionIfNeeded() {

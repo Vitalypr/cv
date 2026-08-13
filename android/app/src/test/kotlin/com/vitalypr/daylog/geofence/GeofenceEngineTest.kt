@@ -48,7 +48,10 @@ class GeofenceEngineTest {
             .build()
         repo = DayRepository(db.dayDao(), db.categoryDao()) { Instant.now() }
         settings = FakeSettingsSource()
-        engine = GeofenceEngine(context, repo, settings, Notifier(context)) { nowDt }
+        engine = GeofenceEngine(
+            context, repo, settings, Notifier(context),
+            com.vitalypr.daylog.widget.DayWidgetRefresher(context),
+        ) { nowDt }
         nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
     }
 

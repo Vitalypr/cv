@@ -57,4 +57,6 @@ Install path (APK), Samsung-specific checks: One UI notification channels, batte
 - **Chart tooltip** renders as a selection-detail line under the plot instead of a floating bubble — same information, simpler and more reliable on touch; exact values also live in the KPI tiles per the accessibility relief rule.
 - **2026-08-05 day-name fix**: spec prose examples called 05.08.2026 a Tuesday; it is a Wednesday. Code and tests follow `LocalDate` — the calendar, not the prose.
 - **Spec §2.2 example dates** in CONOPS narrative retained as-is (cosmetic).
+- **Home-screen widget (v0.8, product-owner request):** a 4x1 widget with one-tap כניסה/יציאה buttons that log the real clock time with MANUAL source (overriding whatever is stored, including geofence suggestions). Added as spec §5.6; it schedules nothing of its own — the live time comes from a system `TextClock` and redraws are event-driven (N6).
+- **Reset arrival/departure (v0.8):** F1's "manual entry/edit always possible" now includes clearing a logged time back to unset; clearing resets the source to MANUAL so the value can be re-suggested.
 - **N3 revised (v0.7):** the product owner requested a map pin picker for office/job locations; map tiles require network, so INTERNET was added for OSM tiles only (osmdroid, no API keys). ManifestGuardTest flipped from "INTERNET absent" to "INTERNET documented".

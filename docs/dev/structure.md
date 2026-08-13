@@ -22,6 +22,7 @@ android/
       reporting/    ReportShare.kt, SendReportActivity.kt
       reminder/     ReminderScheduler.kt, ReminderReceiver.kt, BootReceiver.kt
       geofence/     GeofenceManager.kt, GeofenceReceiver.kt
+      widget/       DayWidgetProvider.kt, DayWidgetRenderer.kt, WidgetActions.kt (rules), DayWidgetRefresher.kt
       notifications/ Channels.kt, Notifier.kt
     src/main/res/   values/strings.xml is HEBREW (default locale); backup rules in xml/
     src/test/       Robolectric + Roborazzi tests, package-mirrored

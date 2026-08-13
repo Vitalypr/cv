@@ -29,6 +29,7 @@ class GeofenceEngine @Inject constructor(
     private val repository: DayRepository,
     private val settingsRepository: SettingsSource,
     private val notifier: Notifier,
+    private val widgetRefresher: com.vitalypr.daylog.widget.DayWidgetRefresher,
     @Now private val now: () -> LocalDateTime,
 ) {
 
@@ -46,6 +47,7 @@ class GeofenceEngine @Inject constructor(
 
         if (settings.silentGeofence) {
             repository.setArrival(today, minutes, TimeSource.GEOFENCE)
+            widgetRefresher.refresh()
         } else {
             notifier.arrivalPrompt(minutes)
         }
@@ -72,6 +74,7 @@ class GeofenceEngine @Inject constructor(
             day.departureMin == null ->
                 if (settings.silentGeofence) {
                     repository.setDeparture(today, eventMinutes, TimeSource.GEOFENCE)
+                    widgetRefresher.refresh()
                 } else {
                     notifier.departurePrompt(eventMinutes, isUpdate = false)
                 }
@@ -83,10 +86,12 @@ class GeofenceEngine @Inject constructor(
 
     suspend fun confirmArrival(eventMinutes: Int) {
         repository.setArrival(now().toLocalDate(), eventMinutes, TimeSource.GEOFENCE)
+        widgetRefresher.refresh()
     }
 
     suspend fun confirmDeparture(eventMinutes: Int) {
         repository.setDeparture(now().toLocalDate(), eventMinutes, TimeSource.GEOFENCE)
+        widgetRefresher.refresh()
     }
 
     fun cancelPendingExit() {

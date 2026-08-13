@@ -29,6 +29,12 @@
 - Job fences (2 km) set `setNotificationResponsiveness(2 min)` so GMS batches transitions instead of waking immediately; the office fence stays at 0 because its event time is the recorded arrival/departure. Don't "fix" job suggestion timing by dropping the responsiveness — 2 km of radius already dwarfs 2 min.
 - osmdroid MapView must get `onDetach()` when the picker dialog closes or tile threads keep running.
 
+## Home-screen widget
+- RemoteViews inflates **only remotable classes** — a bare `<View>` (used as a spacer) throws "Class not allowed to be inflated" and the launcher shows "Problem loading widget". Use margins for gaps; `TextView`/`TextClock`/`ImageView`/`LinearLayout`/`FrameLayout` are safe. `DayWidgetScreenshotTest` inflates the real layout, so this class of error fails the build instead of the home screen.
+- The "time that will be recorded" is a system `TextClock` (`format12Hour` AND `format24Hour` both `HH:mm`, so it stays 24h regardless of device setting) — never a self-scheduled refresh.
+- Widget colors live in `res/values/colors.xml`, a mirror of `ui/theme/Color.kt` (RemoteViews can't read Compose). Change both together.
+- Redraws are event-driven via `DayWidgetRefresher`, called from exactly three places: widget taps, geofence writes, and `MainActivity.onStop` (covers all in-app edits). A new write path for arrival/departure must call it too.
+
 ## Bidi / Hebrew
 - Lines starting with emoji/digits flip in WhatsApp without leading RLM (`‏`). ReportBuilder owns RLM; nothing else appends it.
 - Mixed Hebrew + Latin (client names) inside a line is fine once the line has RLM; ranges like `10:00–13:30` must be en-dash between complete LTR runs.

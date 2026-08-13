@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  4x1 home-screen widget: two one-tap pills that log the real current time.
+  Each pill shows a live TextClock (the time that WILL be recorded) until that
+  value exists, then the recorded value with a ✓. The clock is system-driven —
+  the widget schedules nothing of its own (spec N6).
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:background="@drawable/widget_card_bg"
+    android:padding="6dp">
+
+    <!-- חופש/חג: hours cannot be logged, so the actions are replaced (spec S4). -->
+    <TextView
+        android:id="@+id/widget_special_day"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:textColor="@color/ink_secondary"
+        android:textSize="13sp"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:id="@+id/widget_arrival"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:background="@drawable/widget_pill_petrol"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/arrival"
+            android:maxLines="1"
+            android:textColor="@color/on_accent_muted"
+            android:textSize="12sp" />
+
+        <TextClock
+            android:id="@+id/widget_arrival_clock"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:format12Hour="HH:mm"
+            android:format24Hour="HH:mm"
+            android:maxLines="1"
+            android:textColor="@color/on_accent"
+            android:textSize="17sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/widget_arrival_value"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:maxLines="1"
+            android:textColor="@color/on_accent"
+            android:textSize="17sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
+    </LinearLayout>
+
+    <!-- Gap comes from this margin: a bare <View> is not a remotable class and
+         would make the launcher fail to load the widget entirely. -->
+    <LinearLayout
+        android:id="@+id/widget_departure"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:layout_marginStart="6dp"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:background="@drawable/widget_pill_ink"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/departure"
+            android:maxLines="1"
+            android:textColor="@color/on_accent_muted"
+            android:textSize="12sp" />
+
+        <TextClock
+            android:id="@+id/widget_departure_clock"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:format12Hour="HH:mm"
+            android:format24Hour="HH:mm"
+            android:maxLines="1"
+            android:textColor="@color/on_accent"
+            android:textSize="17sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/widget_departure_value"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:maxLines="1"
+            android:textColor="@color/on_accent"
+            android:textSize="17sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
+    </LinearLayout>
+</LinearLayout>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Widget-surface mirror of the design tokens in ui/theme/Color.kt. RemoteViews
+     cannot read Compose values, so these two files must be changed together
+     (docs/dev/ui-guidelines.md). Nothing else may define a color here. -->
+<resources>
+    <color name="petrol">#0B6E6A</color>
+    <color name="petrol_deep">#085250</color>
+    <color name="ink">#1B2733</color>
+    <color name="ink_secondary">#5A6B77</color>
+    <color name="card">#FFFFFF</color>
+    <color name="on_accent">#FFFFFF</color>
+    <color name="on_accent_muted">#CFE3E2</color>
+</resources>

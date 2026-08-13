@@ -183,6 +183,15 @@ Four-tab bottom navigation (היום / היסטוריה / סטטיסטיקה / �
 
 Rules: **Confirm always writes the geofence event time**, not the tap time; suggestion notifications auto-expire at midnight; a geofence re-ENTER cancels a pending departure suggestion; EXIT prompts are debounced 10 minutes against boundary jitter (an exit followed by re-entry within 10 min produces nothing). All notifications use distinct channels so each type can be tuned/muted in system settings.
 
+### 5.6 Home-screen widget (v0.8)
+
+A **4 x 1 widget** (horizontally resizable down to 2 cells) with two pill buttons — **כניסה** (petrol) and **יציאה** (ink) — for logging without opening the app.
+
+- Each pill shows a **live clock** = the time a tap would record. Once that value exists, the pill shows the recorded value with a ✓ instead, so the home screen answers "did I log it?" at a glance.
+- A tap writes the **real current time** with **MANUAL** source, which by the §6.6 source rules **overrides** whatever is stored — a geofence suggestion or an earlier tap. Tapping again re-records.
+- On a **חופש/חג** day the buttons are replaced by a "לא נרשמות שעות" line (S4 — special days accept no hours).
+- **Battery (N6):** the widget schedules nothing. The live time is a system `TextClock`; `updatePeriodMillis=0`, and redraws happen only on real changes (widget tap, geofence write, leaving the app) plus `DATE_CHANGED` at midnight so a previous day's ✓ never lingers.
+
 ---
 
 ## 6. Technical Architecture
