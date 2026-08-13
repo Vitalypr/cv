@@ -1,17 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   4x1 home-screen widget: two one-tap pills that log the real current time.
-  Each pill shows a live TextClock (the time that WILL be recorded) until that
-  value exists, then the recorded value with a ✓. The clock is system-driven —
-  the widget schedules nothing of its own (spec N6).
+  Transparent behind the pills — they sit straight on the wallpaper.
+
+  Not yet logged  → live TextClock in red (the time a tap would record).
+  Logged          → that value, frozen, in white with a green ✓.
+
+  Label sits ABOVE the time so the full pill width is available to the digits;
+  a side-by-side row caps the time at ~20sp before it clips. includeFontPadding
+  is off so the stack still fits the declared 40dp floor.
+  The clock is system-driven; the widget schedules nothing (spec N6).
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="horizontal"
     android:gravity="center_vertical"
-    android:background="@drawable/widget_card_bg"
-    android:padding="6dp">
+    android:background="@android:color/transparent"
+    android:padding="2dp">
 
     <!-- חופש/חג: hours cannot be logged, so the actions are replaced (spec S4). -->
     <TextView
@@ -22,8 +28,8 @@
         android:gravity="center"
         android:maxLines="1"
         android:ellipsize="end"
-        android:textColor="@color/ink_secondary"
-        android:textSize="13sp"
+        android:textColor="@color/on_accent_muted"
+        android:textSize="15sp"
         android:visibility="gone" />
 
     <LinearLayout
@@ -31,40 +37,45 @@
         android:layout_width="0dp"
         android:layout_height="match_parent"
         android:layout_weight="1"
-        android:orientation="horizontal"
+        android:orientation="vertical"
         android:gravity="center"
         android:background="@drawable/widget_pill_petrol"
-        android:paddingStart="8dp"
-        android:paddingEnd="8dp">
+        android:paddingStart="6dp"
+        android:paddingEnd="6dp">
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:id="@+id/widget_arrival_label"
             android:text="@string/arrival"
             android:maxLines="1"
+            android:includeFontPadding="false"
             android:textColor="@color/on_accent_muted"
-            android:textSize="12sp" />
+            android:textSize="13sp" />
 
+        <!-- Visible only while unlogged, hence the permanent "missing" red. -->
         <TextClock
             android:id="@+id/widget_arrival_clock"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="6dp"
+            android:layout_marginTop="2dp"
             android:format12Hour="HH:mm"
             android:format24Hour="HH:mm"
             android:maxLines="1"
-            android:textColor="@color/on_accent"
-            android:textSize="17sp"
+            android:includeFontPadding="false"
+            android:textColor="@color/widget_missing"
+            android:textSize="26sp"
             android:textStyle="bold" />
 
         <TextView
             android:id="@+id/widget_arrival_value"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="6dp"
+            android:layout_marginTop="2dp"
             android:maxLines="1"
+            android:includeFontPadding="false"
             android:textColor="@color/on_accent"
-            android:textSize="17sp"
+            android:textSize="26sp"
             android:textStyle="bold"
             android:visibility="gone" />
     </LinearLayout>
@@ -76,41 +87,45 @@
         android:layout_width="0dp"
         android:layout_height="match_parent"
         android:layout_weight="1"
-        android:layout_marginStart="6dp"
-        android:orientation="horizontal"
+        android:layout_marginStart="8dp"
+        android:orientation="vertical"
         android:gravity="center"
         android:background="@drawable/widget_pill_ink"
-        android:paddingStart="8dp"
-        android:paddingEnd="8dp">
+        android:paddingStart="6dp"
+        android:paddingEnd="6dp">
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:id="@+id/widget_departure_label"
             android:text="@string/departure"
             android:maxLines="1"
+            android:includeFontPadding="false"
             android:textColor="@color/on_accent_muted"
-            android:textSize="12sp" />
+            android:textSize="13sp" />
 
         <TextClock
             android:id="@+id/widget_departure_clock"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="6dp"
+            android:layout_marginTop="2dp"
             android:format12Hour="HH:mm"
             android:format24Hour="HH:mm"
             android:maxLines="1"
-            android:textColor="@color/on_accent"
-            android:textSize="17sp"
+            android:includeFontPadding="false"
+            android:textColor="@color/widget_missing"
+            android:textSize="26sp"
             android:textStyle="bold" />
 
         <TextView
             android:id="@+id/widget_departure_value"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="6dp"
+            android:layout_marginTop="2dp"
             android:maxLines="1"
+            android:includeFontPadding="false"
             android:textColor="@color/on_accent"
-            android:textSize="17sp"
+            android:textSize="26sp"
             android:textStyle="bold"
             android:visibility="gone" />
     </LinearLayout>

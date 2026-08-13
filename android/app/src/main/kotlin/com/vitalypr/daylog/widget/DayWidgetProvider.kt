@@ -40,19 +40,37 @@ class DayWidgetProvider : AppWidgetProvider() {
         }
     }
 
+    /** Resized: re-render so the text scales to the new footprint. */
+    override fun onAppWidgetOptionsChanged(
+        context: Context,
+        manager: AppWidgetManager,
+        appWidgetId: Int,
+        newOptions: android.os.Bundle,
+    ) {
+        redraw(context, manager, intArrayOf(appWidgetId))
+    }
+
     private fun redraw(context: Context, manager: AppWidgetManager, ids: IntArray) {
         if (ids.isEmpty()) return
         val pending = goAsync()
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             try {
                 val state = WidgetState.of(repository.getDay(now().toLocalDate()))
-                val views = DayWidgetRenderer.render(context, state)
-                ids.forEach { manager.updateAppWidget(it, views) }
+                // Each instance may have its own size, so render per id.
+                ids.forEach { id ->
+                    manager.updateAppWidget(id, DayWidgetRenderer.render(context, state, heightDp(manager, id)))
+                }
             } finally {
                 pending.finish()
             }
         }
     }
+
+    private fun heightDp(manager: AppWidgetManager, id: Int): Int =
+        manager.getAppWidgetOptions(id)
+            ?.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0)
+            ?.takeIf { it > 0 }
+            ?: DayWidgetRenderer.REGULAR_HEIGHT_DP
 
     private companion object {
         val DATE_ACTIONS = setOf(

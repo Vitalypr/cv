@@ -33,6 +33,8 @@
 - RemoteViews inflates **only remotable classes** — a bare `<View>` (used as a spacer) throws "Class not allowed to be inflated" and the launcher shows "Problem loading widget". Use margins for gaps; `TextView`/`TextClock`/`ImageView`/`LinearLayout`/`FrameLayout` are safe. `DayWidgetScreenshotTest` inflates the real layout, so this class of error fails the build instead of the home screen.
 - The "time that will be recorded" is a system `TextClock` (`format12Hour` AND `format24Hour` both `HH:mm`, so it stays 24h regardless of device setting) — never a self-scheduled refresh.
 - Widget colors live in `res/values/colors.xml`, a mirror of `ui/theme/Color.kt` (RemoteViews can't read Compose). Change both together.
+- **A 1-cell-tall widget must survive 40dp**: that is the declared floor (`ceil((minHeight+30)/70)` must stay 1 cell, so minHeight can't be raised), even though launchers really hand out ~70dp. The renderer reads `OPTION_APPWIDGET_MIN_HEIGHT` and drops the labels + shrinks the time below 56dp; `DayWidgetScreenshotTest` captures both sizes. Don't hard-code one text size — it either clips at the floor or looks tiny at real size.
+- Label above time, not beside it: side-by-side caps the time at ~20sp on a 4-cell width before the digits clip.
 - Redraws are event-driven via `DayWidgetRefresher`, called from exactly three places: widget taps, geofence writes, and `MainActivity.onStop` (covers all in-app edits). A new write path for arrival/departure must call it too.
 
 ## Bidi / Hebrew

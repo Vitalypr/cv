@@ -17,6 +17,8 @@ The approved look is `docs/daylog-mockup.html` — Material 3, light, clean. UI 
 
 Dynamic color (Material You) may *tint* neutrals but the semantic trio (petrol/send-green/amber) is fixed — status must stay recognizable.
 
+**Widget surface (`res/values/colors.xml`)** mirrors these tokens for RemoteViews, which cannot read Compose values — change shared tokens in both files. It adds two widget-only colors by product-owner decision (spec §5.6): `widget_missing` `#FF8A80` for a time not yet logged and `widget_check` `#4CD98A` for the ✓ beside a logged one. These *are* text wearing status color — a deliberate exception, because at a glance on a home screen the color is the whole message. They are light variants chosen for contrast against the dark pills; do not reuse them in the app UI.
+
 ## RTL & Hebrew (non-negotiable)
 
 - `android:supportsRtl="true"`; default `values/` strings are Hebrew; layout via `start/end` only — never `left/right`.

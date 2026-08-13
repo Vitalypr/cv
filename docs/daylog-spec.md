@@ -187,7 +187,9 @@ Rules: **Confirm always writes the geofence event time**, not the tap time; sugg
 
 A **4 x 1 widget** (horizontally resizable down to 2 cells) with two pill buttons — **כניסה** (petrol) and **יציאה** (ink) — for logging without opening the app.
 
-- Each pill shows a **live clock** = the time a tap would record. Once that value exists, the pill shows the recorded value with a ✓ instead, so the home screen answers "did I log it?" at a glance.
+- Each pill shows a **live clock in red** = the time a tap would record, i.e. still missing. Once logged, the pill shows that value **frozen, in white, with a green ✓**, so the home screen answers "did I log it?" at a glance.
+- The background is **transparent** — only the two pills are drawn, over the wallpaper.
+- Text scales to the slot the launcher grants (labels drop below 56dp so the times never clip).
 - A tap writes the **real current time** with **MANUAL** source, which by the §6.6 source rules **overrides** whatever is stored — a geofence suggestion or an earlier tap. Tapping again re-records.
 - On a **חופש/חג** day the buttons are replaced by a "לא נרשמות שעות" line (S4 — special days accept no hours).
 - **Battery (N6):** the widget schedules nothing. The live time is a system `TextClock`; `updatePeriodMillis=0`, and redraws happen only on real changes (widget tap, geofence write, leaving the app) plus `DATE_CHANGED` at midnight so a previous day's ✓ never lingers.

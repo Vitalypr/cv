@@ -83,6 +83,20 @@ class WidgetActionsTest {
         assertNull(repo.getDay(today)!!.arrivalMin)
     }
 
+    /** A ✓ belongs to the day it was logged on — the next day starts clean. */
+    @Test fun `yesterday's value does not carry into today`() = runTest {
+        actions.record(arrival = true)
+        assertEquals(8 * 60 + 12, repo.getDay(today)!!.arrivalMin)
+
+        nowDt = LocalDateTime.of(2026, 8, 5, 7, 50)
+        val tomorrow = LocalDate.of(2026, 8, 5)
+        assertNull(WidgetState.of(repo.getDay(tomorrow)).arrivalMin) // live clock again
+
+        actions.record(arrival = true)
+        assertEquals(7 * 60 + 50, repo.getDay(tomorrow)!!.arrivalMin)
+        assertEquals(8 * 60 + 12, repo.getDay(today)!!.arrivalMin) // yesterday untouched
+    }
+
     @Test fun `past-midnight tap lands on the current logical day`() = runTest {
         nowDt = LocalDateTime.of(2026, 8, 5, 1, 30)
         actions.record(arrival = false)

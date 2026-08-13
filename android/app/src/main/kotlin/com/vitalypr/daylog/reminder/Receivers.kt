@@ -16,6 +16,7 @@ import kotlinx.coroutines.launch
 class ReminderReceiver : BroadcastReceiver() {
 
     @Inject lateinit var engine: ReminderEngine
+    @Inject lateinit var widgetRefresher: com.vitalypr.daylog.widget.DayWidgetRefresher
 
     override fun onReceive(context: Context, intent: Intent) {
         val repeat = intent.getBooleanExtra(EXTRA_REPEAT, false)
@@ -23,6 +24,10 @@ class ReminderReceiver : BroadcastReceiver() {
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             try {
                 engine.onReminderFired(repeat)
+                // Belt-and-braces against a stale render: this alarm fires once a
+                // reminder-eligible day, so the widget can never sit on old data
+                // for long even if a DATE_CHANGED broadcast is missed.
+                widgetRefresher.refresh()
             } finally {
                 pending.finish()
             }
@@ -40,6 +45,7 @@ class BootReceiver : BroadcastReceiver() {
 
     @Inject lateinit var scheduler: ReminderScheduler
     @Inject lateinit var geofenceManager: com.vitalypr.daylog.geofence.GeofenceManager
+    @Inject lateinit var widgetRefresher: com.vitalypr.daylog.widget.DayWidgetRefresher
 
     override fun onReceive(context: Context, intent: Intent) {
         when (intent.action) {
@@ -52,6 +58,7 @@ class BootReceiver : BroadcastReceiver() {
                     try {
                         scheduler.scheduleNext()
                         geofenceManager.sync()
+                        widgetRefresher.refresh() // the day may have rolled over while off
                     } finally {
                         pending.finish()
                     }

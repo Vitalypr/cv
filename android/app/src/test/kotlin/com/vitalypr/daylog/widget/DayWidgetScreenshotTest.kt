@@ -29,16 +29,30 @@ class DayWidgetScreenshotTest {
 
     private val context: Context = ApplicationProvider.getApplicationContext()
 
-    private fun capture(name: String, state: WidgetState) {
+    /** Rendered on a dark ground, as it sits on a home screen. [heightDp] 40 = the
+     *  declared minimum, where clipping would first show. */
+    private fun capture(name: String, state: WidgetState, heightDp: Int = 72) {
         val activity = composeRule.activity
-        val view = DayWidgetRenderer.render(context, state).apply(activity, FrameLayout(activity))
         val density = context.resources.displayMetrics.density
+        fun px(dp: Int) = (dp * density).toInt()
+
+        val host = FrameLayout(activity).apply {
+            setBackgroundColor(HOME_SCREEN_GROUND)
+            setPadding(px(8), px(8), px(8), px(8))
+        }
+        val view = DayWidgetRenderer.render(context, state, heightDp).apply(activity, host)
+        host.addView(view, FrameLayout.LayoutParams(px(250), px(heightDp)))
+
         activity.setContentView(
-            view,
-            FrameLayout.LayoutParams((250 * density).toInt(), (40 * density).toInt()),
+            host,
+            FrameLayout.LayoutParams(px(250 + 16), px(heightDp + 16)),
         )
         composeRule.waitForIdle()
-        view.captureRoboImage("src/test/snapshots/images/$name.png")
+        host.captureRoboImage("src/test/snapshots/images/$name.png")
+    }
+
+    private companion object {
+        const val HOME_SCREEN_GROUND = 0xFF0D1117.toInt()
     }
 
     @Test fun nothingLoggedYet() = capture("widget_empty", WidgetState())
@@ -49,4 +63,11 @@ class DayWidgetScreenshotTest {
         capture("widget_full", WidgetState(arrivalMin = 8 * 60 + 12, departureMin = 17 * 60 + 35))
 
     @Test fun dayOff() = capture("widget_off", WidgetState(specialDay = DayType.OFF))
+
+    /** Declared 40dp floor — label + time stack must still fit without clipping. */
+    @Test fun minimumHeight() = capture(
+        "widget_min_height",
+        WidgetState(arrivalMin = 8 * 60 + 12),
+        heightDp = 40,
+    )
 }
