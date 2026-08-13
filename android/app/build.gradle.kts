@@ -77,6 +77,7 @@ dependencies {
     implementation(libs.datastore.preferences)
     implementation(libs.coroutines.android)
     implementation(libs.gms.location)
+    implementation(libs.coroutines.play.services)
     implementation(libs.osmdroid)
 
     testImplementation(libs.junit)

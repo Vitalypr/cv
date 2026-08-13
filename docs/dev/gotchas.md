@@ -21,6 +21,7 @@
 ## Geofence
 - Register with **initial triggers disabled** or setting office-while-at-office fires a bogus ENTER.
 - `ACCESS_BACKGROUND_LOCATION` on Android 11+ cannot be granted in-app — must deep-link to system settings ("Allow all the time"); Play Console declaration required.
+- **Android 10+ `addGeofences` silently fails without background location** — the GMS Task rejects asynchronously, so a fire-and-forget `runCatching` hides it completely. `GeofenceManager` must `await()` the Task and publish a `GeofenceStatus` the Settings screen renders; `precheck()` is the pure, unit-tested gate (Disabled / NoPermission / NoBackgroundPermission / NoLocations / Active).
 - Invariants (§6.6): confirm writes EVENT time; never overwrite MANUAL values; 10-min exit debounce; re-enter cancels pending suggestion. The receiver is a decision table — every row has a test.
 
 ## Bidi / Hebrew
@@ -30,7 +31,7 @@
 ## Build / environment (this container)
 - `ANDROID_HOME=/opt/android-sdk`; system Gradle 8.14.3 at `/opt/gradle/bin/gradle` (no wrapper download). JVM proxy/truststore comes from `JAVA_TOOL_OPTIONS` — don't unset it.
 - AGP is pinned to the 8.x line to match Gradle 8.14 (AGP 9 needs Gradle 9). Version bumps go through `libs.versions.toml` + a full test run.
-- No INTERNET permission: `ManifestGuardTest` fails if a dependency merges it in — fix by excluding the dep, not deleting the test.
+- Network = OSM map tiles only (N3 rev v0.7): `ManifestGuardTest` asserts INTERNET exists for the map picker and documents the exception — any other network use is a conscious spec change, not a dependency accident.
 - Room schema exports are committed under `app/schemas/`; every schema bump ships a Migration + MigrationTest.
 
 ## PDF / typography

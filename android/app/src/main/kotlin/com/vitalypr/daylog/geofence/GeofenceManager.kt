@@ -6,6 +6,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Build
 import androidx.core.content.ContextCompat
 import com.google.android.gms.location.Geofence
 import com.google.android.gms.location.GeofencingClient
@@ -15,13 +16,29 @@ import com.vitalypr.daylog.data.settings.SettingsSource
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.tasks.await
 
 /**
- * Registers the single office geofence (spec §6.6): ENTER|EXIT transitions,
- * INITIAL TRIGGERS DISABLED — setting the office while sitting in it must not
- * fire a bogus prompt. Re-registered on boot and on settings changes.
+ * Why registration can fail on-device even though the logic is correct:
+ * Android 10+ requires ACCESS_BACKGROUND_LOCATION ("allow all the time") for
+ * geofencing, and GMS reports failures asynchronously. This manager therefore
+ * exposes an observable [status] the Settings screen renders, so a silent
+ * failure is impossible by construction.
  */
+sealed interface GeofenceStatus {
+    data object Unknown : GeofenceStatus
+    data object Disabled : GeofenceStatus
+    data object NoPermission : GeofenceStatus
+    data object NoBackgroundPermission : GeofenceStatus
+    data object NoLocations : GeofenceStatus
+    data class Active(val fenceCount: Int) : GeofenceStatus
+    data class Error(val message: String) : GeofenceStatus
+}
+
 @Singleton
 class GeofenceManager @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -31,44 +48,50 @@ class GeofenceManager @Inject constructor(
 
     private val client: GeofencingClient by lazy { LocationServices.getGeofencingClient(context) }
 
+    private val _status = MutableStateFlow<GeofenceStatus>(GeofenceStatus.Unknown)
+    val status: StateFlow<GeofenceStatus> = _status.asStateFlow()
+
     @SuppressLint("MissingPermission")
     suspend fun sync() {
         val settings = settingsRepository.settings.first()
-        val hasPermission = ContextCompat.checkSelfPermission(
-            context, Manifest.permission.ACCESS_FINE_LOCATION,
-        ) == PackageManager.PERMISSION_GRANTED
+        val jobs = jobLocationRepository.activeLocations()
 
-        val fences = mutableListOf<Geofence>()
-        if (settings.officeLat != null && settings.officeLon != null) {
-            fences += fence(FENCE_ID, settings.officeLat, settings.officeLon, settings.officeRadiusM)
-        }
-        // Job locations (spec §6.6b): wide client-site fences, request id "job_<id>".
-        jobLocationRepository.activeLocations().forEach { loc ->
-            fences += fence("$JOB_PREFIX${loc.id}", loc.lat, loc.lon, loc.radiusM)
-        }
-
-        if (!settings.geofenceEnabled || !hasPermission || fences.isEmpty()) {
-            runCatching { client.removeGeofences(pendingIntent()) }
+        val precheck = precheck(
+            enabled = settings.geofenceEnabled,
+            hasFine = hasPermission(Manifest.permission.ACCESS_FINE_LOCATION),
+            hasBackground = Build.VERSION.SDK_INT < Build.VERSION_CODES.Q ||
+                hasPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION),
+            hasOffice = settings.officeLat != null && settings.officeLon != null,
+            jobCount = jobs.size,
+        )
+        if (precheck !is GeofenceStatus.Active) {
+            runCatching { client.removeGeofences(pendingIntent()).await() }
+            _status.value = precheck
             return
         }
 
+        val fences = buildList {
+            if (settings.officeLat != null && settings.officeLon != null) {
+                add(fence(FENCE_ID, settings.officeLat, settings.officeLon, settings.officeRadiusM))
+            }
+            jobs.forEach { loc -> add(fence("$JOB_PREFIX${loc.id}", loc.lat, loc.lon, loc.radiusM)) }
+        }
         val request = GeofencingRequest.Builder()
-            .setInitialTrigger(0) // deliberately no initial trigger
+            .setInitialTrigger(0) // deliberately no initial trigger (spec §6.6)
             .addGeofences(fences)
             .build()
 
-        runCatching {
-            client.removeGeofences(pendingIntent())
-            client.addGeofences(request, pendingIntent())
+        _status.value = try {
+            runCatching { client.removeGeofences(pendingIntent()).await() }
+            client.addGeofences(request, pendingIntent()).await() // surfaces real GMS failures
+            GeofenceStatus.Active(fences.size)
+        } catch (e: Exception) {
+            GeofenceStatus.Error(e.message ?: e.javaClass.simpleName)
         }
     }
 
-    private fun pendingIntent(): PendingIntent = PendingIntent.getBroadcast(
-        context,
-        RC_GEOFENCE,
-        Intent(context, GeofenceReceiver::class.java),
-        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE,
-    )
+    private fun hasPermission(permission: String): Boolean =
+        ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
 
     private fun fence(id: String, lat: Double, lon: Double, radiusM: Int): Geofence =
         Geofence.Builder()
@@ -78,9 +101,31 @@ class GeofenceManager @Inject constructor(
             .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER or Geofence.GEOFENCE_TRANSITION_EXIT)
             .build()
 
+    private fun pendingIntent(): PendingIntent = PendingIntent.getBroadcast(
+        context,
+        RC_GEOFENCE,
+        Intent(context, GeofenceReceiver::class.java),
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE,
+    )
+
     companion object {
         const val FENCE_ID = "office"
         const val JOB_PREFIX = "job_"
         private const val RC_GEOFENCE = 310
+
+        /** Pure gate logic — unit-tested; Active(count) means "go register". */
+        fun precheck(
+            enabled: Boolean,
+            hasFine: Boolean,
+            hasBackground: Boolean,
+            hasOffice: Boolean,
+            jobCount: Int,
+        ): GeofenceStatus = when {
+            !enabled -> GeofenceStatus.Disabled
+            !hasFine -> GeofenceStatus.NoPermission
+            !hasBackground -> GeofenceStatus.NoBackgroundPermission
+            !hasOffice && jobCount == 0 -> GeofenceStatus.NoLocations
+            else -> GeofenceStatus.Active((if (hasOffice) 1 else 0) + jobCount)
+        }
     }
 }

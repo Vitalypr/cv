@@ -20,6 +20,7 @@ import kotlinx.coroutines.launch
 class MainActivity : ComponentActivity() {
 
     @Inject lateinit var reminderScheduler: ReminderScheduler
+    @Inject lateinit var geofenceManager: com.vitalypr.daylog.geofence.GeofenceManager
 
     private val notificationPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { /* app works either way */ }
@@ -28,8 +29,11 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         requestNotificationPermissionIfNeeded()
-        // Self-healing re-arm on every app open (spec §6.5).
-        lifecycleScope.launch { reminderScheduler.scheduleNext() }
+        // Self-healing re-arm on every app open (spec §6.5/§6.6).
+        lifecycleScope.launch {
+            reminderScheduler.scheduleNext()
+            geofenceManager.sync()
+        }
         setContent {
             DayLogRoot()
         }

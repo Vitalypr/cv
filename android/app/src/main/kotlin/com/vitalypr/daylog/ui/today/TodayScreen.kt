@@ -40,7 +40,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -482,8 +481,8 @@ private fun ReportCard(state: TodayUiState, cb: TodayCallbacks) {
             Text(stringResource(R.string.no_report_special_day, label), color = InkSecondary)
         } else {
             Text(
-                state.reportText,
-                style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Default, lineHeight = MaterialTheme.typography.labelSmall.lineHeight * 1.25),
+                stringResource(R.string.report_pdf_note),
+                style = MaterialTheme.typography.bodySmall,
                 color = InkSecondary,
                 modifier = Modifier
                     .fillMaxWidth()

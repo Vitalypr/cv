@@ -54,6 +54,7 @@ import java.time.DayOfWeek
 fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val jobLocations by viewModel.jobLocations.collectAsStateWithLifecycle()
+    val geofenceStatus by viewModel.geofenceStatus.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
     val locationPermission = rememberLauncherForActivityResult(
@@ -82,15 +83,29 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                         ),
                     )
                 }
+                is SettingsEffect.OpenLocationSettings ->
+                    context.startActivity(
+                        Intent(
+                            SysSettings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                            Uri.fromParts("package", context.packageName, null),
+                        ),
+                    )
                 is SettingsEffect.Toast ->
-                    Toast.makeText(context, effect.message, Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, effect.message, Toast.LENGTH_LONG).show()
             }
         }
+    }
+
+    // Re-check registration whenever the user returns from system settings.
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        viewModel.refreshGeofences()
+        onDispose { }
     }
 
     SettingsContent(
         settings = settings,
         jobLocations = jobLocations,
+        geofenceStatus = geofenceStatus,
         onAddJobLocation = viewModel::addJobLocation,
         onRemoveJobLocation = viewModel::removeJobLocation,
         onToggleWorkDay = viewModel::toggleWorkDay,
@@ -122,6 +137,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
 fun SettingsContent(
     settings: Settings,
     jobLocations: List<com.vitalypr.daylog.data.db.JobLocationEntity> = emptyList(),
+    geofenceStatus: com.vitalypr.daylog.geofence.GeofenceStatus = com.vitalypr.daylog.geofence.GeofenceStatus.Unknown,
     onAddJobLocation: (String) -> Unit = {},
     onRemoveJobLocation: (com.vitalypr.daylog.data.db.JobLocationEntity) -> Unit = {},
     onToggleWorkDay: (DayOfWeek) -> Unit = {},
@@ -182,6 +198,7 @@ fun SettingsContent(
             ) {
                 Switch(checked = settings.silentGeofence, onCheckedChange = onSilent)
             }
+            GeofenceStatusRow(geofenceStatus, onOpenLocationSettings = onBatterySettings)
         }
 
         SectionCard(title = stringResource(R.string.settings_job_locations)) {
@@ -308,6 +325,43 @@ fun SettingsContent(
             onConfirm = { onSetReportTime(it); pickTime = false },
             onDismiss = { pickTime = false },
         )
+    }
+}
+
+@Composable
+private fun GeofenceStatusRow(
+    status: com.vitalypr.daylog.geofence.GeofenceStatus,
+    onOpenLocationSettings: () -> Unit,
+) {
+    val (text, isProblem) = when (status) {
+        is com.vitalypr.daylog.geofence.GeofenceStatus.Active ->
+            stringResource(R.string.geo_status_active, status.fenceCount) to false
+        com.vitalypr.daylog.geofence.GeofenceStatus.Disabled ->
+            stringResource(R.string.geo_status_disabled) to false
+        com.vitalypr.daylog.geofence.GeofenceStatus.NoPermission ->
+            stringResource(R.string.geo_status_no_permission) to true
+        com.vitalypr.daylog.geofence.GeofenceStatus.NoBackgroundPermission ->
+            stringResource(R.string.geo_status_no_bg) to true
+        com.vitalypr.daylog.geofence.GeofenceStatus.NoLocations ->
+            stringResource(R.string.geo_status_no_locations) to false
+        is com.vitalypr.daylog.geofence.GeofenceStatus.Error ->
+            stringResource(R.string.geo_status_error, status.message) to true
+        com.vitalypr.daylog.geofence.GeofenceStatus.Unknown -> "" to false
+    }
+    if (text.isNotEmpty()) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            Text(
+                text,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (isProblem) com.vitalypr.daylog.ui.theme.Amber else com.vitalypr.daylog.ui.theme.SendGreenDark,
+                modifier = Modifier.weight(1f),
+            )
+            if (isProblem) {
+                TextButton(onClick = onOpenLocationSettings) {
+                    Text(stringResource(R.string.geo_open_settings))
+                }
+            }
+        }
     }
 }
 

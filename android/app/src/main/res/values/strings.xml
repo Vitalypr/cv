@@ -38,7 +38,8 @@
     <string name="notes">הערות</string>
     <string name="notes_hint">הערות ליום…</string>
 
-    <string name="report_preview">תצוגת דוח</string>
+    <string name="report_preview">דוח יומי</string>
+    <string name="report_pdf_note">הדוח נשלח כקובץ PDF מעוצב, עם תקציר טקסט בהודעה</string>
     <string name="send_whatsapp">שליחה לוואטסאפ</string>
     <string name="resend_whatsapp">שליחה מחדש</string>
     <string name="no_report_special_day">🏖️ %1$s — לא נשלח דוח</string>
@@ -93,4 +94,11 @@
     <string name="settings_open">פתיחה</string>
     <string name="settings_pick_on_map">בחירה במפה</string>
     <string name="map_confirm">קביעת המיקום כאן</string>
+    <string name="geo_status_active">מעקב פעיל · %1$d גדרות רשומות</string>
+    <string name="geo_status_disabled">המעקב כבוי</string>
+    <string name="geo_status_no_permission">חסרה הרשאת מיקום</string>
+    <string name="geo_status_no_bg">נדרש ״לאפשר כל הזמן״ בהרשאת המיקום — אחרת אין זיהוי כניסה/יציאה</string>
+    <string name="geo_status_no_locations">לא הוגדרו מיקומים למעקב</string>
+    <string name="geo_status_error">שגיאת רישום: %1$s</string>
+    <string name="geo_open_settings">פתח הרשאות</string>
 </resources>

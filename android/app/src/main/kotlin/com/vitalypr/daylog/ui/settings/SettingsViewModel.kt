@@ -25,6 +25,8 @@ import kotlinx.coroutines.launch
 sealed interface SettingsEffect {
     data class ShareFile(val file: File, val mime: String) : SettingsEffect
     data object RequestLocationPermission : SettingsEffect
+    /** Android 11+: background location can only be granted from system settings. */
+    data object OpenLocationSettings : SettingsEffect
     data class Toast(val message: String) : SettingsEffect
 }
 
@@ -43,6 +45,32 @@ class SettingsViewModel @Inject constructor(
         jobLocationRepository.observeAll()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    /** Live registration status — the screen renders it so failures are never silent. */
+    val geofenceStatus: StateFlow<com.vitalypr.daylog.geofence.GeofenceStatus> = geofenceManager.status
+
+    private fun hasFine(): Boolean = androidx.core.content.ContextCompat.checkSelfPermission(
+        context, android.Manifest.permission.ACCESS_FINE_LOCATION,
+    ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+
+    private fun hasBackground(): Boolean = android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.Q ||
+        androidx.core.content.ContextCompat.checkSelfPermission(
+            context, android.Manifest.permission.ACCESS_BACKGROUND_LOCATION,
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+
+    /** After any tracking-related change: sync and walk the user through what's missing. */
+    private suspend fun syncAndGuide() {
+        geofenceManager.sync()
+        when (geofenceManager.status.value) {
+            is com.vitalypr.daylog.geofence.GeofenceStatus.NoBackgroundPermission -> {
+                effects.send(SettingsEffect.Toast("להצעות אוטומטיות בחר ׳לאפשר כל הזמן׳ בהרשאת המיקום"))
+                effects.send(SettingsEffect.OpenLocationSettings)
+            }
+            is com.vitalypr.daylog.geofence.GeofenceStatus.NoPermission ->
+                effects.send(SettingsEffect.RequestLocationPermission)
+            else -> Unit
+        }
+    }
+
     /** Captures the current position as a named job location (2 km fence, spec §6.6b). */
     fun addJobLocation(name: String) = viewModelScope.launch {
         if (name.isBlank()) return@launch
@@ -51,15 +79,25 @@ class SettingsViewModel @Inject constructor(
             effects.send(SettingsEffect.Toast("לא נמצא מיקום — ודא ש־GPS פעיל"))
         } else {
             jobLocationRepository.add(name, fix.first, fix.second)
-            geofenceManager.sync()
-            effects.send(SettingsEffect.Toast("מיקום העבודה נשמר"))
+            enableTrackingForNewLocation()
         }
+    }
+
+    /** Adding a location IS the intent to track it — enable + guide through permissions. */
+    private suspend fun enableTrackingForNewLocation() {
+        if (!settings.value.geofenceEnabled && hasFine()) {
+            settingsRepository.setGeofenceEnabled(true)
+        }
+        syncAndGuide()
+        effects.send(SettingsEffect.Toast("מיקום העבודה נשמר"))
     }
 
     fun removeJobLocation(location: com.vitalypr.daylog.data.db.JobLocationEntity) = viewModelScope.launch {
         jobLocationRepository.remove(location)
         geofenceManager.sync()
     }
+
+    fun refreshGeofences() = viewModelScope.launch { geofenceManager.sync() }
 
     /** Map-picked coordinates (OSM pin picker). */
     fun setOfficeAt(lat: Double, lon: Double) = viewModelScope.launch {
@@ -71,8 +109,7 @@ class SettingsViewModel @Inject constructor(
     fun addJobLocationAt(name: String, lat: Double, lon: Double) = viewModelScope.launch {
         if (name.isBlank()) return@launch
         jobLocationRepository.add(name, lat, lon)
-        geofenceManager.sync()
-        effects.send(SettingsEffect.Toast("מיקום העבודה נשמר"))
+        enableTrackingForNewLocation()
     }
 
     private val effects = Channel<SettingsEffect>(Channel.BUFFERED)
@@ -96,7 +133,7 @@ class SettingsViewModel @Inject constructor(
             return@launch
         }
         settingsRepository.setGeofenceEnabled(enabled)
-        geofenceManager.sync()
+        if (enabled) syncAndGuide() else geofenceManager.sync()
     }
 
     fun setSilent(enabled: Boolean) = viewModelScope.launch {
