@@ -34,6 +34,7 @@
     <string name="start_time">שעת התחלה</string>
     <string name="end_time">שעת סיום</string>
     <string name="time_unset">—:—</string>
+    <string name="clear_time">איפוס %1$s</string>
 
     <string name="notes">הערות</string>
     <string name="notes_hint">הערות ליום…</string>

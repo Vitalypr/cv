@@ -68,6 +68,23 @@ class TodayViewModelTest {
         }
     }
 
+    @Test fun `clearing arrival and departure returns the day to unset`() = runTest(dispatcher) {
+        vm.uiState.test {
+            awaitItem()
+            vm.arriveNow()
+            vm.setDeparture(17 * 60 + 35)
+            expectMostRecentItemAfter { it.day.arrivalMin != null && it.day.departureMin != null }
+
+            vm.clearArrival()
+            assertEquals(null, expectMostRecentItemAfter { it.day.arrivalMin == null }.day.arrivalMin)
+            vm.clearDeparture()
+            val cleared = expectMostRecentItemAfter { it.day.departureMin == null }
+            assertEquals(null, cleared.day.departureMin)
+            // Report drops the emptied segments rather than rendering a half line.
+            assertTrue(!cleared.reportText.contains("כניסה") && !cleared.reportText.contains("יציאה"))
+        }
+    }
+
     @Test fun `toggling day type twice returns to work day`() = runTest(dispatcher) {
         vm.uiState.test {
             awaitItem()

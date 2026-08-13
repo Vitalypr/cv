@@ -13,6 +13,7 @@ import com.vitalypr.daylog.domain.model.TimeSource
 import com.vitalypr.daylog.domain.model.status
 import java.time.Instant
 import java.time.LocalDate
+import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Before
@@ -78,6 +79,50 @@ class DayRepositoryTest {
         repo.setArrival(date, 492, TimeSource.GEOFENCE)
         assertTrue(repo.setArrival(date, 480, TimeSource.MANUAL))
         assertEquals(480, repo.getDay(date)!!.arrivalMin)
+    }
+
+    /** Two mutations issued back-to-back must not read the same row and clobber each other. */
+    @Test fun `concurrent arrival and departure writes both survive`() = runTest {
+        kotlinx.coroutines.coroutineScope {
+            val a = async { repo.setArrival(date, 492, TimeSource.MANUAL) }
+            val b = async { repo.setDeparture(date, 1055, TimeSource.MANUAL) }
+            a.await(); b.await()
+        }
+        val day = repo.getDay(date)!!
+        assertEquals(492, day.arrivalMin)
+        assertEquals(1055, day.departureMin)
+    }
+
+    @Test fun `clearing arrival empties it back to unset`() = runTest {
+        repo.setArrival(date, 492, TimeSource.MANUAL)
+        repo.clearArrival(date)
+        assertNull(repo.getDay(date)!!.arrivalMin)
+    }
+
+    @Test fun `clearing departure empties it back to unset`() = runTest {
+        repo.setDeparture(date, 1055, TimeSource.MANUAL)
+        repo.clearDeparture(date)
+        assertNull(repo.getDay(date)!!.departureMin)
+    }
+
+    /** Clearing must also drop the MANUAL lock, or the value could never be re-suggested. */
+    @Test fun `after clearing, a geofence suggestion may fill the value again`() = runTest {
+        repo.setArrival(date, 492, TimeSource.MANUAL)
+        repo.clearArrival(date)
+        assertTrue(repo.setArrival(date, 500, TimeSource.GEOFENCE))
+        assertEquals(500, repo.getDay(date)!!.arrivalMin)
+
+        repo.setDeparture(date, 1000, TimeSource.MANUAL)
+        repo.clearDeparture(date)
+        assertTrue(repo.setDeparture(date, 1055, TimeSource.GEOFENCE))
+        assertEquals(1055, repo.getDay(date)!!.departureMin)
+    }
+
+    @Test fun `clearing a time after reporting marks the day edited`() = runTest {
+        repo.setArrival(date, 492, TimeSource.MANUAL)
+        repo.markReported(date)
+        repo.clearArrival(date)
+        assertEquals(DayStatus.REPORTED_EDITED, repo.getDay(date)!!.status())
     }
 
     @Test fun `activities carry category name, times, note, result`() = runTest {

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.background
 import androidx.compose.foundation.rememberScrollState
@@ -80,6 +81,8 @@ fun TodayScreen(viewModel: TodayViewModel = hiltViewModel()) {
             onLeaveNow = viewModel::leaveNow,
             onSetArrival = viewModel::setArrival,
             onSetDeparture = viewModel::setDeparture,
+            onClearArrival = viewModel::clearArrival,
+            onClearDeparture = viewModel::clearDeparture,
             onToggleDayType = viewModel::toggleDayType,
             onAddActivity = viewModel::addActivity,
             onUpdateActivity = viewModel::updateActivity,
@@ -97,6 +100,8 @@ data class TodayCallbacks(
     val onLeaveNow: () -> Unit = {},
     val onSetArrival: (Int) -> Unit = {},
     val onSetDeparture: (Int) -> Unit = {},
+    val onClearArrival: () -> Unit = {},
+    val onClearDeparture: () -> Unit = {},
     val onToggleDayType: (DayType) -> Unit = {},
     val onAddActivity: (Long) -> Unit = {},
     val onUpdateActivity: (ActivityRow) -> Unit = {},
@@ -155,6 +160,7 @@ private fun TimeCard(state: TodayUiState, cb: TodayCallbacks) {
                 actionLabel = stringResource(R.string.arrived_now),
                 onAction = cb.onArriveNow,
                 onEdit = { pickArrival = true },
+                onClear = cb.onClearArrival,
                 onNudge = { delta -> state.day.arrivalMin?.let { cb.onSetArrival((it + delta).coerceAtLeast(0)) } },
                 modifier = Modifier.weight(1f),
             )
@@ -165,6 +171,7 @@ private fun TimeCard(state: TodayUiState, cb: TodayCallbacks) {
                 actionLabel = stringResource(R.string.left_now),
                 onAction = cb.onLeaveNow,
                 onEdit = { pickDeparture = true },
+                onClear = cb.onClearDeparture,
                 onNudge = { delta -> state.day.departureMin?.let { cb.onSetDeparture((it + delta).coerceAtLeast(0)) } },
                 modifier = Modifier.weight(1f),
             )
@@ -219,6 +226,7 @@ private fun TimeSlot(
     actionLabel: String,
     onAction: () -> Unit,
     onEdit: () -> Unit,
+    onClear: () -> Unit,
     onNudge: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -227,6 +235,17 @@ private fun TimeSlot(
             Text(label, style = MaterialTheme.typography.bodySmall, color = InkSecondary)
             if (minutes != null && source == TimeSource.GEOFENCE) {
                 Text(stringResource(R.string.source_geofence), style = MaterialTheme.typography.labelSmall, color = InkMuted)
+            }
+            // Reset back to "—:—" — sits in the label row so the compact card keeps its height.
+            if (minutes != null) {
+                IconButton(onClick = onClear, modifier = Modifier.size(22.dp)) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = stringResource(R.string.clear_time, label),
+                        tint = InkMuted,
+                        modifier = Modifier.size(15.dp),
+                    )
+                }
             }
         }
         TextButton(

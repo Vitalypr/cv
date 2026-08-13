@@ -81,6 +81,10 @@ class TodayViewModel @Inject constructor(
     fun setArrival(minutes: Int) = viewModelScope.launch { repository.setArrival(date, minutes, TimeSource.MANUAL) }
     fun setDeparture(minutes: Int) = viewModelScope.launch { repository.setDeparture(date, minutes, TimeSource.MANUAL) }
 
+    /** Back to "—:—" — a mis-tapped הגעתי/יצאתי must be undoable, not only editable. */
+    fun clearArrival() = viewModelScope.launch { repository.clearArrival(date) }
+    fun clearDeparture() = viewModelScope.launch { repository.clearDeparture(date) }
+
     fun toggleDayType(type: DayType) = viewModelScope.launch {
         val current = uiState.value.day.dayType
         repository.setDayType(date, if (current == type) DayType.WORK else type)

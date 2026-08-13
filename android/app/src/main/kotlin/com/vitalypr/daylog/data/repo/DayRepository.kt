@@ -18,6 +18,8 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * Single write/read gateway for day data. Enforces the source rules from spec §6.6:
@@ -30,6 +32,8 @@ class DayRepository @Inject constructor(
     private val categoryDao: CategoryDao,
     private val clock: () -> Instant = Instant::now,
 ) {
+
+    private val writeLock = Mutex()
 
     fun observeDay(date: LocalDate): Flow<DaySnapshot?> =
         dayDao.observeDay(date.toString()).map { it?.toSnapshot() }
@@ -75,56 +79,57 @@ class DayRepository @Inject constructor(
      * Sets arrival. Returns false when rejected: GEOFENCE never overwrites MANUAL,
      * and GEOFENCE prompts only apply when no arrival is set (spec §5.5).
      */
-    suspend fun setArrival(date: LocalDate, minutes: Int, source: TimeSource): Boolean {
-        val existing = ensureDay(date)
-        if (source == TimeSource.GEOFENCE && existing.arrivalMin != null) return false
+    suspend fun setArrival(date: LocalDate, minutes: Int, source: TimeSource): Boolean = edit(date) { existing ->
+        if (source == TimeSource.GEOFENCE && existing.arrivalMin != null) return@edit false
         upsertEdited(existing.copy(arrivalMin = minutes, arrivalSource = source.name))
-        return true
+        true
     }
 
     /** Sets/updates departure. GEOFENCE may update a previous GEOFENCE value (last exit wins) but never MANUAL. */
-    suspend fun setDeparture(date: LocalDate, minutes: Int, source: TimeSource): Boolean {
-        val existing = ensureDay(date)
+    suspend fun setDeparture(date: LocalDate, minutes: Int, source: TimeSource): Boolean = edit(date) { existing ->
         if (source == TimeSource.GEOFENCE && existing.departureMin != null &&
             existing.departureSource == TimeSource.MANUAL.name
-        ) return false
+        ) return@edit false
         upsertEdited(existing.copy(departureMin = minutes, departureSource = source.name))
-        return true
+        true
     }
 
-    suspend fun clearArrival(date: LocalDate) =
-        upsertEdited(ensureDay(date).copy(arrivalMin = null))
+    /**
+     * Back to unset (F1: a logged time must be erasable, not only editable).
+     * The source resets to MANUAL so a cleared value can be re-suggested by a
+     * later geofence event instead of staying locked by the old MANUAL source.
+     */
+    suspend fun clearArrival(date: LocalDate) = edit(date) {
+        upsertEdited(it.copy(arrivalMin = null, arrivalSource = TimeSource.MANUAL.name))
+    }
 
-    suspend fun clearDeparture(date: LocalDate) =
-        upsertEdited(ensureDay(date).copy(departureMin = null))
+    suspend fun clearDeparture(date: LocalDate) = edit(date) {
+        upsertEdited(it.copy(departureMin = null, departureSource = TimeSource.MANUAL.name))
+    }
 
-    suspend fun setNotes(date: LocalDate, notes: String) =
-        upsertEdited(ensureDay(date).copy(notes = notes))
+    suspend fun setNotes(date: LocalDate, notes: String) = edit(date) { upsertEdited(it.copy(notes = notes)) }
 
-    suspend fun setDayType(date: LocalDate, type: DayType) =
-        upsertEdited(ensureDay(date).copy(dayType = type.name))
+    suspend fun setDayType(date: LocalDate, type: DayType) = edit(date) { upsertEdited(it.copy(dayType = type.name)) }
 
-    suspend fun addActivity(date: LocalDate, categoryId: Long): Long {
-        val day = ensureDay(date)
+    suspend fun addActivity(date: LocalDate, categoryId: Long): Long = edit(date) { day ->
         markEdited(day)
         val order = (dayDao.getDay(day.date)?.activities?.maxOfOrNull { it.activity.sortOrder } ?: -1) + 1
-        return dayDao.insertActivity(ActivityEntity(date = day.date, categoryId = categoryId, sortOrder = order))
+        dayDao.insertActivity(ActivityEntity(date = day.date, categoryId = categoryId, sortOrder = order))
     }
 
-    suspend fun updateActivity(activity: ActivityEntity) {
+    suspend fun updateActivity(activity: ActivityEntity) = writeLock.withLock {
         dayDao.getDay(activity.date)?.let { markEdited(it.day) }
         dayDao.updateActivity(activity)
     }
 
-    suspend fun removeActivity(date: LocalDate, id: Long) {
+    suspend fun removeActivity(date: LocalDate, id: Long) = writeLock.withLock {
         dayDao.getDay(date.toString())?.let { markEdited(it.day) }
         dayDao.deleteActivity(id)
     }
 
-    suspend fun addFieldJob(date: LocalDate, job: FieldJob): Long {
-        val day = ensureDay(date)
+    suspend fun addFieldJob(date: LocalDate, job: FieldJob): Long = edit(date) { day ->
         markEdited(day)
-        return dayDao.insertFieldJob(
+        dayDao.insertFieldJob(
             FieldJobEntity(
                 date = day.date, title = job.title, locationText = job.locationText,
                 startMin = job.startMin, endMin = job.endMin,
@@ -132,21 +137,28 @@ class DayRepository @Inject constructor(
         )
     }
 
-    suspend fun updateFieldJob(job: FieldJobEntity) {
+    suspend fun updateFieldJob(job: FieldJobEntity) = writeLock.withLock {
         dayDao.getDay(job.date)?.let { markEdited(it.day) }
         dayDao.updateFieldJob(job)
     }
 
-    suspend fun removeFieldJob(job: FieldJobEntity) {
+    suspend fun removeFieldJob(job: FieldJobEntity) = writeLock.withLock {
         dayDao.getDay(job.date)?.let { markEdited(it.day) }
         dayDao.deleteFieldJob(job)
     }
 
     /** Marks the day reported now; re-sending overwrites the timestamp and clears the edited flag (spec F9). */
-    suspend fun markReported(date: LocalDate) {
-        val day = ensureDay(date)
+    suspend fun markReported(date: LocalDate) = edit(date) { day ->
         dayDao.upsertDay(day.copy(reportedAt = clock().toEpochMilli(), editedAfterReport = false))
     }
+
+    /**
+     * Serializes read-modify-write on the day row. Without it two mutations issued
+     * back-to-back (tap הגעתי, then יצאתי) can both read the pre-write row and the
+     * second write silently drops the first. NOT reentrant — never call from inside.
+     */
+    private suspend fun <T> edit(date: LocalDate, block: suspend (WorkDayEntity) -> T): T =
+        writeLock.withLock { block(ensureDay(date)) }
 
     private suspend fun ensureDay(date: LocalDate): WorkDayEntity {
         val key = date.toString()
