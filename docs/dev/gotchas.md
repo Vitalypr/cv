@@ -24,6 +24,11 @@
 - **Android 10+ `addGeofences` silently fails without background location** — the GMS Task rejects asynchronously, so a fire-and-forget `runCatching` hides it completely. `GeofenceManager` must `await()` the Task and publish a `GeofenceStatus` the Settings screen renders; `precheck()` is the pure, unit-tested gate (Disabled / NoPermission / NoBackgroundPermission / NoLocations / Active).
 - Invariants (§6.6): confirm writes EVENT time; never overwrite MANUAL values; 10-min exit debounce; re-enter cancels pending suggestion. The receiver is a decision table — every row has a test.
 
+## Battery (design invariants — spec N6)
+- The app is fully event-driven: NO `requestLocationUpdates`, no wakelocks, no foreground services, no repeating alarms, no periodic WorkManager jobs — ever. Location = OS-managed geofences + one explicit one-shot fix when the user taps "קבע למיקום הנוכחי".
+- Job fences (2 km) set `setNotificationResponsiveness(2 min)` so GMS batches transitions instead of waking immediately; the office fence stays at 0 because its event time is the recorded arrival/departure. Don't "fix" job suggestion timing by dropping the responsiveness — 2 km of radius already dwarfs 2 min.
+- osmdroid MapView must get `onDetach()` when the picker dialog closes or tile threads keep running.
+
 ## Bidi / Hebrew
 - Lines starting with emoji/digits flip in WhatsApp without leading RLM (`‏`). ReportBuilder owns RLM; nothing else appends it.
 - Mixed Hebrew + Latin (client names) inside a line is fine once the line has RLM; ranges like `10:00–13:30` must be en-dash between complete LTR runs.

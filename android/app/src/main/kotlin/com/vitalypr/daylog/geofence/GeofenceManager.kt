@@ -72,9 +72,14 @@ class GeofenceManager @Inject constructor(
 
         val fences = buildList {
             if (settings.officeLat != null && settings.officeLon != null) {
-                add(fence(FENCE_ID, settings.officeLat, settings.officeLon, settings.officeRadiusM))
+                // Office: immediate delivery — the event time becomes the recorded arrival/departure.
+                add(fence(FENCE_ID, settings.officeLat, settings.officeLon, settings.officeRadiusM, responsivenessMs = 0))
             }
-            jobs.forEach { loc -> add(fence("$JOB_PREFIX${loc.id}", loc.lat, loc.lon, loc.radiusM)) }
+            // Job fences: 2 km radius makes ±2 min immaterial, so let GMS batch
+            // transitions instead of waking immediately (battery, spec N6).
+            jobs.forEach { loc ->
+                add(fence("$JOB_PREFIX${loc.id}", loc.lat, loc.lon, loc.radiusM, responsivenessMs = JOB_RESPONSIVENESS_MS))
+            }
         }
         val request = GeofencingRequest.Builder()
             .setInitialTrigger(0) // deliberately no initial trigger (spec §6.6)
@@ -93,11 +98,12 @@ class GeofenceManager @Inject constructor(
     private fun hasPermission(permission: String): Boolean =
         ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
 
-    private fun fence(id: String, lat: Double, lon: Double, radiusM: Int): Geofence =
+    private fun fence(id: String, lat: Double, lon: Double, radiusM: Int, responsivenessMs: Int): Geofence =
         Geofence.Builder()
             .setRequestId(id)
             .setCircularRegion(lat, lon, radiusM.toFloat())
             .setExpirationDuration(Geofence.NEVER_EXPIRE)
+            .setNotificationResponsiveness(responsivenessMs)
             .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER or Geofence.GEOFENCE_TRANSITION_EXIT)
             .build()
 
@@ -112,6 +118,7 @@ class GeofenceManager @Inject constructor(
         const val FENCE_ID = "office"
         const val JOB_PREFIX = "job_"
         private const val RC_GEOFENCE = 310
+        private const val JOB_RESPONSIVENESS_MS = 2 * 60 * 1000
 
         /** Pure gate logic — unit-tested; Active(count) means "go register". */
         fun precheck(
