@@ -98,11 +98,33 @@ class JobLocationTrackingTest {
         assertTrue(row.isEndSuggested)
     }
 
-    @Test fun `exit with missed enter still records a suggested end`() = runTest {
+    /**
+     * An exit we never saw the entry for is a late delivery, not a visit —
+     * inventing a row from it produced field jobs with an end and no start.
+     */
+    @Test fun `exit with no recorded enter creates nothing`() = runTest {
         jobs.onExit(locId, date, 900)
-        val job = days.getDay(date)!!.fieldJobs.single()
-        assertNull(job.startMin)
-        assertEquals(900, job.endMin)
+        assertNull(days.getDay(date))
+    }
+
+    @Test fun `driving past a site does not create a field job`() = runTest {
+        jobs.onEnter(locId, date, 600) // crossed the 2 km fence…
+        jobs.onExit(locId, date, 606) // …and out again six minutes later
+        assertTrue(days.getDay(date)!!.fieldJobs.isEmpty())
+    }
+
+    @Test fun `a real visit survives the drive-past filter`() = runTest {
+        jobs.onEnter(locId, date, 600)
+        jobs.onExit(locId, date, 640) // 40 minutes on site
+        assertEquals(640, days.getDay(date)!!.fieldJobs.single().endMin)
+    }
+
+    @Test fun `a short visit the user has edited is never discarded`() = runTest {
+        jobs.onEnter(locId, date, 600)
+        val entity = db.dayDao().fieldJobForLocation(date.toString(), locId)!!
+        db.dayDao().updateFieldJob(entity.copy(title = "מסירת ציוד"))
+        jobs.onExit(locId, date, 606)
+        assertEquals("מסירת ציוד", days.getDay(date)!!.fieldJobs.single().title)
     }
 
     @Test fun `two locations same day create two field jobs`() = runTest {

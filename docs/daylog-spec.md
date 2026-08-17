@@ -304,6 +304,18 @@ Intent(Intent.ACTION_SEND).apply {
 
 - One geofence (office, configurable radius, `ENTER | EXIT`) registered via `GeofencingClient` **with initial triggers disabled** — setting the office location while sitting in the office must not fire a spurious "הגעת?" prompt. Re-registered on boot and when the office location/setting changes.
 - `GeofenceReceiver` implements the §5.4 decision table with these invariants: nothing is written without user confirmation (unless silent mode is opted in); a geofence confirmation **never overwrites a MANUAL-source value**; confirm writes the event time; a 10-minute exit debounce absorbs boundary jitter; re-enter cancels a pending departure suggestion. A mid-day exit (e.g., lunch) that the user confirms simply sets a departure that a later exit offers to update — last confirmed exit wins.
+
+**Ordering invariants (v0.9).** Play Services reports a transition when it next obtains a fix, not when the boundary was crossed, so transitions arrive late and out of order — an exit can be delivered *after* the entry that followed it. Deciding from the wall clock alone made arriving at the office produce a departure suggestion. Therefore:
+
+| Invariant | Rule |
+|---|---|
+| **Occupancy** | An EXIT is acted on only if the matching ENTER was recorded (persisted per fence). An exit with no recorded entry is dropped silently — never prompted, never written. |
+| **Event time** | Every decision and write uses the transition's own timestamp (`triggeringLocation.time`) and its logical day — never "now". Confirming near midnight lands on the day of the event, not the day of the tap. |
+| **Day attribution** | An exit belongs to the entry's day; if it crosses midnight before 04:00 and that day is still open it stays on that day (§6.2); otherwise it belongs to no day we can trust and is dropped. |
+| **Staleness** | A transition older than 60 minutes is a catch-up delivery and cannot start a suggestion. |
+| **Dwell** | Under 5 minutes inside the office is a drive-past: the pending arrival suggestion is withdrawn and no exit prompt follows. "לרשום את היום?" additionally requires a 30-minute stay, so indoor GPS drift cannot ask the user to log a day they have just started. |
+| **Same place** | A job location whose pin falls inside the office fence is not tracked separately — otherwise every office arrival also opens a field job. |
+| **Job visits** | A job EXIT with no recorded ENTER creates nothing (it used to invent a field job holding only an end time), and an untouched visit shorter than 15 minutes inside a 2 km fence is discarded as a drive-past. |
 - Office location is captured via a one-shot `FusedLocationProvider` fix ("קבע למיקום הנוכחי") — no Maps SDK, no network.
 - Permissions: `ACCESS_FINE_LOCATION` in-app, then `ACCESS_BACKGROUND_LOCATION`, which on Android 11+ **cannot be granted from an in-app dialog** — the flow explains and deep-links to system settings ("אפשר תמיד"). Requested only when the user enables geofencing; denial leaves the app fully functional (F14) and reverts the toggle. Play Console background-location declaration is an M4 deliverable.
 

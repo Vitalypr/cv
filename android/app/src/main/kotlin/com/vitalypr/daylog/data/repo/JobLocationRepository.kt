@@ -5,6 +5,7 @@ import com.vitalypr.daylog.data.db.FieldJobEntity
 import com.vitalypr.daylog.data.db.JobLocationDao
 import com.vitalypr.daylog.data.db.JobLocationEntity
 import com.vitalypr.daylog.data.db.WorkDayEntity
+import com.vitalypr.daylog.domain.geo.GeofenceRules
 import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -50,24 +51,33 @@ class JobLocationRepository @Inject constructor(
         }
     }
 
-    /** Every EXIT overwrites the suggested end — last exit of the day wins. */
+    /**
+     * Every EXIT overwrites the suggested end — last exit of the day wins.
+     *
+     * No row means we never saw the entry, so there is nothing to close: inventing
+     * a field job from an exit alone produced entries with an end and no start.
+     * A visit shorter than [GeofenceRules.MIN_JOB_DWELL_MINUTES] was a drive-past
+     * (2 km fences are crossed in minutes) and the untouched suggestion is dropped.
+     */
     suspend fun onExit(locationId: Long, date: LocalDate, eventMin: Int) {
         val location = jobLocationDao.byId(locationId) ?: return
         if (isSpecialDay(date)) return // חופש/חג — nothing is tracked (S4)
-        ensureDay(date)
-        val existing = dayDao.fieldJobForLocation(date.toString(), locationId)
-        if (existing == null) {
-            // ENTER was missed (fence registered mid-visit, reboot, …) — still record the exit.
-            dayDao.insertFieldJob(
-                FieldJobEntity(
-                    date = date.toString(), title = location.name,
-                    jobLocationId = locationId, suggestedEndMin = eventMin,
-                ),
-            )
-        } else {
-            dayDao.updateFieldJob(existing.copy(suggestedEndMin = eventMin))
+        val existing = dayDao.fieldJobForLocation(date.toString(), locationId) ?: return
+
+        val start = existing.suggestedStartMin
+        if (start != null && eventMin - start < GeofenceRules.MIN_JOB_DWELL_MINUTES &&
+            isUntouched(existing, location.name)
+        ) {
+            dayDao.deleteFieldJob(existing)
+            return
         }
+        dayDao.updateFieldJob(existing.copy(suggestedEndMin = eventMin))
     }
+
+    /** Only ever discard a row the user has not shaped in any way. */
+    private fun isUntouched(job: FieldJobEntity, locationName: String): Boolean =
+        job.startMin == null && job.endMin == null &&
+            job.locationText.isNullOrBlank() && job.title == locationName
 
     private suspend fun isSpecialDay(date: LocalDate): Boolean =
         dayDao.getDay(date.toString())?.day?.dayType?.let { it != "WORK" } ?: false

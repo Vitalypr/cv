@@ -23,6 +23,10 @@
 - `ACCESS_BACKGROUND_LOCATION` on Android 11+ cannot be granted in-app — must deep-link to system settings ("Allow all the time"); Play Console declaration required.
 - **Android 10+ `addGeofences` silently fails without background location** — the GMS Task rejects asynchronously, so a fire-and-forget `runCatching` hides it completely. `GeofenceManager` must `await()` the Task and publish a `GeofenceStatus` the Settings screen renders; `precheck()` is the pure, unit-tested gate (Disabled / NoPermission / NoBackgroundPermission / NoLocations / Active).
 - Invariants (§6.6): confirm writes EVENT time; never overwrite MANUAL values; 10-min exit debounce; re-enter cancels pending suggestion. The receiver is a decision table — every row has a test.
+- **Transitions arrive late and OUT OF ORDER.** GMS reports a crossing when it next gets a fix, so the morning drive to work can deliver yesterday's EXIT *before* today's ENTER. Never decide from `now()`: use `event.triggeringLocation.time` and the event's logical day, and never act on an EXIT without a recorded ENTER (`FenceStateStore`). This is what made arriving at the office suggest a departure.
+- Indoor GPS drifts past a 150 m fence while the user sits at their desk. The 10-min debounce only helps if a re-ENTER follows; the dwell floors (`MIN_OFFICE_DWELL`, `MIN_WORKDAY_DWELL`) are what stop drift from generating prompts. Don't lower them to "make suggestions faster".
+- Re-registering geofences resets the platform's inside/outside belief and loses in-flight transitions — `GeofenceManager` skips registration when the fence set is unchanged. The fingerprint is per-process on purpose, so a reboot still re-registers.
+- Cancel alarms with `FLAG_NO_CREATE`; `FLAG_UPDATE_CURRENT` rewrites the pending intent's extras first, which can race a firing alarm into using the placeholder value.
 
 ## Battery (design invariants — spec N6)
 - The app is fully event-driven: NO `requestLocationUpdates`, no wakelocks, no foreground services, no repeating alarms, no periodic WorkManager jobs — ever. Location = OS-managed geofences + one explicit one-shot fix when the user taps "קבע למיקום הנוכחי".

@@ -8,6 +8,7 @@ android/
     src/main/kotlin/com/vitalypr/daylog/domain/
       model/       Day.kt (DayType, TimeSource, DayStatus, DaySnapshot, ActivityEntry, FieldJob)
       time/        Times.kt (formatMinutes, formatDuration, Hebrew day/date formatting)
+      geo/         GeofenceRules.kt (occupancy/day-attribution/dwell rules, distance)
       report/      ReportBuilder.kt (daily + period golden-tested renderers)
       stats/       StatsCalculator.kt (hours rule, averages, PeriodSummary)
     src/test/kotlin/...            # mirrors main; golden strings live here

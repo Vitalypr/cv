@@ -6,6 +6,11 @@ import android.content.Intent
 import com.google.android.gms.location.Geofence
 import com.google.android.gms.location.GeofencingEvent
 import dagger.hilt.android.AndroidEntryPoint
+import java.time.Instant
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.ZoneOffset
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -24,20 +29,27 @@ class GeofenceReceiver : BroadcastReceiver() {
         if (event.hasError()) return
         val transition = event.geofenceTransition
         val ids = event.triggeringGeofences?.map { it.requestId }.orEmpty()
+        // When the boundary was actually crossed. GMS reports transitions only once
+        // it has a fix, so this can be well before delivery — the engines depend on
+        // it to tell a real exit from a catch-up.
+        val eventAt = event.triggeringLocation?.time
+            ?.takeIf { it > 0L }
+            ?.let { LocalDateTime.ofInstant(Instant.ofEpochMilli(it), ZoneId.systemDefault()) }
+
         val pending = goAsync()
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             try {
                 ids.forEach { id ->
                     when {
                         id == GeofenceManager.FENCE_ID -> when (transition) {
-                            Geofence.GEOFENCE_TRANSITION_ENTER -> engine.onEnter()
-                            Geofence.GEOFENCE_TRANSITION_EXIT -> engine.onExitDetected()
+                            Geofence.GEOFENCE_TRANSITION_ENTER -> engine.onEnter(eventAt)
+                            Geofence.GEOFENCE_TRANSITION_EXIT -> engine.onExitDetected(eventAt)
                         }
                         id.startsWith(GeofenceManager.JOB_PREFIX) ->
                             id.removePrefix(GeofenceManager.JOB_PREFIX).toLongOrNull()?.let { locId ->
                                 when (transition) {
-                                    Geofence.GEOFENCE_TRANSITION_ENTER -> jobEngine.onEnter(locId)
-                                    Geofence.GEOFENCE_TRANSITION_EXIT -> jobEngine.onExit(locId)
+                                    Geofence.GEOFENCE_TRANSITION_ENTER -> jobEngine.onEnter(locId, eventAt)
+                                    Geofence.GEOFENCE_TRANSITION_EXIT -> jobEngine.onExit(locId, eventAt)
                                 }
                             }
                     }
@@ -56,12 +68,13 @@ class GeofenceExitDebounceReceiver : BroadcastReceiver() {
     @Inject lateinit var engine: GeofenceEngine
 
     override fun onReceive(context: Context, intent: Intent) {
-        val minutes = intent.getIntExtra(GeofenceEngine.EXTRA_EVENT_MINUTES, -1)
-        if (minutes < 0) return
+        val epochSecond = intent.getLongExtra(GeofenceEngine.EXTRA_EVENT_EPOCH_SECOND, Long.MIN_VALUE)
+        if (epochSecond == Long.MIN_VALUE) return
+        val eventAt = LocalDateTime.ofEpochSecond(epochSecond, 0, ZoneOffset.UTC)
         val pending = goAsync()
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             try {
-                engine.onExitConfirmedByDebounce(minutes)
+                engine.onExitConfirmedByDebounce(eventAt)
             } finally {
                 pending.finish()
             }
@@ -69,7 +82,7 @@ class GeofenceExitDebounceReceiver : BroadcastReceiver() {
     }
 }
 
-/** Notification "אישור" actions: write the EVENT time with GEOFENCE source. */
+/** Notification "אישור" actions: write the EVENT time, on the EVENT's day. */
 @AndroidEntryPoint
 class GeofenceActionReceiver : BroadcastReceiver() {
 
@@ -78,13 +91,16 @@ class GeofenceActionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val minutes = intent.getIntExtra(GeofenceEngine.EXTRA_EVENT_MINUTES, -1)
         if (minutes < 0) return
+        val epochDay = intent.getLongExtra(GeofenceEngine.EXTRA_EVENT_DATE, Long.MIN_VALUE)
+        if (epochDay == Long.MIN_VALUE) return
+        val date = LocalDate.ofEpochDay(epochDay)
         val action = intent.getStringExtra(EXTRA_ACTION) ?: return
         val pending = goAsync()
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             try {
                 when (action) {
-                    ACTION_CONFIRM_ARRIVAL -> engine.confirmArrival(minutes)
-                    ACTION_CONFIRM_DEPARTURE -> engine.confirmDeparture(minutes)
+                    ACTION_CONFIRM_ARRIVAL -> engine.confirmArrival(date, minutes)
+                    ACTION_CONFIRM_DEPARTURE -> engine.confirmDeparture(date, minutes)
                 }
             } finally {
                 pending.finish()

@@ -22,4 +22,9 @@ abstract class DataModule {
 
     @Binds
     abstract fun periodPdfRenderer(impl: PeriodPdf): PeriodPdfRenderer
+
+    @Binds
+    abstract fun fenceStateStore(
+        impl: com.vitalypr.daylog.geofence.DataStoreFenceStateStore,
+    ): com.vitalypr.daylog.geofence.FenceStateStore
 }

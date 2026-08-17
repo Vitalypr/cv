@@ -12,7 +12,9 @@ import com.google.android.gms.location.Geofence
 import com.google.android.gms.location.GeofencingClient
 import com.google.android.gms.location.GeofencingRequest
 import com.google.android.gms.location.LocationServices
+import com.vitalypr.daylog.data.settings.Settings
 import com.vitalypr.daylog.data.settings.SettingsSource
+import com.vitalypr.daylog.domain.geo.GeofenceRules
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -54,7 +56,11 @@ class GeofenceManager @Inject constructor(
     @SuppressLint("MissingPermission")
     suspend fun sync() {
         val settings = settingsRepository.settings.first()
-        val jobs = jobLocationRepository.activeLocations()
+        // A job pin sitting on the office would make every office arrival also look
+        // like a client-site arrival, inventing a field job every working day.
+        val jobs = jobLocationRepository.activeLocations().filter { job ->
+            !isSamePlaceAsOffice(job.lat, job.lon, settings)
+        }
 
         val precheck = precheck(
             enabled = settings.geofenceEnabled,
@@ -86,13 +92,31 @@ class GeofenceManager @Inject constructor(
             .addGeofences(fences)
             .build()
 
+        // Re-registering resets the platform's inside/outside belief for every fence,
+        // which loses in-flight transitions — so only do it when the set changed.
+        // The fingerprint is per-process, so a reboot still re-registers.
+        val fingerprint = fences.joinToString("|") { it.requestId } + "@" +
+            settings.officeLat + "," + settings.officeLon + "," + settings.officeRadiusM +
+            jobs.joinToString("") { "${it.id}:${it.lat},${it.lon},${it.radiusM}" }
+        if (fingerprint == registeredFingerprint && _status.value is GeofenceStatus.Active) return
+
         _status.value = try {
             runCatching { client.removeGeofences(pendingIntent()).await() }
             client.addGeofences(request, pendingIntent()).await() // surfaces real GMS failures
+            registeredFingerprint = fingerprint
             GeofenceStatus.Active(fences.size)
         } catch (e: Exception) {
+            registeredFingerprint = null
             GeofenceStatus.Error(e.message ?: e.javaClass.simpleName)
         }
+    }
+
+    private var registeredFingerprint: String? = null
+
+    private fun isSamePlaceAsOffice(lat: Double, lon: Double, settings: Settings): Boolean {
+        val oLat = settings.officeLat ?: return false
+        val oLon = settings.officeLon ?: return false
+        return GeofenceRules.distanceMeters(oLat, oLon, lat, lon) <= settings.officeRadiusM
     }
 
     private fun hasPermission(permission: String): Boolean =

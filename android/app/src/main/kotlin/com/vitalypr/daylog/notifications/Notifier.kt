@@ -64,22 +64,27 @@ class Notifier @Inject constructor(
 
     fun cancelReport() = nm.cancel(ID_REPORT)
 
-    /** Geofence ENTER: confirmable arrival suggestion carrying the event time. */
-    fun arrivalPrompt(eventMinutes: Int) {
+    /** Geofence ENTER: confirmable arrival suggestion carrying the event day + time. */
+    fun arrivalPrompt(date: LocalDate, eventMinutes: Int) {
         post(
             ID_ARRIVAL,
             base(Channels.GEOFENCE_ARRIVAL)
                 .setContentTitle("הגעת למשרד?")
                 .setContentText("רישום כניסה ${formatMinutes(eventMinutes)}")
                 .setTimeoutAfter(timeoutUntilMidnight())
-                .addAction(0, "אישור", geofenceAction(GeofenceActionReceiver.ACTION_CONFIRM_ARRIVAL, eventMinutes, 210))
+                .addAction(
+                    0, "אישור",
+                    geofenceAction(GeofenceActionReceiver.ACTION_CONFIRM_ARRIVAL, date, eventMinutes, 210),
+                )
                 .addAction(0, "עריכה", openAppPending())
                 .build(),
         )
     }
 
+    fun cancelArrivalPrompt() = nm.cancel(ID_ARRIVAL)
+
     /** Geofence EXIT (after debounce): departure suggestion or update offer. */
-    fun departurePrompt(eventMinutes: Int, isUpdate: Boolean) {
+    fun departurePrompt(date: LocalDate, eventMinutes: Int, isUpdate: Boolean) {
         post(
             ID_DEPARTURE,
             base(Channels.GEOFENCE_DEPARTURE)
@@ -90,7 +95,7 @@ class Notifier @Inject constructor(
                 .setTimeoutAfter(timeoutUntilMidnight())
                 .addAction(
                     0, if (isUpdate) "עדכון" else "אישור",
-                    geofenceAction(GeofenceActionReceiver.ACTION_CONFIRM_DEPARTURE, eventMinutes, 211),
+                    geofenceAction(GeofenceActionReceiver.ACTION_CONFIRM_DEPARTURE, date, eventMinutes, 211),
                 )
                 .addAction(0, "עריכה", openAppPending())
                 .build(),
@@ -112,14 +117,21 @@ class Notifier @Inject constructor(
 
     fun cancelDeparturePrompt() = nm.cancel(ID_DEPARTURE)
 
-    private fun geofenceAction(action: String, eventMinutes: Int, requestCode: Int): PendingIntent =
-        PendingIntent.getBroadcast(
-            context, requestCode,
-            Intent(context, GeofenceActionReceiver::class.java)
-                .putExtra(GeofenceActionReceiver.EXTRA_ACTION, action)
-                .putExtra(GeofenceEngine.EXTRA_EVENT_MINUTES, eventMinutes),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
+    private fun geofenceAction(
+        action: String,
+        date: LocalDate,
+        eventMinutes: Int,
+        requestCode: Int,
+    ): PendingIntent = PendingIntent.getBroadcast(
+        context, requestCode,
+        Intent(context, GeofenceActionReceiver::class.java)
+            .putExtra(GeofenceActionReceiver.EXTRA_ACTION, action)
+            .putExtra(GeofenceEngine.EXTRA_EVENT_MINUTES, eventMinutes)
+            // The day the transition happened — confirming near midnight must not
+            // land the value on the day the user happened to tap.
+            .putExtra(GeofenceEngine.EXTRA_EVENT_DATE, date.toEpochDay()),
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+    )
 
     /** Suggestion notifications auto-expire at midnight (spec §5.5). */
     private fun timeoutUntilMidnight(): Long {
