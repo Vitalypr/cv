@@ -17,6 +17,19 @@ fun formatDuration(minutes: Int): String {
     return "${minutes / 60}:${"%02d".format(minutes % 60)}"
 }
 
+/**
+ * Activity duration for Hebrew UI and reports: "30 דק׳", "1 שע׳", "1:30 שע׳".
+ * Spelled out with a unit because a bare "1:30" beside a report's clock times
+ * would read as a time of day.
+ */
+fun formatActivityDuration(minutes: Int): String {
+    require(minutes > 0) { "duration must be positive: $minutes" }
+    if (minutes < 60) return "$minutes דק׳"
+    val hours = minutes / 60
+    val rest = minutes % 60
+    return if (rest == 0) "$hours שע׳" else "$hours:${"%02d".format(rest)} שע׳"
+}
+
 /** LRM anchors keep the neutral en-dash inside an LTR run so ranges don't flip in RTL text. */
 const val LRM = "‎"
 

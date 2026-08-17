@@ -48,8 +48,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.vitalypr.daylog.R
 import com.vitalypr.daylog.data.repo.ActivityRow
+import com.vitalypr.daylog.domain.model.ActivityDuration
 import com.vitalypr.daylog.domain.model.DayType
 import com.vitalypr.daylog.domain.model.TimeSource
+import com.vitalypr.daylog.domain.time.formatActivityDuration
 import com.vitalypr.daylog.domain.time.formatDate
 import com.vitalypr.daylog.domain.time.formatDuration
 import com.vitalypr.daylog.domain.time.formatMinutes
@@ -396,7 +398,6 @@ private fun ActivitiesCard(state: TodayUiState, cb: TodayCallbacks) {
 
 @Composable
 private fun ActivityEditor(row: ActivityRow, cb: TodayCallbacks) {
-    var picking by remember { mutableStateOf<String?>(null) }
     HorizontalDivider(Modifier.padding(vertical = 5.dp))
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
@@ -416,25 +417,26 @@ private fun ActivityEditor(row: ActivityRow, cb: TodayCallbacks) {
         }
     }
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        CompactTimeButton(row.startMin) { picking = "start" }
-        Text("–", color = InkMuted, style = MaterialTheme.typography.labelMedium)
-        CompactTimeButton(row.endMin) { picking = "end" }
+        // Duration in half-hour steps — no clock times on activities (spec F4 v0.9).
+        CompactOutlined(stringResource(R.string.minus_step)) {
+            cb.onUpdateActivity(row.copy(durationMin = ActivityDuration.decrease(row.durationMin)))
+        }
+        Text(
+            row.durationMin?.let(::formatActivityDuration) ?: stringResource(R.string.duration_unset),
+            style = MaterialTheme.typography.labelLarge,
+            color = if (row.durationMin != null) MaterialTheme.colorScheme.onSurface else InkMuted,
+            modifier = Modifier.width(64.dp),
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+        )
+        CompactOutlined(stringResource(R.string.plus_step)) {
+            cb.onUpdateActivity(row.copy(durationMin = ActivityDuration.increase(row.durationMin)))
+        }
         Spacer(Modifier.width(6.dp))
         NoteField(
             value = row.result,
             hint = stringResource(R.string.activity_result_hint),
             onChange = { cb.onUpdateActivity(row.copy(result = it)) },
             modifier = Modifier.weight(1f),
-        )
-    }
-    picking?.let { which ->
-        TimePickerDialog(
-            initialMinutes = if (which == "start") row.startMin ?: 540 else row.endMin ?: (row.startMin ?: 540) + 60,
-            onConfirm = {
-                cb.onUpdateActivity(if (which == "start") row.copy(startMin = it) else row.copy(endMin = it))
-                picking = null
-            },
-            onDismiss = { picking = null },
         )
     }
 }

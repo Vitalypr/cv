@@ -28,6 +28,14 @@ class TimesTest {
         assertEquals("186:30", formatDuration(186 * 60 + 30))
     }
 
+    @Test fun `activity duration carries a hebrew unit so it never reads as a clock time`() {
+        assertEquals("30 דק׳", formatActivityDuration(30))
+        assertEquals("1 שע׳", formatActivityDuration(60))
+        assertEquals("1:30 שע׳", formatActivityDuration(90))
+        assertEquals("2 שע׳", formatActivityDuration(120))
+        assertEquals("12 שע׳", formatActivityDuration(720))
+    }
+
     @Test fun `hebrew day names follow the real calendar`() {
         // 2026-08-02 is a Sunday.
         assertEquals("יום א׳", hebrewDayName(LocalDate.of(2026, 8, 2)))

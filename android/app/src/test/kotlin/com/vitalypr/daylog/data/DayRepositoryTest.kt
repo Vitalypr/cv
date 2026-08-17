@@ -125,18 +125,18 @@ class DayRepositoryTest {
         assertEquals(DayStatus.REPORTED_EDITED, repo.getDay(date)!!.status())
     }
 
-    @Test fun `activities carry category name, times, note, result`() = runTest {
+    @Test fun `activities carry category name, duration, note, result`() = runTest {
         repo.setArrival(date, 492, TimeSource.MANUAL)
         val cats = db.dayDao().let { db.categoryDao() }
         val id = repo.addActivity(date, categoryId = 4) // פיתוח is 4th seed → id 4
         repo.updateActivity(
             db.dayDao().getDay(date.toString())!!.activities.first().activity
-                .copy(startMin = 540, endMin = 600, note = "בדיקת קוד", result = "הושלם"),
+                .copy(durationMin = 90, note = "בדיקת קוד", result = "הושלם"),
         )
         val snap = repo.getDay(date)!!
         val a = snap.activities.single()
         assertEquals("פיתוח", a.category)
-        assertEquals(540, a.startMin)
+        assertEquals(90, a.durationMin)
         assertEquals("בדיקת קוד", a.note)
         assertEquals("הושלם", a.result)
     }

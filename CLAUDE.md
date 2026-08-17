@@ -29,7 +29,7 @@ gradle :app:lintDebug
 3. **Hebrew/RTL:** every report line starts with RLM (U+200F); golden-string tests are canonical — never "fix" a golden to match broken output (@docs/dev/ui-guidelines.md).
 4. **Network = map tiles only.** INTERNET exists solely for the OSM location picker (spec N3 rev v0.7); no analytics/backends ever. `ManifestGuardTest` documents this — any new network use is a conscious spec change.
 5. **Geofence invariants** (spec §6.6): confirmations write event time *and event day*; never overwrite MANUAL-source values; suggestions commit only on user confirmation. Transitions arrive late and out of order — decide from the event's own timestamp and from recorded occupancy, never from `now()`.
-6. **Time model:** minutes-from-midnight `Int`, may exceed 1440 (past midnight, renders "(למחרת)"). Never store `LocalTime` for arrival/departure.
+6. **Time model:** minutes-from-midnight `Int`, may exceed 1440 (past midnight, renders "(למחרת)"). Never store `LocalTime` for arrival/departure. Activities are the exception — they carry a *duration* in 30-min steps (`ActivityDuration`), never clock times.
 
 ## Discipline guides
 

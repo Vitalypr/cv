@@ -22,7 +22,8 @@ class Exporter @Inject constructor(
     suspend fun exportJson(from: LocalDate, to: LocalDate): String {
         val days = repository.getRange(from, to)
         val root = JSONObject()
-            .put("schemaVersion", 1)
+            // v2: activities carry durationMin instead of startMin/endMin.
+            .put("schemaVersion", 2)
             .put("app", "DayLog")
             .put("from", from.toString())
             .put("to", to.toString())
@@ -81,8 +82,7 @@ class Exporter @Inject constructor(
                     a.put(
                         JSONObject()
                             .put("category", act.category)
-                            .put("startMin", act.startMin ?: JSONObject.NULL)
-                            .put("endMin", act.endMin ?: JSONObject.NULL)
+                            .put("durationMin", act.durationMin ?: JSONObject.NULL)
                             .put("note", act.note)
                             .put("result", act.result),
                     )

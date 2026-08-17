@@ -24,8 +24,8 @@ class ReportBuilderTest {
                 FieldJob("תחנת משנה אקמה — הרצה", startMin = 600, endMin = 810),
             ),
             activities = listOf(
-                ActivityEntry("התקנה", 540, 690, "חיווט לוח, תא 4", "הושלם"),
-                ActivityEntry("בדיקות", 690, 780, "בדיקות קבלה לממסרים", "עברו"),
+                ActivityEntry("התקנה", 150, "חיווט לוח, תא 4", "הושלם"),
+                ActivityEntry("בדיקות", 90, "בדיקות קבלה לממסרים", "עברו"),
                 ActivityEntry("דיון", note = "סקירת ליקויים עם מנהל האתר"),
             ),
             notes = "הוזמן CT רזרבי, צפי הגעה יום חמישי",
@@ -35,8 +35,8 @@ class ReportBuilderTest {
             "🕗 כניסה: 08:12 | יציאה: 17:35 | סה״כ 9:23",
             "🚗 שטח: תחנת משנה אקמה — הרצה (10:00‎–‎13:30)",
             "✅ פעילויות:",
-            "• התקנה (09:00‎–‎11:30) — חיווט לוח, תא 4 · תוצאה: הושלם",
-            "• בדיקות (11:30‎–‎13:00) — בדיקות קבלה לממסרים · תוצאה: עברו",
+            "• התקנה (2:30 שע׳) — חיווט לוח, תא 4 · תוצאה: הושלם",
+            "• בדיקות (1:30 שע׳) — בדיקות קבלה לממסרים · תוצאה: עברו",
             "• דיון — סקירת ליקויים עם מנהל האתר",
             "📝 הערות: הוזמן CT רזרבי, צפי הגעה יום חמישי",
         ).joinToString("\n") { rlm + it }
@@ -107,26 +107,41 @@ class ReportBuilderTest {
         assertEquals("$rlm🚗 שטח: אתר ב", lines[2])
     }
 
-    @Test fun `activities sorted by start time, untimed last in insertion order`() {
+    @Test fun `activities render in the order they were logged`() {
         val day = DaySnapshot(
             date = tue,
             activities = listOf(
                 ActivityEntry("אחר"),
-                ActivityEntry("דיון", 900, 930),
-                ActivityEntry("התקנה", 540, 600),
+                ActivityEntry("דיון", 30),
+                ActivityEntry("התקנה", 60),
                 ActivityEntry("תמיכה"),
             ),
         )
         val cats = ReportBuilder.daily(day).lines().drop(2).map { it.substringAfter("• ").substringBefore(" ") }
-        assertEquals(listOf("התקנה", "דיון", "אחר", "תמיכה"), cats)
+        assertEquals(listOf("אחר", "דיון", "התקנה", "תמיכה"), cats)
+    }
+
+    @Test fun `duration renders in half-hour steps with a unit, or is omitted`() {
+        val day = DaySnapshot(
+            date = tue,
+            activities = listOf(
+                ActivityEntry("פיתוח", 30),
+                ActivityEntry("תכנון", 60),
+                ActivityEntry("דיון"),
+            ),
+        )
+        val lines = ReportBuilder.daily(day).lines().drop(2)
+        assertEquals(rlm + "• פיתוח (30 דק׳)", lines[0])
+        assertEquals(rlm + "• תכנון (1 שע׳)", lines[1])
+        assertEquals(rlm + "• דיון", lines[2])
     }
 
     @Test fun `repeated categories allowed as separate lines`() {
         val day = DaySnapshot(
             date = tue,
             activities = listOf(
-                ActivityEntry("דיון", 540, 570, "בוקר"),
-                ActivityEntry("דיון", 900, 930, "ערב"),
+                ActivityEntry("דיון", 30, "בוקר"),
+                ActivityEntry("דיון", 30, "ערב"),
             ),
         )
         val report = ReportBuilder.daily(day)

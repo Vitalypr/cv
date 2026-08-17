@@ -47,8 +47,8 @@ class DayRepository @Inject constructor(
                     activityRows = it.activities.sortedBy { a -> a.activity.sortOrder }.map { a ->
                         ActivityRow(
                             id = a.activity.id, categoryId = a.activity.categoryId,
-                            category = a.category.name, startMin = a.activity.startMin,
-                            endMin = a.activity.endMin, note = a.activity.note, result = a.activity.result,
+                            category = a.category.name, durationMin = a.activity.durationMin,
+                            note = a.activity.note, result = a.activity.result,
                             date = date, sortOrder = a.activity.sortOrder,
                         )
                     },
@@ -181,8 +181,8 @@ data class ActivityRow(
     val id: Long,
     val categoryId: Long,
     val category: String,
-    val startMin: Int?,
-    val endMin: Int?,
+    /** Half-hour steps; null = not stated (spec F4). */
+    val durationMin: Int?,
     val note: String,
     val result: String,
     val date: LocalDate,
@@ -190,7 +190,7 @@ data class ActivityRow(
 ) {
     fun toEntity() = ActivityEntity(
         id = id, date = date.toString(), categoryId = categoryId,
-        startMin = startMin, endMin = endMin, note = note, result = result, sortOrder = sortOrder,
+        durationMin = durationMin, note = note, result = result, sortOrder = sortOrder,
     )
 }
 
@@ -224,7 +224,7 @@ internal fun DayWithEntries.toSnapshot(): DaySnapshot = DaySnapshot(
     },
     activities = activities
         .sortedBy { it.activity.sortOrder }
-        .map { ActivityEntry(it.category.name, it.activity.startMin, it.activity.endMin, it.activity.note, it.activity.result) },
+        .map { ActivityEntry(it.category.name, it.activity.durationMin, it.activity.note, it.activity.result) },
     reported = day.reportedAt != null,
     editedAfterReport = day.editedAfterReport,
 )

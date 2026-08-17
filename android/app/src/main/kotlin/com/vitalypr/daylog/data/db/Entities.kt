@@ -72,8 +72,8 @@ data class ActivityEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val date: String,
     val categoryId: Long,
-    val startMin: Int? = null,
-    val endMin: Int? = null,
+    /** Half-hour steps, null = not stated (v0.9 — replaced start/end times). */
+    val durationMin: Int? = null,
     val note: String = "",
     val result: String = "",
     val sortOrder: Int = 0,

@@ -6,11 +6,13 @@ enum class DayType { WORK, OFF, HOLIDAY }
 
 enum class TimeSource { MANUAL, GEOFENCE }
 
-/** One logged activity. Times are minutes from midnight of the day (may exceed 1440). */
+/**
+ * One logged activity. Carries how long it took, in half-hour steps
+ * ([ActivityDuration]) — not a clock range. null = duration not stated.
+ */
 data class ActivityEntry(
     val category: String,
-    val startMin: Int? = null,
-    val endMin: Int? = null,
+    val durationMin: Int? = null,
     val note: String = "",
     val result: String = "",
 )

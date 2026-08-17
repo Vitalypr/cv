@@ -3,6 +3,7 @@ package com.vitalypr.daylog.domain.report
 import com.vitalypr.daylog.domain.model.DaySnapshot
 import com.vitalypr.daylog.domain.stats.PeriodSummary
 import com.vitalypr.daylog.domain.stats.StatsCalculator
+import com.vitalypr.daylog.domain.time.formatActivityDuration
 import com.vitalypr.daylog.domain.time.formatDate
 import com.vitalypr.daylog.domain.time.formatDuration
 import com.vitalypr.daylog.domain.time.formatMinutes
@@ -41,12 +42,13 @@ object ReportBuilder {
             lines += r
         }
 
-        val acts = day.activities.sortedWith(compareBy(nullsLast()) { it.startMin })
+        // Logged order — an activity is a duration, so there is nothing to sort by.
+        val acts = day.activities
         if (acts.isNotEmpty()) {
             lines += "✅ פעילויות:"
             for (a in acts) {
                 var r = "• ${a.category}"
-                r += if (a.startMin != null) " (${formatRange(a.startMin, a.endMin)})" else ""
+                r += if (a.durationMin != null) " (${formatActivityDuration(a.durationMin)})" else ""
                 if (a.note.isNotBlank()) r += " — ${a.note.trim()}"
                 if (a.result.isNotBlank()) r += " · תוצאה: ${a.result.trim()}"
                 lines += r

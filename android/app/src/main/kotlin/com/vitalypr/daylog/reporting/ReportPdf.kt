@@ -12,6 +12,7 @@ import android.text.StaticLayout
 import android.text.TextDirectionHeuristics
 import android.text.TextPaint
 import com.vitalypr.daylog.domain.model.DaySnapshot
+import com.vitalypr.daylog.domain.time.formatActivityDuration
 import com.vitalypr.daylog.domain.time.formatDate
 import com.vitalypr.daylog.domain.time.formatDuration
 import com.vitalypr.daylog.domain.time.formatMinutes
@@ -85,13 +86,14 @@ class ReportPdf @Inject constructor(
             }
         }
 
-        val acts = day.activities.sortedWith(compareBy(nullsLast()) { it.startMin })
+        // Logged order — activities carry a duration, not a clock range (v0.9).
+        val acts = day.activities
         if (acts.isNotEmpty()) {
             y = drawSectionLabel(canvas, "פעילויות", y + 30f)
             acts.forEach { a ->
-                val range = a.startMin?.let { formatRange(it, a.endMin) } ?: ""
+                val duration = a.durationMin?.let(::formatActivityDuration) ?: ""
                 val text = a.category + (if (a.note.isNotBlank()) " — ${a.note.trim()}" else "")
-                y = drawTableRow(canvas, range, text, a.result.trim(), y)
+                y = drawTableRow(canvas, duration, text, a.result.trim(), y)
             }
         }
 

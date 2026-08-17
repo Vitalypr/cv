@@ -79,15 +79,15 @@ Plain text in Hebrew (WhatsApp-friendly, no markdown dependency), rendered from 
 ‏🕗 כניסה: 08:12 | יציאה: 17:35 | סה״כ 9:23
 ‏🚗 שטח: תחנת משנה אקמה — הרצה (10:00–13:30)
 ‏✅ פעילויות:
-‏• התקנה (09:00–11:30) — חיווט לוח, תא 4 · תוצאה: הושלם
-‏• בדיקות (11:30–13:00) — בדיקות קבלה לממסרים · תוצאה: עברו
+‏• התקנה (2:30 שע׳) — חיווט לוח, תא 4 · תוצאה: הושלם
+‏• בדיקות (1:30 שע׳) — בדיקות קבלה לממסרים · תוצאה: עברו
 ‏• דיון — סקירת ליקויים עם מנהל האתר
 ‏📝 הערות: הוזמן CT רזרבי, צפי הגעה יום חמישי
 ```
 
 Template rules:
 - Sections with no content are omitted entirely (no "שטח: —"). Missing fragments are omitted too: no departure → the יציאה and סה״כ segments are dropped; a field job with only a start time renders `(10:00–…)`, with no times renders without parentheses.
-- Activity lines are `קטגוריה (שעה–שעה) — הערה · תוצאה: …`; the time range, note, and result are each optional and each fragment is omitted when empty (a bare category renders alone; a start with no end renders `(09:00–…)`).
+- Activity lines are `קטגוריה (משך) — הערה · תוצאה: …`; the duration, note, and result are each optional and each fragment is omitted when empty (a bare category renders alone). Durations are half-hour steps rendered with a unit — `30 דק׳`, `1 שע׳`, `2:30 שע׳` — so they never read as a clock time. Activities render in the order they were logged.
 - Header date always present → safe to send late. Dates dd.MM.yyyy, Hebrew day names (יום א׳–ש׳), Western numerals, 24-hour times.
 - **RTL correctness in WhatsApp:** every line begins with an invisible RLM (U+200F) so lines that start with emoji or digits still render right-to-left; times and number ranges are wrapped so `10:00–13:30` doesn't flip. `ReportBuilder` owns this and it is unit-tested against golden strings.
 - Fixed labels are string resources (Hebrew is the app's default locale); adding another language later is trivial.
@@ -114,7 +114,7 @@ Generated in the Statistics tab for the selected week, month, or year and — li
 | F1 | Record arrival and departure time per day; manual entry/edit always possible | Must |
 | F2 | Geofence around a user-defined office location suggests arrival/departure via confirmable notifications; a geofence confirmation never overwrites a MANUAL-source value | Must |
 | F3 | Log zero or more field jobs per day: title/client, optional location text, start/end times | Must |
-| F4 | Log zero or more activities per day from a category list — defaults: דיון, התקנה, בדיקות, פיתוח, תכנון, תיעוד, תמיכה, אחר — each entry with optional start/end times, optional free-text note, and optional result; multiple entries per category allowed (e.g., two separate discussions) | Must |
+| F4 | Log zero or more activities per day from a category list — defaults: דיון, התקנה, בדיקות, פיתוח, תכנון, תיעוד, תמיכה, אחר — each entry with an optional **duration in 30-minute steps** (v0.9: no clock times on activities), optional free-text note, and optional result; multiple entries per category allowed (e.g., two separate discussions) | Must |
 | F5 | Category list is user-editable (add/rename/hide; no hard delete — history must keep rendering) | Should |
 | F6 | Free-text daily notes field | Must |
 | F7 | Daily reminder notification at a configured time, on configured workdays **or any day that has data**, with the variants of §5.4 | Must |
@@ -145,7 +145,7 @@ Four-tab bottom navigation (היום / היסטוריה / סטטיסטיקה / �
 ### 5.1 Today (היום)
 - **Time card:** big `כניסה —:—` / `יציאה —:—` values; tap a value to set/adjust via time picker; **הגעתי** / **יצאתי** one-tap buttons when unset.
 - **Field jobs card:** list + **+ עבודת שטח** button (bottom-sheet form: title, optional location, start/end).
-- **Activities card:** category chips in a flow row; tapping a chip adds a new activity entry below — an inline row with optional start/end time pickers, a one-line note field, and an optional result field. Each entry has its own remove control; a chip is highlighted while it has at least one entry, and tapping it again adds another entry of the same category.
+- **Activities card:** category chips in a flow row; tapping a chip adds a new activity entry below — an inline row with a −½ / +½ duration stepper (30-minute steps, `—` when unstated), a one-line note field, and an optional result field. Each entry has its own remove control; a chip is highlighted while it has at least one entry, and tapping it again adds another entry of the same category.
 - **Special-day row:** compact **חופש** / **חג** toggle chips in the time card; marking either suppresses the reminder and geofence prompts for the day and replaces the report preview with a "no report today" state (S4).
 - **Notes card:** single free-text field.
 - **Report preview card:** live-rendered report text + **שליחה לוואטסאפ** button + status badge.
@@ -260,11 +260,10 @@ Activity
   id: Long (PK)
   date: LocalDate (FK → WorkDay, indexed)
   categoryId: Long (FK → Category)           // multiple rows per category allowed
-  startMin: Int?                             // optional; minutes from midnight of `date`
-  endMin: Int?                               // optional; may exceed 1440
+  durationMin: Int?                          // v0.9: 30-minute steps, max 12 h; null = not stated
   note: String
   result: String                             // optional outcome, e.g. "הושלם", "עברו"
-  sortOrder: Int                             // report order: startMin when set, else sortOrder
+  sortOrder: Int                             // report order (activities have no clock times)
 
 Category
   id: Long (PK)
@@ -367,7 +366,7 @@ Beyond the office fence, the user saves **job locations** (client sites): name +
 | Marking day "נשלח" on intent launch, not actual send | Accepted inaccuracy; re-send always available and refreshes the timestamp |
 | RTL rendering glitches in WhatsApp (emoji/digit line starts) | RLM-prefixed lines, golden-string tests, manual verification on real device in M1 |
 
-**Resolved with the product owner:** language = Hebrew (v0.2 throughout); work-week = Sun–Thu; monthly summary is shareable like the daily report (F11, §2.5); activities carry optional start/end times and an optional result, with repeated categories allowed (v0.3); daily report delivered as a styled PDF with text caption (v0.5).
+**Resolved with the product owner:** language = Hebrew (v0.2 throughout); work-week = Sun–Thu; monthly summary is shareable like the daily report (F11, §2.5); activities carry an optional result, with repeated categories allowed (v0.3); daily report delivered as a styled PDF with text caption (v0.5); activities record a **duration in 30-minute steps** rather than start/end times (v0.9 — what the work was matters, the minute it began does not, and stepping is faster than two time pickers).
 
 **Still open:**
 1. Should field jobs support photo attachments (site evidence) in a future version? Nothing in v1 changes either way, but a `FieldJobPhoto` table would be added later.

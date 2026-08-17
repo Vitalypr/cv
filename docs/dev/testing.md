@@ -15,6 +15,7 @@ TDD is the workflow, not a phase: failing test → implementation → green → 
 | Spec | Tests |
 |---|---|
 | §2.4 report template, RLM, omit-empty, activity fragments | `domain` `ReportBuilderTest` (golden strings) |
+| F4 activity durations (30-min steps, unset, migration of legacy times) | `ActivityDurationTest`, `TimesTest`, `MigrationTest` |
 | §2.5 period summaries, hours rule | `StatsCalculatorTest`, `ReportBuilderPeriodTest` |
 | §6.2 time model >24h, day boundary | `TimesTest`, `ReportBuilderOvernightTest` |
 | §6.3 schema, DayWithEntries, status derivation | `app` `DayDaoTest`, `DayRepositoryTest`, domain `DayStatusTest` |

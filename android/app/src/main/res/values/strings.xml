@@ -29,7 +29,10 @@
     <string name="activities">פעילויות</string>
     <string name="activity_note_hint">מה נעשה… (לא חובה)</string>
     <string name="activity_result_hint">תוצאה (לא חובה)…</string>
-    <string name="activity_times">שעות:</string>
+    <string name="activity_duration">משך:</string>
+    <string name="duration_unset">—</string>
+    <string name="minus_step">‎−½</string>
+    <string name="plus_step">‎+½</string>
     <string name="remove">הסרה</string>
     <string name="start_time">שעת התחלה</string>
     <string name="end_time">שעת סיום</string>

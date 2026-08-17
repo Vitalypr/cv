@@ -48,7 +48,7 @@ class ExporterTest {
         repo.setNotes(date, "הערה")
 
         val json = JSONObject(exporter.exportJson(date.minusDays(7), date))
-        assertEquals(1, json.getInt("schemaVersion"))
+        assertEquals(2, json.getInt("schemaVersion")) // v2: activity durationMin
         val day = json.getJSONArray("days").getJSONObject(0)
         assertEquals("2026-08-04", day.getString("date"))
         assertEquals(492, day.getInt("arrivalMin"))
