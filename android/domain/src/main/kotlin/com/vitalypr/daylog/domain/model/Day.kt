@@ -33,6 +33,8 @@ data class DaySnapshot(
     val arrivalMin: Int? = null,
     val departureMin: Int? = null,
     val arrivalSource: TimeSource = TimeSource.MANUAL,
+    /** Amber "check this": the geofence visit behind the arrival was under an hour. */
+    val arrivalUncertain: Boolean = false,
     val departureSource: TimeSource = TimeSource.MANUAL,
     val dayType: DayType = DayType.WORK,
     val notes: String = "",

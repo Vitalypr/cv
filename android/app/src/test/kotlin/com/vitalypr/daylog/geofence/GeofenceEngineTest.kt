@@ -24,6 +24,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -73,26 +74,58 @@ class GeofenceEngineTest {
         engine.onEnter(nowDt)
     }
 
+    /** The real sequence: an exit is detected, then the debounce elapses. */
     private suspend fun exitDebounce(hour: Int, minute: Int, date: LocalDate = today) {
         nowDt = at(hour, minute, date)
-        engine.onExitConfirmedByDebounce(nowDt)
+        engine.onExitDetected(nowDt)
+        engine.onExitConfirmedByDebounce()
     }
 
     // --- the reported bug ---------------------------------------------------
 
     @Test fun `exit delivered with no recorded arrival is ignored, not prompted`() = runTest {
         // Play Services flushes yesterday's exit as the user reaches the office.
-        engine.onExitDetected(at(8, 20))
-        exitDebounce(8, 30)
+        nowDt = at(8, 20)
+        engine.onExitDetected(nowDt)
+        engine.onExitConfirmedByDebounce()
         assertTrue(titles().isEmpty(), "a phantom exit must never suggest a departure")
     }
 
     @Test fun `boundary drift just after arriving does not ask to log the day`() = runTest {
         // Indoor GPS wanders past a 150 m fence while the user sits down at 08:12.
         enter(8, 12)
-        engine.onExitDetected(at(8, 20))
         exitDebounce(8, 30)
-        assertEquals(listOf("הגעת למשרד?"), titles(), "the arrival suggestion must survive")
+        // The stay was under an hour: the arrival is re-offered as a short visit,
+        // and no departure is invented.
+        assertEquals(listOf("ביקור קצר במשרד — לרשום כניסה?"), titles())
+    }
+
+    @Test fun `a short visit flags an arrival the geofence already logged`() = runTest {
+        enter(8, 12)
+        engine.confirmArrival(today, 492)
+        nm.cancelAll()
+        exitDebounce(8, 40)
+        assertTrue(titles().isEmpty(), "no departure for a 28-minute visit")
+        assertTrue(repo.getDay(today)!!.arrivalUncertain, "arrival should be flagged amber")
+    }
+
+    @Test fun `a real stay later in the day clears the short-visit flag`() = runTest {
+        enter(8, 12)
+        engine.confirmArrival(today, 492)
+        exitDebounce(8, 40)
+        assertTrue(repo.getDay(today)!!.arrivalUncertain)
+
+        enter(9, 30)
+        exitDebounce(17, 35)
+        assertFalse(repo.getDay(today)!!.arrivalUncertain)
+        assertTrue(titles().any { it.startsWith("יציאה") })
+    }
+
+    @Test fun `a hand-typed arrival is never flagged by a short visit`() = runTest {
+        repo.setArrival(today, 480, TimeSource.MANUAL)
+        enter(8, 12)
+        exitDebounce(8, 40)
+        assertFalse(repo.getDay(today)!!.arrivalUncertain)
     }
 
     @Test fun `a full day with no arrival logged still offers to log it on the way out`() = runTest {
@@ -100,6 +133,13 @@ class GeofenceEngineTest {
         nm.cancelAll() // user ignored the arrival suggestion
         exitDebounce(17, 35)
         assertEquals(listOf("לרשום את היום?"), titles())
+    }
+
+    @Test fun `exactly one hour counts as a real visit`() = runTest {
+        repo.setArrival(today, 492, TimeSource.MANUAL)
+        enter(8, 12)
+        exitDebounce(9, 12)
+        assertEquals(listOf("יציאה 09:12?"), titles())
     }
 
     @Test fun `yesterday's visit delivered this morning is dropped, not written to today`() = runTest {
@@ -114,20 +154,11 @@ class GeofenceEngineTest {
 
     // --- dwell --------------------------------------------------------------
 
-    @Test fun `driving past the office withdraws the suggestion instead of prompting`() = runTest {
-        enter(8, 0)
-        assertEquals(listOf("הגעת למשרד?"), titles())
-        nowDt = at(8, 3)
-        engine.onExitDetected(at(8, 3)) // three minutes inside — never actually stopped
-        assertTrue(titles().isEmpty())
-    }
-
-    @Test fun `a confirmed arrival survives a short exit`() = runTest {
-        enter(8, 0)
-        engine.confirmArrival(today, 480)
-        nowDt = at(8, 3)
-        engine.onExitDetected(at(8, 3))
-        assertEquals(480, repo.getDay(today)?.arrivalMin)
+    @Test fun `driving past the office never suggests a leaving time`() = runTest {
+        enter(9, 0)
+        exitDebounce(9, 3) // three minutes inside — never actually stopped
+        assertTrue(titles().none { it.startsWith("יציאה") || it == "לרשום את היום?" })
+        assertNull(repo.getDay(today)?.departureMin)
     }
 
     // --- decision table -----------------------------------------------------

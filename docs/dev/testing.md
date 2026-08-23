@@ -21,6 +21,7 @@ TDD is the workflow, not a phase: failing test → implementation → green → 
 | §6.3 schema, DayWithEntries, status derivation | `app` `DayDaoTest`, `DayRepositoryTest`, domain `DayStatusTest` |
 | §5.5 notification variants table | `ReminderVariantsTest` — one test per table row |
 | §6.6 geofence decision table + invariants | `GeofenceEngineTest` — one test per row, incl. never-overwrite-MANUAL |
+| §6.6 office decision table as a state machine (all states x events, sequences) | domain `FenceMachineTest` (~35 cases incl. replayed days) |
 | §6.6 ordering invariants (occupancy, event day, staleness, dwell) | domain `GeofenceRulesTest`; `GeofenceEngineTest` (phantom exit, drift, overnight, drive-past), `JobLocationEngineTest` |
 | §6.4/§6.5 share intent, trampoline activity, alarm re-arm | `ReportShareTest`, `SendReportActivityTest`, `ReminderSchedulerTest`, `BootReceiverTest` |
 | §5.6 widget: override rules, special day, state selection | `WidgetActionsTest`, `WidgetStateTest`, `DayWidgetScreenshotTest` (inflates the real RemoteViews at 250x40dp) |

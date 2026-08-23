@@ -56,6 +56,20 @@ class TodayScreenshotTest {
 
     @Test fun emptyDay() = capture("today_empty", snap(DaySnapshot(date = date)))
 
+    @Test fun shortVisitArrival() {
+        capture(
+            "today_short_visit",
+            snap(
+                DaySnapshot(
+                    date = date,
+                    arrivalMin = 492,
+                    arrivalSource = com.vitalypr.daylog.domain.model.TimeSource.GEOFENCE,
+                    arrivalUncertain = true,
+                ),
+            ),
+        )
+    }
+
     @Test fun fullDay() {
         val day = DaySnapshot(
             date = date,

@@ -64,13 +64,22 @@ class Notifier @Inject constructor(
 
     fun cancelReport() = nm.cancel(ID_REPORT)
 
-    /** Geofence ENTER: confirmable arrival suggestion carrying the event day + time. */
-    fun arrivalPrompt(date: LocalDate, eventMinutes: Int) {
+    /**
+     * Geofence ENTER: confirmable arrival suggestion carrying the event day + time.
+     * [shortVisit] means the stay turned out to be under an hour — the suggestion
+     * is kept but coloured amber and worded as a doubt, because a pass-by looks
+     * exactly like an arrival until the user leaves again.
+     */
+    fun arrivalPrompt(date: LocalDate, eventMinutes: Int, shortVisit: Boolean = false) {
         post(
             ID_ARRIVAL,
             base(Channels.GEOFENCE_ARRIVAL)
-                .setContentTitle("הגעת למשרד?")
-                .setContentText("רישום כניסה ${formatMinutes(eventMinutes)}")
+                .setContentTitle(if (shortVisit) "ביקור קצר במשרד — לרשום כניסה?" else "הגעת למשרד?")
+                .setContentText(
+                    if (shortVisit) "היית פחות משעה · כניסה ${formatMinutes(eventMinutes)}"
+                    else "רישום כניסה ${formatMinutes(eventMinutes)}",
+                )
+                .apply { if (shortVisit) setColor(AMBER).setColorized(false) }
                 .setTimeoutAfter(timeoutUntilMidnight())
                 .addAction(
                     0, "אישור",
@@ -159,6 +168,8 @@ class Notifier @Inject constructor(
     )
 
     companion object {
+        /** ui/theme Amber — "logged, not sent"/uncertain semantics. */
+        private const val AMBER = 0xFFA9770F.toInt()
         const val ID_REPORT = 10
         const val ID_ARRIVAL = 11
         const val ID_DEPARTURE = 12

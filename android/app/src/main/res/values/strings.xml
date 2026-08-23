@@ -92,6 +92,7 @@
     <string name="settings_export_json">ייצוא JSON</string>
     <string name="settings_export_csv">ייצוא CSV</string>
     <string name="suggested_tag">מוצע</string>
+    <string name="short_visit_tag">ביקור קצר</string>
     <string name="settings_job_locations">מיקומי עבודה</string>
     <string name="settings_job_locations_sub">רדיוס 2 ק״מ — כניסה ראשונה ויציאה אחרונה ביום מוצעות אוטומטית</string>
     <string name="settings_job_name_hint">שם האתר / הלקוח…</string>

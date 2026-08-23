@@ -10,7 +10,6 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
-import java.time.ZoneOffset
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -68,13 +67,12 @@ class GeofenceExitDebounceReceiver : BroadcastReceiver() {
     @Inject lateinit var engine: GeofenceEngine
 
     override fun onReceive(context: Context, intent: Intent) {
-        val epochSecond = intent.getLongExtra(GeofenceEngine.EXTRA_EVENT_EPOCH_SECOND, Long.MIN_VALUE)
-        if (epochSecond == Long.MIN_VALUE) return
-        val eventAt = LocalDateTime.ofEpochSecond(epochSecond, 0, ZoneOffset.UTC)
+        // The exit's own timestamp lives in the persisted fence state, not in the
+        // alarm — an alarm extra could not survive a reboot or a rewritten intent.
         val pending = goAsync()
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             try {
-                engine.onExitConfirmedByDebounce(eventAt)
+                engine.onExitConfirmedByDebounce()
             } finally {
                 pending.finish()
             }

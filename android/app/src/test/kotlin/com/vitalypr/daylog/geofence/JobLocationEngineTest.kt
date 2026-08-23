@@ -65,7 +65,7 @@ class JobLocationEngineTest {
 
     @Test fun `a real visit is recorded first-enter to last-exit`() = runTest {
         enter(10, 0)
-        exit(12, 30) // lunch
+        exit(12, 30) // lunch, after 2.5 h on site
         enter(13, 15)
         exit(17, 0)
         val job = days.getDay(date)!!.fieldJobs.single()
@@ -99,9 +99,11 @@ class JobLocationEngineTest {
         assertNull(days.getDay(date))
     }
 
-    @Test fun `driving past the site leaves nothing behind`() = runTest {
+    @Test fun `driving past the site suggests an arrival but never a leaving time`() = runTest {
         enter(10, 0)
         exit(10, 6)
-        assertTrue(days.getDay(date)!!.fieldJobs.isEmpty())
+        val job = days.getDay(date)!!.fieldJobs.single()
+        assertEquals(600, job.startMin)
+        assertNull(job.endMin)
     }
 }

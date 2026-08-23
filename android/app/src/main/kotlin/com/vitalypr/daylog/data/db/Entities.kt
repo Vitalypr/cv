@@ -14,6 +14,8 @@ data class WorkDayEntity(
     val departureMin: Int? = null,
     val arrivalSource: String = "MANUAL",
     val departureSource: String = "MANUAL",
+    /** The visit behind a geofence arrival was too short to be a work day (v1.0). */
+    val arrivalUncertain: Boolean = false,
     val notes: String = "",
     val dayType: String = "WORK",
     val reportedAt: Long? = null,

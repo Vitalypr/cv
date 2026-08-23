@@ -21,19 +21,15 @@ import kotlin.math.sqrt
  */
 object GeofenceRules {
 
-    /** Below this, a visit is a drive-past, not a work session. */
-    val MIN_OFFICE_DWELL: Duration = Duration.ofMinutes(5)
-
     /**
-     * "Did you work today?" is only a sensible question after a real stay. GPS
-     * drifts badly indoors and can report an exit while the user sits at their
-     * desk; without this floor that drift asked them to log a day they had just
-     * started. A genuine forgot-to-log day is hours long, so nothing is lost.
+     * The shortest stay that counts as having worked somewhere (product-owner
+     * rule, v1.0). Below it the app never suggests a leaving time: crossing a
+     * fence — a 2 km job radius especially — takes minutes, and indoor GPS drift
+     * reports exits while the user sits at their desk. The arrival still stands,
+     * flagged, because a brief visit might have been real; the departure does not,
+     * because a departure the user did not make corrupts the day's hours.
      */
-    val MIN_WORKDAY_DWELL: Duration = Duration.ofMinutes(30)
-
-    /** Job fences are 2 km wide; crossing one takes minutes, visiting takes longer. */
-    const val MIN_JOB_DWELL_MINUTES = 15
+    val MIN_VISIT: Duration = Duration.ofHours(1)
 
     /** A transition older than this is a catch-up delivery we cannot act on. */
     val MAX_EVENT_AGE: Duration = Duration.ofMinutes(60)
@@ -61,10 +57,6 @@ object GeofenceRules {
             else -> null
         }
     }
-
-    /** A visit too short to be real — the user drove past the office. */
-    fun isDriveBy(insideSince: LocalDateTime, at: LocalDateTime): Boolean =
-        Duration.between(insideSince, at) < MIN_OFFICE_DWELL
 
     /** Too old (catch-up delivery) or implausibly in the future (bad fix). */
     fun isStale(at: LocalDateTime, now: LocalDateTime): Boolean =

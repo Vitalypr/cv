@@ -159,6 +159,7 @@ private fun TimeCard(state: TodayUiState, cb: TodayCallbacks) {
                 label = stringResource(R.string.arrival),
                 minutes = state.day.arrivalMin,
                 source = state.day.arrivalSource,
+                uncertain = state.day.arrivalUncertain,
                 actionLabel = stringResource(R.string.arrived_now),
                 onAction = cb.onArriveNow,
                 onEdit = { pickArrival = true },
@@ -225,6 +226,7 @@ private fun TimeSlot(
     label: String,
     minutes: Int?,
     source: TimeSource,
+    uncertain: Boolean = false,
     actionLabel: String,
     onAction: () -> Unit,
     onEdit: () -> Unit,
@@ -235,7 +237,17 @@ private fun TimeSlot(
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(label, style = MaterialTheme.typography.bodySmall, color = InkSecondary)
-            if (minutes != null && source == TimeSource.GEOFENCE) {
+            // A visit under an hour: amber, so it reads as "check this", not as fact.
+            if (minutes != null && uncertain) {
+                Text(
+                    stringResource(R.string.short_visit_tag),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = com.vitalypr.daylog.ui.theme.Amber,
+                    modifier = Modifier
+                        .background(com.vitalypr.daylog.ui.theme.AmberTint, RoundedCornerShape(99.dp))
+                        .padding(horizontal = 6.dp, vertical = 1.dp),
+                )
+            } else if (minutes != null && source == TimeSource.GEOFENCE) {
                 Text(stringResource(R.string.source_geofence), style = MaterialTheme.typography.labelSmall, color = InkMuted)
             }
             // Reset back to "—:—" — sits in the label row so the compact card keeps its height.
@@ -259,7 +271,11 @@ private fun TimeSlot(
             Text(
                 minutes?.let(::formatMinutes) ?: stringResource(R.string.time_unset),
                 style = MaterialTheme.typography.headlineSmall,
-                color = if (minutes != null) MaterialTheme.colorScheme.onSurface else InkMuted,
+                color = when {
+                    minutes == null -> InkMuted
+                    uncertain -> com.vitalypr.daylog.ui.theme.Amber
+                    else -> MaterialTheme.colorScheme.onSurface
+                },
             )
         }
         if (minutes == null) {

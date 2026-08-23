@@ -63,16 +63,6 @@ class GeofenceRulesTest {
     // --- dwell & staleness --------------------------------------------------
 
     @Test
-    fun `driving past the office is not a visit`() {
-        assertTrue(GeofenceRules.isDriveBy(at(mon, 8, 0), at(mon, 8, 3)))
-    }
-
-    @Test
-    fun `a real visit is not a drive-by`() {
-        assertFalse(GeofenceRules.isDriveBy(at(mon, 8, 0), at(mon, 8, 30)))
-    }
-
-    @Test
     fun `an hour-old transition is stale`() {
         assertTrue(GeofenceRules.isStale(at = at(mon, 7, 0), now = at(mon, 8, 20)))
     }

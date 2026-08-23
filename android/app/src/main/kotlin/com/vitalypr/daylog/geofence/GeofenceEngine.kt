@@ -7,7 +7,12 @@ import android.content.Intent
 import com.vitalypr.daylog.data.repo.DayRepository
 import com.vitalypr.daylog.data.settings.SettingsSource
 import com.vitalypr.daylog.di.Now
+import com.vitalypr.daylog.domain.geo.DayContext
+import com.vitalypr.daylog.domain.geo.FenceAction
+import com.vitalypr.daylog.domain.geo.FenceEvent
+import com.vitalypr.daylog.domain.geo.FenceState
 import com.vitalypr.daylog.domain.geo.GeofenceRules
+import com.vitalypr.daylog.domain.geo.OfficeFenceMachine
 import com.vitalypr.daylog.domain.model.DayType
 import com.vitalypr.daylog.domain.model.TimeSource
 import com.vitalypr.daylog.notifications.Notifier
@@ -15,26 +20,16 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
+import java.time.ZoneOffset
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.first
 
 /**
- * Office geofence decision table per spec §5.5/§6.6.
- *
- * Ordering is the hard part, not the table: Play Services delivers a transition
- * when it next gets a location fix, so an exit can arrive hours late and *after*
- * the entry that followed it. Three invariants keep that from producing nonsense:
- *
- *  1. Occupancy — an exit is only acted on if we recorded the matching entry
- *     ([FenceStateStore]). A phantom exit is dropped, never prompted.
- *  2. Event time — every decision and every write uses the transition's own
- *     timestamp and its logical day, never "now" (spec §6.2 covers midnight).
- *  3. Dwell — a visit shorter than [GeofenceRules.MIN_OFFICE_DWELL] is a
- *     drive-past: the pending arrival suggestion is withdrawn and no exit fires.
- *
- * Plus the original invariants: confirms write the EVENT time, GEOFENCE never
- * overwrites MANUAL, exits are debounced 10 minutes and cancelled by re-entry.
+ * Drives [OfficeFenceMachine]: loads the persisted fence state and the facts the
+ * decision needs, asks the machine what to do, then performs it. No rules live
+ * here — the machine owns the decision table and is exhaustively unit-tested,
+ * including the out-of-order deliveries Play Services produces.
  */
 @Singleton
 class GeofenceEngine @Inject constructor(
@@ -48,97 +43,75 @@ class GeofenceEngine @Inject constructor(
 ) {
 
     /** @param eventAt the transition's own timestamp; null falls back to the clock. */
-    suspend fun onEnter(eventAt: LocalDateTime? = null) {
-        val at = eventAt ?: now()
-        cancelPendingExit() // re-entry cancels a pending departure suggestion
-        notifier.cancelDeparturePrompt()
+    suspend fun onEnter(eventAt: LocalDateTime? = null) = handle(FenceEvent.Enter(eventAt ?: now()))
 
-        if (GeofenceRules.isStale(at, now())) return // catch-up delivery — not an arrival now
+    suspend fun onExitDetected(eventAt: LocalDateTime? = null) = handle(FenceEvent.Exit(eventAt ?: now()))
 
-        // Already inside: a duplicate ENTER must not re-prompt or restart the dwell.
-        if (fenceState.insideSince(GeofenceManager.FENCE_ID) != null) return
-        fenceState.markInside(GeofenceManager.FENCE_ID, at)
+    suspend fun onExitConfirmedByDebounce() = handle(FenceEvent.DebounceElapsed)
 
-        val settings = settingsRepository.settings.first()
-        val date = at.toLocalDate()
-        if (date.dayOfWeek !in settings.workDays) return
-        val day = repository.getDay(date)
-        if (day != null && day.dayType != DayType.WORK) return // חופש/חג — no prompts (S4)
-        if (day?.arrivalMin != null) return
-
-        val minutes = minutesOf(at)
-        if (settings.silentGeofence) {
-            repository.setArrival(date, minutes, TimeSource.GEOFENCE)
-            widgetRefresher.refresh()
-        } else {
-            notifier.arrivalPrompt(date, minutes)
-        }
+    private suspend fun handle(event: FenceEvent) {
+        val state = fenceState.state(GeofenceManager.FENCE_ID)
+        val transition = OfficeFenceMachine.step(state, event, contextFor(state, event), now())
+        fenceState.save(GeofenceManager.FENCE_ID, transition.state)
+        transition.actions.forEach { perform(it) }
     }
 
-    /** Exit detected: validate it, then arm the 10-minute debounce carrying the event. */
-    suspend fun onExitDetected(eventAt: LocalDateTime? = null) {
-        val at = eventAt ?: now()
-        val insideSince = fenceState.insideSince(GeofenceManager.FENCE_ID)
-            ?: return // never saw the arrival — a late/duplicate delivery, not an exit
-
-        if (GeofenceRules.isDriveBy(insideSince, at)) {
-            // Drove past: withdraw the unconfirmed suggestion instead of following it
-            // with a departure prompt.
-            fenceState.markOutside(GeofenceManager.FENCE_ID)
-            val day = repository.getDay(insideSince.toLocalDate())
-            if (day?.arrivalMin == null) notifier.cancelArrivalPrompt()
-            return
-        }
-
-        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        val fireAt = now().plusMinutes(DEBOUNCE_MINUTES)
-            .atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
-        alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, fireAt, exitPendingIntent(at))
-    }
-
-    /** Debounce elapsed without re-entry: apply the exit decision table. */
-    suspend fun onExitConfirmedByDebounce(eventAt: LocalDateTime) {
-        val insideSince = fenceState.insideSince(GeofenceManager.FENCE_ID) ?: return
-        fenceState.markOutside(GeofenceManager.FENCE_ID)
-
-        val previousDay = repository.getDay(insideSince.toLocalDate())
-        val openArrival = previousDay?.arrivalMin != null && previousDay.departureMin == null
-        // Which day does this exit belong to — or none at all (§6.2, stale catch-up).
-        val date = GeofenceRules.exitDate(insideSince, eventAt, openArrival) ?: return
-
+    /** Resolves the day the event lands on and everything the machine asks about it. */
+    private suspend fun contextFor(state: FenceState, event: FenceEvent): DayContext {
         val settings = settingsRepository.settings.first()
-        val day = repository.getDay(date)
-        if (day != null && day.dayType != DayType.WORK) return // חופש/חג — no prompts (S4)
-
-        val minutes = minutesOf(eventAt, relativeTo = date)
-        val dwell = java.time.Duration.between(insideSince, eventAt)
-        when {
-            day?.arrivalMin == null ->
-                // Nothing logged for the day: only ask after a stay long enough to
-                // have been work. A brief visit — or boundary drift while the user
-                // is sitting at their desk — must stay silent and leave the arrival
-                // suggestion standing.
-                if (dwell >= GeofenceRules.MIN_WORKDAY_DWELL) {
-                    notifier.cancelArrivalPrompt()
-                    notifier.logDayPrompt(minutes)
-                }
-            day.departureMin == null -> {
-                notifier.cancelArrivalPrompt()
-                if (settings.silentGeofence) {
-                    repository.setDeparture(date, minutes, TimeSource.GEOFENCE)
-                    widgetRefresher.refresh()
-                } else {
-                    notifier.departurePrompt(date, minutes, isUpdate = false)
-                }
+        val date: LocalDate? = when (event) {
+            is FenceEvent.Enter -> event.at.toLocalDate()
+            is FenceEvent.Exit -> null // exits decide nothing until the debounce elapses
+            FenceEvent.DebounceElapsed -> {
+                val leaving = state as? FenceState.Leaving
+                val entryDay = leaving?.let { repository.getDay(it.since.toLocalDate()) }
+                val openArrival = entryDay?.arrivalMin != null && entryDay.departureMin == null
+                leaving?.let { GeofenceRules.exitDate(it.since, it.exitAt, openArrival) }
             }
-            day.departureSource == TimeSource.GEOFENCE ->
-                notifier.departurePrompt(date, minutes, isUpdate = true) // last exit wins on confirm
-            else -> Unit // MANUAL departure — never touched (F2)
         }
+        val day = date?.let { repository.getDay(it) }
+        return DayContext(
+            date = date,
+            isWorkDay = date == null || date.dayOfWeek in settings.workDays,
+            isSpecialDay = day != null && day.dayType != DayType.WORK,
+            arrivalSet = day?.arrivalMin != null,
+            arrivalFromGeofence = day?.arrivalSource == TimeSource.GEOFENCE,
+            arrivalUncertain = day?.arrivalUncertain == true,
+            departureSet = day?.departureMin != null,
+            departureFromGeofence = day?.departureSource == TimeSource.GEOFENCE,
+            silentMode = settings.silentGeofence,
+        )
+    }
+
+    private suspend fun perform(action: FenceAction) = when (action) {
+        is FenceAction.SuggestArrival ->
+            notifier.arrivalPrompt(action.date, action.minutes, shortVisit = action.shortVisit)
+        is FenceAction.WriteArrival -> {
+            repository.setArrival(action.date, action.minutes, TimeSource.GEOFENCE)
+            widgetRefresher.refresh()
+        }
+        is FenceAction.SuggestDeparture ->
+            notifier.departurePrompt(action.date, action.minutes, action.isUpdate)
+        is FenceAction.WriteDeparture -> {
+            repository.setDeparture(action.date, action.minutes, TimeSource.GEOFENCE)
+            widgetRefresher.refresh()
+        }
+        is FenceAction.SuggestLogDay -> notifier.logDayPrompt(action.minutes)
+        is FenceAction.MarkArrivalUncertain -> {
+            repository.setArrivalUncertain(action.date, true)
+            widgetRefresher.refresh()
+        }
+        is FenceAction.ClearArrivalUncertain -> repository.setArrivalUncertain(action.date, false)
+        is FenceAction.ArmDebounce -> armDebounce()
+        FenceAction.CancelDebounce -> cancelPendingExit()
+        FenceAction.CancelDeparturePrompt -> notifier.cancelDeparturePrompt()
+        FenceAction.CancelArrivalPrompt -> notifier.cancelArrivalPrompt()
     }
 
     suspend fun confirmArrival(date: LocalDate, eventMinutes: Int) {
         repository.setArrival(date, eventMinutes, TimeSource.GEOFENCE)
+        // Confirming is the user's own judgement — the doubt is settled.
+        repository.setArrivalUncertain(date, false)
         widgetRefresher.refresh()
     }
 
@@ -147,9 +120,16 @@ class GeofenceEngine @Inject constructor(
         widgetRefresher.refresh()
     }
 
+    private fun armDebounce() {
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val fireAt = now().plusMinutes(DEBOUNCE_MINUTES)
+            .atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, fireAt, exitPendingIntent())
+    }
+
     fun cancelPendingExit() {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        // FLAG_NO_CREATE: never mint (and never rewrite the extras of) an intent just to cancel it.
+        // FLAG_NO_CREATE: never mint an intent just to cancel it.
         PendingIntent.getBroadcast(
             context,
             RC_EXIT_DEBOUNCE,
@@ -158,17 +138,10 @@ class GeofenceEngine @Inject constructor(
         )?.let(alarmManager::cancel)
     }
 
-    /** Minutes from midnight of [relativeTo]; may exceed 1440 past midnight (§6.2). */
-    private fun minutesOf(at: LocalDateTime, relativeTo: LocalDate = at.toLocalDate()): Int {
-        val dayOffset = (at.toLocalDate().toEpochDay() - relativeTo.toEpochDay()).toInt()
-        return at.toLocalTime().toSecondOfDay() / 60 + dayOffset * MINUTES_PER_DAY
-    }
-
-    private fun exitPendingIntent(at: LocalDateTime): PendingIntent = PendingIntent.getBroadcast(
+    private fun exitPendingIntent(): PendingIntent = PendingIntent.getBroadcast(
         context,
         RC_EXIT_DEBOUNCE,
-        Intent(context, GeofenceExitDebounceReceiver::class.java)
-            .putExtra(EXTRA_EVENT_EPOCH_SECOND, at.toEpochSecond(java.time.ZoneOffset.UTC)),
+        Intent(context, GeofenceExitDebounceReceiver::class.java),
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
     )
 
@@ -176,8 +149,6 @@ class GeofenceEngine @Inject constructor(
         const val DEBOUNCE_MINUTES = 10L
         const val EXTRA_EVENT_MINUTES = "event_minutes"
         const val EXTRA_EVENT_DATE = "event_epoch_day"
-        const val EXTRA_EVENT_EPOCH_SECOND = "event_epoch_second"
         private const val RC_EXIT_DEBOUNCE = 300
-        private const val MINUTES_PER_DAY = 24 * 60
     }
 }

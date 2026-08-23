@@ -175,7 +175,8 @@ Four-tab bottom navigation (היום / היסטוריה / סטטיסטיקה / �
 | Geofence ENTER (workday, no arrival set) | "הגעת? רישום כניסה 08:12" | **אישור** / **עריכה** (opens app) |
 | Geofence EXIT (arrival set, departure unset) | "יציאה 17:35?" | **אישור** / **עריכה** |
 | Geofence EXIT (departure already set, GEOFENCE source) | "לעדכן יציאה ל־19:05?" | **עדכון** / dismiss |
-| Geofence EXIT (no arrival set) | "לרשום את היום? יציאה 17:35" | **פתיחה** (opens Day Editor) |
+| Geofence EXIT (no arrival set, stay ≥ 1 h) | "לרשום את היום? יציאה 17:35" | **פתיחה** (opens Day Editor) |
+| Geofence EXIT after a stay under 1 h | "ביקור קצר במשרד — לרשום כניסה?" (amber; no departure offered) | **אישור** / **עריכה** |
 | Report time, arrival+departure set | Rendered report preview | **שליחה לוואטסאפ** / **עריכה** |
 | Report time, arrival set, no departure | "עדיין במשרד? השלם יציאה ושלח" | **עריכה** / **שליחה בכל זאת** |
 | Report time, no arrival (and not day-off) | "השלם את יומן היום" | **פתיחה** |
@@ -312,7 +313,7 @@ Intent(Intent.ACTION_SEND).apply {
 | **Event time** | Every decision and write uses the transition's own timestamp (`triggeringLocation.time`) and its logical day — never "now". Confirming near midnight lands on the day of the event, not the day of the tap. |
 | **Day attribution** | An exit belongs to the entry's day; if it crosses midnight before 04:00 and that day is still open it stays on that day (§6.2); otherwise it belongs to no day we can trust and is dropped. |
 | **Staleness** | A transition older than 60 minutes is a catch-up delivery and cannot start a suggestion. |
-| **Dwell** | Under 5 minutes inside the office is a drive-past: the pending arrival suggestion is withdrawn and no exit prompt follows. "לרשום את היום?" additionally requires a 30-minute stay, so indoor GPS drift cannot ask the user to log a day they have just started. |
+| **Minimum visit (v1.0)** | A stay shorter than **one hour** is not a working session, so **no leaving time is ever suggested for it** — not a departure, not "לרשום את היום?", not a job site's suggested end. The *arrival* still stands, because a brief visit may have been real, but it is marked: the notification reads "ביקור קצר במשרד" in amber and the Today screen paints the time amber with a **ביקור קצר** tag. A later stay of an hour or more on the same day clears the mark; a hand-typed arrival is never marked. This is what stops a pass-by, and indoor GPS drift, from booking a day the user never worked. |
 | **Same place** | A job location whose pin falls inside the office fence is not tracked separately — otherwise every office arrival also opens a field job. |
 | **Job visits** | A job EXIT with no recorded ENTER creates nothing (it used to invent a field job holding only an end time), and an untouched visit shorter than 15 minutes inside a 2 km fence is discarded as a drive-past. |
 - Office location is captured via a one-shot `FusedLocationProvider` fix ("קבע למיקום הנוכחי") — no Maps SDK, no network.

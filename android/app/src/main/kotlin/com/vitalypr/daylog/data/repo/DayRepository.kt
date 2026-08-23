@@ -81,7 +81,15 @@ class DayRepository @Inject constructor(
      */
     suspend fun setArrival(date: LocalDate, minutes: Int, source: TimeSource): Boolean = edit(date) { existing ->
         if (source == TimeSource.GEOFENCE && existing.arrivalMin != null) return@edit false
-        upsertEdited(existing.copy(arrivalMin = minutes, arrivalSource = source.name))
+        // Typing a time by hand settles it — the short-visit doubt does not survive.
+        val clearsDoubt = source == TimeSource.MANUAL
+        upsertEdited(
+            existing.copy(
+                arrivalMin = minutes,
+                arrivalSource = source.name,
+                arrivalUncertain = if (clearsDoubt) false else existing.arrivalUncertain,
+            ),
+        )
         true
     }
 
@@ -100,7 +108,17 @@ class DayRepository @Inject constructor(
      * later geofence event instead of staying locked by the old MANUAL source.
      */
     suspend fun clearArrival(date: LocalDate) = edit(date) {
-        upsertEdited(it.copy(arrivalMin = null, arrivalSource = TimeSource.MANUAL.name))
+        upsertEdited(it.copy(arrivalMin = null, arrivalSource = TimeSource.MANUAL.name, arrivalUncertain = false))
+    }
+
+    /**
+     * Flags/unflags a geofence arrival whose visit was under [GeofenceRules.MIN_VISIT]
+     * — the UI paints it amber so the user can accept or correct it. Never applied
+     * to a MANUAL value, and it is not an "edit" for report purposes.
+     */
+    suspend fun setArrivalUncertain(date: LocalDate, uncertain: Boolean) = edit(date) { day ->
+        if (day.arrivalUncertain == uncertain) return@edit
+        dayDao.upsertDay(day.copy(arrivalUncertain = uncertain))
     }
 
     suspend fun clearDeparture(date: LocalDate) = edit(date) {
@@ -215,6 +233,7 @@ internal fun DayWithEntries.toSnapshot(): DaySnapshot = DaySnapshot(
     arrivalMin = day.arrivalMin,
     departureMin = day.departureMin,
     arrivalSource = TimeSource.valueOf(day.arrivalSource),
+    arrivalUncertain = day.arrivalUncertain,
     departureSource = TimeSource.valueOf(day.departureSource),
     dayType = DayType.valueOf(day.dayType),
     notes = day.notes,

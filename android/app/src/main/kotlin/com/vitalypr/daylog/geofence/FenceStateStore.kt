@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.vitalypr.daylog.domain.geo.FenceState
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.time.LocalDateTime
 import java.time.ZoneOffset
@@ -12,19 +13,18 @@ import javax.inject.Singleton
 import kotlinx.coroutines.flow.first
 
 /**
- * Remembers which fences we believe we are inside of, and since when.
+ * Persists where we believe the user is for each fence.
  *
- * This is the piece that was missing: without it an EXIT delivered out of order
- * (Play Services flushes transitions when it next gets a fix, which can be the
- * next morning) was indistinguishable from a real one, so arriving at the office
- * produced a departure suggestion. An exit is only acted on when we saw the
- * matching entry, and the dwell between them is what tells a visit from a
- * drive-past. Persisted, because the process dies between transitions.
+ * This is the piece that was missing originally: without it an EXIT delivered
+ * out of order (Play Services flushes transitions when it next gets a fix,
+ * which can be the next morning) was indistinguishable from a real one, so
+ * arriving at the office produced a departure suggestion. It also carries the
+ * entry time across process deaths, which is what lets the visit's length —
+ * and therefore whether it was a real stay — be measured at all.
  */
 interface FenceStateStore {
-    suspend fun insideSince(fenceId: String): LocalDateTime?
-    suspend fun markInside(fenceId: String, at: LocalDateTime)
-    suspend fun markOutside(fenceId: String)
+    suspend fun state(fenceId: String): FenceState
+    suspend fun save(fenceId: String, state: FenceState)
 }
 
 private val Context.fenceStore by preferencesDataStore(name = "geofence_state")
@@ -34,18 +34,36 @@ class DataStoreFenceStateStore @Inject constructor(
     @ApplicationContext private val context: Context,
 ) : FenceStateStore {
 
-    override suspend fun insideSince(fenceId: String): LocalDateTime? =
-        context.fenceStore.data.first()[key(fenceId)]
-            ?.let { LocalDateTime.ofEpochSecond(it, 0, ZoneOffset.UTC) }
-
-    override suspend fun markInside(fenceId: String, at: LocalDateTime) {
-        context.fenceStore.edit { it[key(fenceId)] = at.toEpochSecond(ZoneOffset.UTC) }
+    override suspend fun state(fenceId: String): FenceState {
+        val prefs = context.fenceStore.data.first()
+        val since = prefs[sinceKey(fenceId)]?.let(::decode) ?: return FenceState.Outside
+        val exitAt = prefs[exitKey(fenceId)]?.let(::decode)
+        return if (exitAt == null) FenceState.Inside(since) else FenceState.Leaving(since, exitAt)
     }
 
-    override suspend fun markOutside(fenceId: String) {
-        context.fenceStore.edit { it.remove(key(fenceId)) }
+    override suspend fun save(fenceId: String, state: FenceState) {
+        context.fenceStore.edit { prefs ->
+            when (state) {
+                FenceState.Outside -> {
+                    prefs.remove(sinceKey(fenceId))
+                    prefs.remove(exitKey(fenceId))
+                }
+                is FenceState.Inside -> {
+                    prefs[sinceKey(fenceId)] = encode(state.since)
+                    prefs.remove(exitKey(fenceId))
+                }
+                is FenceState.Leaving -> {
+                    prefs[sinceKey(fenceId)] = encode(state.since)
+                    prefs[exitKey(fenceId)] = encode(state.exitAt)
+                }
+            }
+        }
     }
 
-    // Wall-clock value, so it round-trips through a fixed offset rather than a zone.
-    private fun key(fenceId: String) = longPreferencesKey("inside_$fenceId")
+    // Wall-clock values, so they round-trip through a fixed offset, not a zone.
+    private fun encode(at: LocalDateTime) = at.toEpochSecond(ZoneOffset.UTC)
+    private fun decode(seconds: Long) = LocalDateTime.ofEpochSecond(seconds, 0, ZoneOffset.UTC)
+
+    private fun sinceKey(fenceId: String) = longPreferencesKey("inside_$fenceId")
+    private fun exitKey(fenceId: String) = longPreferencesKey("leaving_$fenceId")
 }

@@ -56,28 +56,23 @@ class JobLocationRepository @Inject constructor(
      *
      * No row means we never saw the entry, so there is nothing to close: inventing
      * a field job from an exit alone produced entries with an end and no start.
-     * A visit shorter than [GeofenceRules.MIN_JOB_DWELL_MINUTES] was a drive-past
-     * (2 km fences are crossed in minutes) and the untouched suggestion is dropped.
+     *
+     * A stay under [GeofenceRules.MIN_VISIT] leaves the suggested end alone: 2 km
+     * fences are crossed in minutes, so a brief pass would otherwise book a
+     * client visit that never happened. The suggested start stays (rendered amber
+     * with a מוצע tag), because a short visit might still have been real — the
+     * same rule the office arrival follows.
      */
-    suspend fun onExit(locationId: Long, date: LocalDate, eventMin: Int) {
-        val location = jobLocationDao.byId(locationId) ?: return
+    suspend fun onExit(locationId: Long, date: LocalDate, eventMin: Int, visitStartMin: Int) {
+        jobLocationDao.byId(locationId) ?: return
         if (isSpecialDay(date)) return // חופש/חג — nothing is tracked (S4)
         val existing = dayDao.fieldJobForLocation(date.toString(), locationId) ?: return
 
-        val start = existing.suggestedStartMin
-        if (start != null && eventMin - start < GeofenceRules.MIN_JOB_DWELL_MINUTES &&
-            isUntouched(existing, location.name)
-        ) {
-            dayDao.deleteFieldJob(existing)
-            return
-        }
+        // Measured over THIS visit, not from the day's first arrival: driving past
+        // in the evening must not drag a real 17:00 departure out to 19:00.
+        if (eventMin - visitStartMin < GeofenceRules.MIN_VISIT.toMinutes()) return
         dayDao.updateFieldJob(existing.copy(suggestedEndMin = eventMin))
     }
-
-    /** Only ever discard a row the user has not shaped in any way. */
-    private fun isUntouched(job: FieldJobEntity, locationName: String): Boolean =
-        job.startMin == null && job.endMin == null &&
-            job.locationText.isNullOrBlank() && job.title == locationName
 
     private suspend fun isSpecialDay(date: LocalDate): Boolean =
         dayDao.getDay(date.toString())?.day?.dayType?.let { it != "WORK" } ?: false

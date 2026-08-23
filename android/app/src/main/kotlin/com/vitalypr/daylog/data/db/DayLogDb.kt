@@ -10,7 +10,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         WorkDayEntity::class, FieldJobEntity::class, ActivityEntity::class,
         CategoryEntity::class, JobLocationEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 abstract class DayLogDb : RoomDatabase() {
@@ -69,6 +69,13 @@ abstract class DayLogDb : RoomDatabase() {
             }
         }
 
-        val ALL_MIGRATIONS = arrayOf(MIGRATION_1_2, MIGRATION_2_3)
+        /** v1.0: short-visit flag on a geofence arrival (spec §6.6 short-visit rule). */
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `work_day` ADD COLUMN `arrivalUncertain` INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        val ALL_MIGRATIONS = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
     }
 }

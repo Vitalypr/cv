@@ -61,9 +61,9 @@ class JobLocationTrackingTest {
 
     @Test fun `lunch break does not count - first enter and last exit win`() = runTest {
         jobs.onEnter(locId, date, 600) // 10:00 arrive
-        jobs.onExit(locId, date, 750) // 12:30 lunch out
+        jobs.onExit(locId, date, 750, visitStartMin = 600) // 12:30 lunch out
         jobs.onEnter(locId, date, 795) // 13:15 back — start must NOT move
-        jobs.onExit(locId, date, 1020) // 17:00 final leave — overwrites lunch exit
+        jobs.onExit(locId, date, 1020, visitStartMin = 795) // 17:00 final leave — overwrites lunch exit
 
         val job = days.getDay(date)!!.fieldJobs.single()
         assertEquals(600, job.startMin)
@@ -72,12 +72,12 @@ class JobLocationTrackingTest {
 
     @Test fun `manual times always win over suggestions`() = runTest {
         jobs.onEnter(locId, date, 600)
-        jobs.onExit(locId, date, 1020)
+        jobs.onExit(locId, date, 1020, visitStartMin = 795)
         val entity = db.dayDao().fieldJobForLocation(date.toString(), locId)!!
         db.dayDao().updateFieldJob(entity.copy(startMin = 590, endMin = 1050)) // user edits
 
         jobs.onEnter(locId, date, 615) // stray later events
-        jobs.onExit(locId, date, 1100)
+        jobs.onExit(locId, date, 1100, visitStartMin = 615)
 
         val job = days.getDay(date)!!.fieldJobs.single()
         assertEquals(590, job.startMin)
@@ -86,7 +86,7 @@ class JobLocationTrackingTest {
 
     @Test fun `suggested flags drive the amber UI, cleared once manual`() = runTest {
         jobs.onEnter(locId, date, 600)
-        jobs.onExit(locId, date, 1020)
+        jobs.onExit(locId, date, 1020, visitStartMin = 795)
         var row = observeRow()
         assertTrue(row.isStartSuggested)
         assertTrue(row.isEndSuggested)
@@ -103,28 +103,34 @@ class JobLocationTrackingTest {
      * inventing a row from it produced field jobs with an end and no start.
      */
     @Test fun `exit with no recorded enter creates nothing`() = runTest {
-        jobs.onExit(locId, date, 900)
+        jobs.onExit(locId, date, 900, visitStartMin = 600)
         assertNull(days.getDay(date))
     }
 
-    @Test fun `driving past a site does not create a field job`() = runTest {
+    /**
+     * Under an hour on site is a pass-by: the arrival stands (amber מוצע, the user
+     * may confirm it) but no leaving time is invented for a visit that never was.
+     */
+    @Test fun `driving past a site suggests no leaving time`() = runTest {
         jobs.onEnter(locId, date, 600) // crossed the 2 km fence…
-        jobs.onExit(locId, date, 606) // …and out again six minutes later
-        assertTrue(days.getDay(date)!!.fieldJobs.isEmpty())
+        jobs.onExit(locId, date, 606, visitStartMin = 600) // …and out again six minutes later
+        val job = days.getDay(date)!!.fieldJobs.single()
+        assertEquals(600, job.startMin)
+        assertNull(job.endMin)
     }
 
-    @Test fun `a real visit survives the drive-past filter`() = runTest {
+    @Test fun `a stay of an hour or more gets its leaving time`() = runTest {
         jobs.onEnter(locId, date, 600)
-        jobs.onExit(locId, date, 640) // 40 minutes on site
-        assertEquals(640, days.getDay(date)!!.fieldJobs.single().endMin)
+        jobs.onExit(locId, date, 660, visitStartMin = 600) // exactly one hour on site
+        assertEquals(660, days.getDay(date)!!.fieldJobs.single().endMin)
     }
 
-    @Test fun `a short visit the user has edited is never discarded`() = runTest {
+    /** Driving past in the evening must not drag a real 17:00 departure later. */
+    @Test fun `a brief evening pass-by does not overwrite a real leaving time`() = runTest {
         jobs.onEnter(locId, date, 600)
-        val entity = db.dayDao().fieldJobForLocation(date.toString(), locId)!!
-        db.dayDao().updateFieldJob(entity.copy(title = "מסירת ציוד"))
-        jobs.onExit(locId, date, 606)
-        assertEquals("מסירת ציוד", days.getDay(date)!!.fieldJobs.single().title)
+        jobs.onExit(locId, date, 1020, visitStartMin = 600) // the real visit, 10:00–17:00
+        jobs.onExit(locId, date, 1080, visitStartMin = 1075) // passed by for five minutes
+        assertEquals(1020, days.getDay(date)!!.fieldJobs.single().endMin)
     }
 
     @Test fun `two locations same day create two field jobs`() = runTest {
@@ -137,7 +143,7 @@ class JobLocationTrackingTest {
     @Test fun `no tracking on a day marked off or holiday`() = runTest {
         days.setDayType(date, com.vitalypr.daylog.domain.model.DayType.OFF)
         jobs.onEnter(locId, date, 600)
-        jobs.onExit(locId, date, 1020)
+        jobs.onExit(locId, date, 1020, visitStartMin = 795)
         assertTrue(days.getDay(date)!!.fieldJobs.isEmpty())
     }
 
