@@ -9,6 +9,8 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -136,6 +138,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
     )
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SettingsContent(
     settings: Settings,
@@ -213,15 +216,18 @@ fun SettingsContent(
                 style = MaterialTheme.typography.bodySmall,
                 color = com.vitalypr.daylog.ui.theme.InkSecondary,
             )
-            Row(
+            FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier.padding(top = 4.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp),
             ) {
                 listOf(100, 150, 200, 300).forEach { meters ->
                     FilterChip(
                         selected = settings.officeRadiusM == meters,
                         onClick = { onSetOfficeRadius(meters) },
-                        label = { Text(stringResource(R.string.settings_job_radius, meters)) },
+                        // Bare value: four "רדיוס NNN מ׳" chips overflow a phone row.
+                        label = { Text(stringResource(R.string.radius_value, meters)) },
                     )
                 }
             }
@@ -241,7 +247,7 @@ fun SettingsContent(
                     Column(Modifier.weight(1f)) {
                         Text(loc.name, style = MaterialTheme.typography.bodyMedium)
                         Text(
-                            stringResource(R.string.settings_job_radius, loc.radiusM),
+                            radiusLabel(loc.radiusM),
                             style = MaterialTheme.typography.labelSmall,
                             color = InkMuted,
                         )
@@ -379,6 +385,15 @@ fun SettingsContent(
         )
     }
 }
+
+/** Metres below a kilometre, kilometres above it — 2000 מ׳ reads as a mistake. */
+@Composable
+private fun radiusLabel(meters: Int): String =
+    if (meters >= 1000 && meters % 1000 == 0) {
+        stringResource(R.string.radius_km, meters / 1000)
+    } else {
+        stringResource(R.string.radius_value, meters)
+    }
 
 @Composable
 private fun GeofenceStatusRow(

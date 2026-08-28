@@ -77,7 +77,7 @@
 
     <string name="settings_geofence_section">גדר גיאוגרפית</string>
     <string name="settings_office_location">מיקום המשרד</string>
-    <string name="settings_office_set">הוגדר · רדיוס %1$d מ׳</string>
+    <string name="settings_office_set">הוגדר · %1$d מ׳</string>
     <string name="settings_office_unset">טרם הוגדר</string>
     <string name="settings_capture_location">קבע למיקום הנוכחי</string>
     <string name="settings_geofence_toggle">הצעות כניסה/יציאה</string>
@@ -88,8 +88,8 @@
     <string name="settings_work_days">ימי עבודה:</string>
     <string name="settings_report_time">שעת תזכורת הדוח</string>
     <string name="settings_report_time_sub">בימי עבודה, או בכל יום עם נתונים</string>
-    <string name="settings_radius">רדיוס הגדר סביב המשרד</string>
-    <string name="settings_radius_sub">רדיוס גדול יותר = זיהוי אמין יותר, פחות החמצות</string>
+    <string name="settings_radius">רדיוס זיהוי המשרד</string>
+    <string name="settings_radius_sub">העיגול שבתוכו נרשמות שעות הכניסה והיציאה שלך. גדול יותר = זיהוי אמין יותר, פחות החמצות</string>
     <string name="settings_diagnostics">אבחון מעקב</string>
     <string name="settings_diagnostics_sub">האירועים האחרונים שהתקבלו מהגדר ומה נרשם בעקבותיהם</string>
     <string name="settings_diagnostics_empty">טרם התקבלו אירועים</string>
@@ -99,10 +99,11 @@
     <string name="suggested_tag">מוצע</string>
     <string name="short_visit_tag">ביקור קצר</string>
     <string name="settings_job_locations">מיקומי עבודה</string>
-    <string name="settings_job_locations_sub">רדיוס 2 ק״מ — כניסה ראשונה ויציאה אחרונה ביום מוצעות אוטומטית</string>
+    <string name="settings_job_locations_sub">אתרי לקוח לעבודות שטח — לא שעות היום. רדיוס רחב (2 ק״מ) כי אתר לקוח גדול ולא צריך דיוק; ההגעה והעזיבה מוצעות כעבודת שטח</string>
     <string name="settings_job_name_hint">שם האתר / הלקוח…</string>
     <string name="settings_add_job_here">הוסף במיקום הנוכחי</string>
-    <string name="settings_job_radius">רדיוס %1$d מ׳</string>
+    <string name="radius_value">%1$d מ׳</string>
+    <string name="radius_km">%1$d ק״מ</string>
     <string name="settings_battery">סוללה (Samsung)</string>
     <string name="settings_battery_sub">להצעות גדר אמינות, בחר ״ללא הגבלה״ בהגדרות הסוללה</string>
     <string name="settings_open">פתיחה</string>
