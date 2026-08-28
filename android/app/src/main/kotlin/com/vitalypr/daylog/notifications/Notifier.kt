@@ -92,6 +92,27 @@ class Notifier @Inject constructor(
 
     fun cancelArrivalPrompt() = nm.cancel(ID_ARRIVAL)
 
+    /**
+     * Automatic mode: the time is already saved, so this only tells the user what
+     * went in and offers a way to correct it. Low priority — it must not interrupt.
+     */
+    fun recorded(date: LocalDate, eventMinutes: Int, arrival: Boolean) {
+        val what = if (arrival) "כניסה" else "יציאה"
+        post(
+            if (arrival) ID_ARRIVAL else ID_DEPARTURE,
+            NotificationCompat.Builder(context, if (arrival) Channels.GEOFENCE_ARRIVAL else Channels.GEOFENCE_DEPARTURE)
+                .setSmallIcon(android.R.drawable.ic_menu_agenda)
+                .setAutoCancel(true)
+                .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setContentTitle("נרשמה $what ${formatMinutes(eventMinutes)}")
+                .setContentText("אפשר לתקן בעריכה")
+                .setTimeoutAfter(timeoutUntilMidnight())
+                .setContentIntent(openAppPending())
+                .addAction(0, "עריכה", openAppPending())
+                .build(),
+        )
+    }
+
     /** Geofence EXIT (after debounce): departure suggestion or update offer. */
     fun departurePrompt(date: LocalDate, eventMinutes: Int, isUpdate: Boolean) {
         post(

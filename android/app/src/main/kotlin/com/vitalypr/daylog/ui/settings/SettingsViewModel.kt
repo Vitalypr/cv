@@ -38,12 +38,22 @@ class SettingsViewModel @Inject constructor(
     private val exporter: Exporter,
     private val officeLocator: com.vitalypr.daylog.geofence.OfficeLocator,
     private val jobLocationRepository: com.vitalypr.daylog.data.repo.JobLocationRepository,
+    private val geofenceLog: com.vitalypr.daylog.geofence.GeofenceLog,
     @Now private val now: () -> LocalDateTime,
 ) : ViewModel() {
 
     val jobLocations: StateFlow<List<com.vitalypr.daylog.data.db.JobLocationEntity>> =
         jobLocationRepository.observeAll()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Last transitions and what each one did — the field-diagnosis trail. */
+    val geofenceEvents: StateFlow<List<String>> = geofenceLog.entries
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    fun setOfficeRadius(meters: Int) = viewModelScope.launch {
+        settingsRepository.setOfficeRadius(meters)
+        geofenceManager.resync() // the fence has to be rebuilt at the new size
+    }
 
     /** Live registration status — the screen renders it so failures are never silent. */
     val geofenceStatus: StateFlow<com.vitalypr.daylog.geofence.GeofenceStatus> = geofenceManager.status

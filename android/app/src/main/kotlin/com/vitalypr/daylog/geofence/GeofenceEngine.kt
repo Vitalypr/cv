@@ -17,10 +17,10 @@ import com.vitalypr.daylog.domain.model.DayType
 import com.vitalypr.daylog.domain.model.TimeSource
 import com.vitalypr.daylog.notifications.Notifier
 import dagger.hilt.android.qualifiers.ApplicationContext
+import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
-import java.time.ZoneOffset
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.first
@@ -38,6 +38,7 @@ class GeofenceEngine @Inject constructor(
     private val settingsRepository: SettingsSource,
     private val notifier: Notifier,
     private val fenceState: FenceStateStore,
+    private val log: GeofenceLog,
     private val widgetRefresher: com.vitalypr.daylog.widget.DayWidgetRefresher,
     @Now private val now: () -> LocalDateTime,
 ) {
@@ -50,10 +51,46 @@ class GeofenceEngine @Inject constructor(
     suspend fun onExitConfirmedByDebounce() = handle(FenceEvent.DebounceElapsed)
 
     private suspend fun handle(event: FenceEvent) {
-        val state = fenceState.state(GeofenceManager.FENCE_ID)
+        // An entry arriving long after a pending exit means the debounce alarm was
+        // never delivered (Doze, OEM battery manager). Settle that exit on its own
+        // day first, or it would be silently swallowed along with the day it closes.
+        if (event is FenceEvent.Enter) {
+            val pending = fenceState.state(GeofenceManager.FENCE_ID)
+            if (pending is FenceState.Leaving &&
+                Duration.between(pending.exitAt, event.at) > GeofenceRules.DEBOUNCE
+            ) {
+                step(pending, FenceEvent.DebounceElapsed)
+            }
+        }
+        step(fenceState.state(GeofenceManager.FENCE_ID), event)
+    }
+
+    private suspend fun step(state: FenceState, event: FenceEvent) {
         val transition = OfficeFenceMachine.step(state, event, contextFor(state, event), now())
         fenceState.save(GeofenceManager.FENCE_ID, transition.state)
         transition.actions.forEach { perform(it) }
+        log.record(now(), describe(event, transition.actions))
+    }
+
+    /** One readable line per transition, for the Settings diagnostics list. */
+    private fun describe(event: FenceEvent, actions: List<FenceAction>): String {
+        val what = when (event) {
+            is FenceEvent.Enter -> "כניסה לגדר"
+            is FenceEvent.Exit -> "יציאה מהגדר"
+            FenceEvent.DebounceElapsed -> "אישור יציאה"
+        }
+        val done = actions.mapNotNull {
+            when (it) {
+                is FenceAction.WriteArrival -> "נרשמה כניסה"
+                is FenceAction.WriteDeparture -> "נרשמה יציאה"
+                is FenceAction.SuggestArrival -> if (it.shortVisit) "הוצע ביקור קצר" else "הוצעה כניסה"
+                is FenceAction.SuggestDeparture -> "הוצעה יציאה"
+                is FenceAction.SuggestLogDay -> "הוצע לרשום את היום"
+                is FenceAction.MarkArrivalUncertain -> "סומן ביקור קצר"
+                else -> null
+            }
+        }
+        return if (done.isEmpty()) "$what · ללא פעולה" else "$what · ${done.joinToString(", ")}"
     }
 
     /** Resolves the day the event lands on and everything the machine asks about it. */
@@ -88,12 +125,14 @@ class GeofenceEngine @Inject constructor(
             notifier.arrivalPrompt(action.date, action.minutes, shortVisit = action.shortVisit)
         is FenceAction.WriteArrival -> {
             repository.setArrival(action.date, action.minutes, TimeSource.GEOFENCE)
+            notifier.recorded(action.date, action.minutes, arrival = true)
             widgetRefresher.refresh()
         }
         is FenceAction.SuggestDeparture ->
             notifier.departurePrompt(action.date, action.minutes, action.isUpdate)
         is FenceAction.WriteDeparture -> {
             repository.setDeparture(action.date, action.minutes, TimeSource.GEOFENCE)
+            notifier.recorded(action.date, action.minutes, arrival = false)
             widgetRefresher.refresh()
         }
         is FenceAction.SuggestLogDay -> notifier.logDayPrompt(action.minutes)
@@ -146,7 +185,7 @@ class GeofenceEngine @Inject constructor(
     )
 
     companion object {
-        const val DEBOUNCE_MINUTES = 10L
+        val DEBOUNCE_MINUTES: Long = GeofenceRules.DEBOUNCE.toMinutes()
         const val EXTRA_EVENT_MINUTES = "event_minutes"
         const val EXTRA_EVENT_DATE = "event_epoch_day"
         private const val RC_EXIT_DEBOUNCE = 300

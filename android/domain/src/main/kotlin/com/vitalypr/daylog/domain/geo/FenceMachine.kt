@@ -89,13 +89,23 @@ object OfficeFenceMachine {
         if (GeofenceRules.isStale(at, now)) return Transition(state)
 
         return when (state) {
-            // Re-entry within the debounce window: the exit never happened.
-            is FenceState.Leaving -> Transition(
-                FenceState.Inside(state.since),
-                listOf(FenceAction.CancelDebounce, FenceAction.CancelDeparturePrompt),
-            )
-            // Already inside — a duplicate delivery must not re-prompt or restart the visit.
-            is FenceState.Inside -> Transition(state)
+            is FenceState.Leaving ->
+                // Back within the debounce window: the exit never really happened.
+                if (Duration.between(state.exitAt, at) <= GeofenceRules.DEBOUNCE) {
+                    Transition(
+                        FenceState.Inside(state.since),
+                        listOf(FenceAction.CancelDebounce, FenceAction.CancelDeparturePrompt),
+                    )
+                } else {
+                    // The exit was real but its alarm never landed (Doze, OEM battery
+                    // killer). The caller settles it first; here a new visit begins,
+                    // otherwise a day-old visit would swallow today's arrival.
+                    freshVisit(at, ctx)
+                }
+            is FenceState.Inside ->
+                // A stored visit that cannot still be running means we missed the exit.
+                if (GeofenceRules.startsNewVisit(state.since, at)) freshVisit(at, ctx)
+                else Transition(state) // genuine duplicate delivery
             FenceState.Outside -> {
                 // Coming back always retires a standing departure suggestion — the
                 // user is here, so the time it offers is stale (spec §5.5).
@@ -110,6 +120,19 @@ object OfficeFenceMachine {
                 Transition(FenceState.Inside(at), actions)
             }
         }
+    }
+
+    /** Opens a visit at [at] and applies the arrival decision for its day. */
+    private fun freshVisit(at: LocalDateTime, ctx: DayContext): Transition {
+        val cancel = listOf(FenceAction.CancelDebounce, FenceAction.CancelDeparturePrompt)
+        val date = ctx.date ?: return Transition(FenceState.Inside(at), cancel)
+        val blocked = ctx.isSpecialDay || !ctx.isWorkDay || ctx.arrivalSet
+        val actions = cancel + when {
+            blocked -> emptyList()
+            ctx.silentMode -> listOf(FenceAction.WriteArrival(date, minutesOn(date, at)))
+            else -> listOf(FenceAction.SuggestArrival(date, minutesOn(date, at), shortVisit = false))
+        }
+        return Transition(FenceState.Inside(at), actions)
     }
 
     private fun onExit(state: FenceState, at: LocalDateTime): Transition = when (state) {
@@ -156,7 +179,8 @@ object OfficeFenceMachine {
                     else FenceAction.SuggestDeparture(date, minutes, isUpdate = false)
                 // A geofence departure may be moved later — last exit of the day wins.
                 ctx.departureFromGeofence ->
-                    settled + FenceAction.SuggestDeparture(date, minutes, isUpdate = true)
+                    settled + if (ctx.silentMode) FenceAction.WriteDeparture(date, minutes)
+                    else FenceAction.SuggestDeparture(date, minutes, isUpdate = true)
                 // MANUAL departure is never touched (F2).
                 else -> if (ctx.arrivalUncertain) listOf(FenceAction.ClearArrivalUncertain(date)) else emptyList()
             }

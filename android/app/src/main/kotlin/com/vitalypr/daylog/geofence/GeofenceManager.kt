@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.os.SystemClock
 import androidx.core.content.ContextCompat
 import com.google.android.gms.location.Geofence
 import com.google.android.gms.location.GeofencingClient
@@ -98,12 +99,19 @@ class GeofenceManager @Inject constructor(
         val fingerprint = fences.joinToString("|") { it.requestId } + "@" +
             settings.officeLat + "," + settings.officeLon + "," + settings.officeRadiusM +
             jobs.joinToString("") { "${it.id}:${it.lat},${it.lon},${it.radiusM}" }
-        if (fingerprint == registeredFingerprint && _status.value is GeofenceStatus.Active) return
+        // Skip only a genuinely redundant re-registration. The fingerprint is
+        // process-scoped and used to have no expiry, so if Play Services dropped
+        // the fences while the process lived on (location toggled, GMS update) the
+        // app believed it was registered for ever. A periodic re-register costs a
+        // little in-flight state; never recovering costs the whole feature.
+        val fresh = SystemClock.elapsedRealtime() - registeredAt < REREGISTER_AFTER_MS
+        if (fingerprint == registeredFingerprint && fresh && _status.value is GeofenceStatus.Active) return
 
         _status.value = try {
             runCatching { client.removeGeofences(pendingIntent()).await() }
             client.addGeofences(request, pendingIntent()).await() // surfaces real GMS failures
             registeredFingerprint = fingerprint
+            registeredAt = SystemClock.elapsedRealtime()
             GeofenceStatus.Active(fences.size)
         } catch (e: Exception) {
             registeredFingerprint = null
@@ -112,6 +120,13 @@ class GeofenceManager @Inject constructor(
     }
 
     private var registeredFingerprint: String? = null
+    private var registeredAt: Long = Long.MIN_VALUE / 2
+
+    /** Forces the next [sync] to re-register even if nothing changed. */
+    suspend fun resync() {
+        registeredFingerprint = null
+        sync()
+    }
 
     private fun isSamePlaceAsOffice(lat: Double, lon: Double, settings: Settings): Boolean {
         val oLat = settings.officeLat ?: return false
@@ -143,6 +158,7 @@ class GeofenceManager @Inject constructor(
         const val JOB_PREFIX = "job_"
         private const val RC_GEOFENCE = 310
         private const val JOB_RESPONSIVENESS_MS = 2 * 60 * 1000
+        private const val REREGISTER_AFTER_MS = 30 * 60 * 1000L
 
         /** Pure gate logic — unit-tested; Active(count) means "go register". */
         fun precheck(

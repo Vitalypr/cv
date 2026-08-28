@@ -52,12 +52,15 @@ class BootReceiver : BroadcastReceiver() {
             Intent.ACTION_BOOT_COMPLETED,
             Intent.ACTION_TIMEZONE_CHANGED,
             Intent.ACTION_TIME_CHANGED,
+            ACTION_PROVIDERS_CHANGED,
             -> {
                 val pending = goAsync()
                 CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
                     try {
                         scheduler.scheduleNext()
-                        geofenceManager.sync()
+                        // Force re-registration: after a reboot or a location toggle
+                        // the platform holds no fences for us any more.
+                        geofenceManager.resync()
                         widgetRefresher.refresh() // the day may have rolled over while off
                     } finally {
                         pending.finish()
@@ -67,3 +70,6 @@ class BootReceiver : BroadcastReceiver() {
         }
     }
 }
+
+/** Not exposed as a constant by the framework in a stable form. */
+private const val ACTION_PROVIDERS_CHANGED = "android.location.PROVIDERS_CHANGED"

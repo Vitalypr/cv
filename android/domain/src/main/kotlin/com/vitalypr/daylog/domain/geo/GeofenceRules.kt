@@ -34,6 +34,25 @@ object GeofenceRules {
     /** A transition older than this is a catch-up delivery we cannot act on. */
     val MAX_EVENT_AGE: Duration = Duration.ofMinutes(60)
 
+    /** How long an exit waits for a re-entry before it is believed (spec §5.5). */
+    val DEBOUNCE: Duration = Duration.ofMinutes(10)
+
+    /**
+     * Longer than this and the stored visit cannot be real: Play Services misses
+     * exits routinely (Doze, OEM battery managers, a lost fix), and without this
+     * bound one missed EXIT left the fence "inside" for ever — every later
+     * arrival was written off as a duplicate and the feature went silent.
+     */
+    val MAX_VISIT: Duration = Duration.ofHours(14)
+
+    /**
+     * True when [at] cannot belong to the visit that began at [since] — a
+     * different day, or an implausibly long stay. Such an entry opens a new visit
+     * instead of being swallowed as a duplicate delivery.
+     */
+    fun startsNewVisit(since: LocalDateTime, at: LocalDateTime): Boolean =
+        since.toLocalDate() != at.toLocalDate() || Duration.between(since, at) > MAX_VISIT
+
     /**
      * The logical day an exit belongs to, or null when the exit must be ignored.
      *

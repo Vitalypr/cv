@@ -52,9 +52,13 @@ class GeofenceEngineTest {
             .build()
         repo = DayRepository(db.dayDao(), db.categoryDao()) { Instant.now() }
         settings = FakeSettingsSource()
+        // These rows cover suggestion mode; automatic mode (the v1.1 default) has
+        // its own tests below.
+        settings.update { it.copy(silentGeofence = false) }
         fenceState = InMemoryFenceStateStore()
         engine = GeofenceEngine(
             context, repo, settings, Notifier(context), fenceState,
+            com.vitalypr.daylog.geofence.GeofenceLog(context),
             com.vitalypr.daylog.widget.DayWidgetRefresher(context),
         ) { nowDt }
         nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -201,11 +205,62 @@ class GeofenceEngineTest {
         assertNull(repo.getDay(today)?.departureMin)
     }
 
-    @Test fun `silent mode writes arrival directly without notification`() = runTest {
+    // --- automatic recording (the v1.1 default) -----------------------------
+
+    @Test fun `automatic mode records the arrival as it happens`() = runTest {
         settings.update { it.copy(silentGeofence = true) }
         enter(8, 12)
         assertEquals(492, repo.getDay(today)?.arrivalMin)
-        assertTrue(titles().isEmpty())
+        assertEquals(listOf("נרשמה כניסה 08:12"), titles()) // informational, correctable
+    }
+
+    /**
+     * The reported failure: two visits in a day recorded only one of them, because
+     * nothing was written unless a notification was tapped.
+     */
+    @Test fun `two visits in a day keep the first arrival and the last departure`() = runTest {
+        settings.update { it.copy(silentGeofence = true) }
+        enter(8, 0)
+        exitDebounce(11, 0)
+        enter(14, 0)
+        exitDebounce(18, 0)
+
+        val day = repo.getDay(today)!!
+        assertEquals(8 * 60, day.arrivalMin)
+        assertEquals(18 * 60, day.departureMin)
+    }
+
+    /**
+     * The exit was never delivered, so the fence stayed "inside" overnight. Before
+     * v1.1 that silently disabled every following day.
+     */
+    @Test fun `a missed exit does not silence the next day`() = runTest {
+        settings.update { it.copy(silentGeofence = true) }
+        enter(8, 0)
+        assertEquals(480, repo.getDay(today)?.arrivalMin)
+        // …no exit ever arrives…
+
+        val tomorrow = today.plusDays(1)
+        enter(8, 30, tomorrow)
+        exitDebounce(17, 0, tomorrow)
+
+        val day = repo.getDay(tomorrow)!!
+        assertEquals(8 * 60 + 30, day.arrivalMin)
+        assertEquals(17 * 60, day.departureMin)
+    }
+
+    /** The debounce alarm never fired (Doze); coming back next day must still work. */
+    @Test fun `a stranded pending exit is settled when the user returns`() = runTest {
+        settings.update { it.copy(silentGeofence = true) }
+        enter(8, 0)
+        nowDt = at(17, 0)
+        engine.onExitDetected(nowDt) // alarm armed, never delivered
+
+        val tomorrow = today.plusDays(1)
+        enter(8, 30, tomorrow)
+
+        assertEquals(17 * 60, repo.getDay(today)?.departureMin, "yesterday closes")
+        assertEquals(8 * 60 + 30, repo.getDay(tomorrow)?.arrivalMin, "today opens")
     }
 
     @Test fun `exit debounce - no arrival set offers to log the day`() = runTest {

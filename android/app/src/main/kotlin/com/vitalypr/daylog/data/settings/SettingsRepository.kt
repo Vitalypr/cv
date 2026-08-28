@@ -21,7 +21,12 @@ data class Settings(
     ),
     val reportTimeMin: Int = 17 * 60 + 45,
     val geofenceEnabled: Boolean = false,
-    val silentGeofence: Boolean = false,
+    /**
+     * Record arrivals/departures as they happen instead of only suggesting them.
+     * Default ON since v1.1: a suggestion that is never tapped is data lost, and
+     * a GEOFENCE write still never overwrites a MANUAL value.
+     */
+    val silentGeofence: Boolean = true,
     val officeLat: Double? = null,
     val officeLon: Double? = null,
     val officeRadiusM: Int = 150,
@@ -68,6 +73,8 @@ class SettingsRepository @Inject constructor(
     }
 
     suspend fun setReportTime(minutes: Int) = context.dataStore.edit { it[Keys.reportTime] = minutes }
+
+    suspend fun setOfficeRadius(meters: Int) = context.dataStore.edit { it[Keys.officeRadius] = meters }
 
     suspend fun setGeofenceEnabled(enabled: Boolean) = context.dataStore.edit { it[Keys.geofenceEnabled] = enabled }
 

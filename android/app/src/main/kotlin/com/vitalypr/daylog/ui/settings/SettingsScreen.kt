@@ -55,6 +55,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val jobLocations by viewModel.jobLocations.collectAsStateWithLifecycle()
     val geofenceStatus by viewModel.geofenceStatus.collectAsStateWithLifecycle()
+    val geofenceEvents by viewModel.geofenceEvents.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
     val locationPermission = rememberLauncherForActivityResult(
@@ -106,6 +107,8 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
         settings = settings,
         jobLocations = jobLocations,
         geofenceStatus = geofenceStatus,
+        geofenceEvents = geofenceEvents,
+        onSetOfficeRadius = viewModel::setOfficeRadius,
         onAddJobLocation = viewModel::addJobLocation,
         onRemoveJobLocation = viewModel::removeJobLocation,
         onToggleWorkDay = viewModel::toggleWorkDay,
@@ -138,6 +141,8 @@ fun SettingsContent(
     settings: Settings,
     jobLocations: List<com.vitalypr.daylog.data.db.JobLocationEntity> = emptyList(),
     geofenceStatus: com.vitalypr.daylog.geofence.GeofenceStatus = com.vitalypr.daylog.geofence.GeofenceStatus.Unknown,
+    geofenceEvents: List<String> = emptyList(),
+    onSetOfficeRadius: (Int) -> Unit = {},
     onAddJobLocation: (String) -> Unit = {},
     onRemoveJobLocation: (com.vitalypr.daylog.data.db.JobLocationEntity) -> Unit = {},
     onToggleWorkDay: (DayOfWeek) -> Unit = {},
@@ -197,6 +202,28 @@ fun SettingsContent(
                 subtitle = stringResource(R.string.settings_silent_sub),
             ) {
                 Switch(checked = settings.silentGeofence, onCheckedChange = onSilent)
+            }
+            Text(
+                stringResource(R.string.settings_radius),
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+            Text(
+                stringResource(R.string.settings_radius_sub),
+                style = MaterialTheme.typography.bodySmall,
+                color = com.vitalypr.daylog.ui.theme.InkSecondary,
+            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.padding(top = 4.dp),
+            ) {
+                listOf(100, 150, 200, 300).forEach { meters ->
+                    FilterChip(
+                        selected = settings.officeRadiusM == meters,
+                        onClick = { onSetOfficeRadius(meters) },
+                        label = { Text(stringResource(R.string.settings_job_radius, meters)) },
+                    )
+                }
             }
             GeofenceStatusRow(geofenceStatus, onOpenLocationSettings = onBatterySettings)
         }
@@ -279,6 +306,31 @@ fun SettingsContent(
             ) {
                 TextButton(onClick = { pickTime = true }) {
                     Text(formatMinutes(settings.reportTimeMin), style = MaterialTheme.typography.titleMedium)
+                }
+            }
+        }
+
+        SectionCard(title = stringResource(R.string.settings_diagnostics)) {
+            Text(
+                stringResource(R.string.settings_diagnostics_sub),
+                style = MaterialTheme.typography.bodySmall,
+                color = com.vitalypr.daylog.ui.theme.InkSecondary,
+            )
+            if (geofenceEvents.isEmpty()) {
+                Text(
+                    stringResource(R.string.settings_diagnostics_empty),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = com.vitalypr.daylog.ui.theme.InkMuted,
+                    modifier = Modifier.padding(top = 6.dp),
+                )
+            } else {
+                geofenceEvents.take(12).forEach { line ->
+                    Text(
+                        line,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = com.vitalypr.daylog.ui.theme.InkSecondary,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
                 }
             }
         }

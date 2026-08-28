@@ -22,18 +22,22 @@ class GeofenceReceiver : BroadcastReceiver() {
 
     @Inject lateinit var engine: GeofenceEngine
     @Inject lateinit var jobEngine: JobLocationEngine
+    @Inject lateinit var geofenceManager: GeofenceManager
 
     override fun onReceive(context: Context, intent: Intent) {
         val event = GeofencingEvent.fromIntent(intent) ?: return
-        if (event.hasError()) return
+        if (event.hasError()) {
+            // GEOFENCE_NOT_AVAILABLE (location off, NLP disabled) means the fences
+            // are gone; a re-sync re-registers them once the condition clears.
+            val pendingError = goAsync()
+            CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+                try { geofenceManager.resync() } finally { pendingError.finish() }
+            }
+            return
+        }
         val transition = event.geofenceTransition
         val ids = event.triggeringGeofences?.map { it.requestId }.orEmpty()
-        // When the boundary was actually crossed. GMS reports transitions only once
-        // it has a fix, so this can be well before delivery — the engines depend on
-        // it to tell a real exit from a catch-up.
-        val eventAt = event.triggeringLocation?.time
-            ?.takeIf { it > 0L }
-            ?.let { LocalDateTime.ofInstant(Instant.ofEpochMilli(it), ZoneId.systemDefault()) }
+        val eventAt = eventTime(event.triggeringLocation?.time)
 
         val pending = goAsync()
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
@@ -58,6 +62,26 @@ class GeofenceReceiver : BroadcastReceiver() {
             }
         }
     }
+}
+
+/**
+ * When the boundary was crossed, as far as we can trust it.
+ *
+ * `triggeringLocation.time` is the age of the FIX, not of the crossing: the fused
+ * provider can hand back a location that is minutes old, which used to be written
+ * as the arrival time (wrong hour) or — past the staleness bound — thrown away
+ * entirely (nothing recorded). A fix older than [MAX_FIX_AGE] or dated in the
+ * future is therefore ignored in favour of the delivery time, which is late but
+ * never wrong by more than the delivery lag.
+ */
+private val MAX_FIX_AGE = java.time.Duration.ofMinutes(10)
+
+internal fun eventTime(fixEpochMillis: Long?, now: LocalDateTime = LocalDateTime.now()): LocalDateTime {
+    val fix = fixEpochMillis?.takeIf { it > 0L }
+        ?.let { LocalDateTime.ofInstant(Instant.ofEpochMilli(it), ZoneId.systemDefault()) }
+        ?: return now
+    val age = java.time.Duration.between(fix, now)
+    return if (age.isNegative || age > MAX_FIX_AGE) now else fix
 }
 
 /** Fires when the 10-minute exit debounce elapses without re-entry. */
