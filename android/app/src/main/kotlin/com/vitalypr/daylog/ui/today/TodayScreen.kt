@@ -174,8 +174,7 @@ private fun DayCard(state: TodayUiState, cb: TodayCallbacks) {
                 .joinToString(" · ") { "${labels.getValue(it)} ${formatDuration(totals.getValue(it))}" }
             Text(
                 when {
-                    state.isSpecialDay -> stringResource(R.string.special_day)
-                    total == 0 -> stringResource(R.string.total_at_office, formatDuration(0))
+                    state.isSpecialDay -> ""
                     totals.count { it.value > 0 } > 1 ->
                         stringResource(R.string.day_total_modes, formatDuration(total), parts)
                     else -> stringResource(R.string.total_at_office, formatDuration(total))
@@ -219,7 +218,7 @@ private fun SessionCard(row: SessionRow, state: TodayUiState, cb: TodayCallbacks
 
     SectionCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("${modeIcon(row.session.mode)} ${modeLabel(row.session.mode)}", style = MaterialTheme.typography.titleSmall)
+            Text(modeLabel(row.session.mode), style = MaterialTheme.typography.titleSmall)
             Spacer(Modifier.width(8.dp))
             NoteField(
                 value = row.entity.title,
@@ -334,14 +333,6 @@ private fun SessionCard(row: SessionRow, state: TodayUiState, cb: TodayCallbacks
 @Composable
 private fun AddSessionRow(state: TodayUiState, cb: TodayCallbacks) {
     SectionCard {
-        if (state.sessionRows.isEmpty()) {
-            Text(
-                stringResource(R.string.no_sessions_hint),
-                style = MaterialTheme.typography.bodySmall,
-                color = InkSecondary,
-                modifier = Modifier.padding(bottom = 6.dp),
-            )
-        }
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             WorkMode.entries.forEach { mode ->
                 OutlinedButton(
@@ -350,7 +341,7 @@ private fun AddSessionRow(state: TodayUiState, cb: TodayCallbacks) {
                     modifier = Modifier.height(34.dp),
                 ) {
                     Text(
-                        stringResource(R.string.add_session, "${modeIcon(mode)} ${modeLabel(mode)}"),
+                        stringResource(R.string.add_session, modeLabel(mode)),
                         style = MaterialTheme.typography.labelMedium,
                     )
                 }
@@ -627,14 +618,18 @@ private fun ReportCard(state: TodayUiState, cb: TodayCallbacks) {
             }
             Text(stringResource(R.string.no_report_special_day, label), color = InkSecondary)
         } else {
-            Text(
-                stringResource(R.string.report_pdf_note),
-                style = MaterialTheme.typography.bodySmall,
-                color = InkSecondary,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 8.dp),
-            )
+            // The report itself is the preview — the user checks what will be
+            // sent, not a description of it.
+            if (state.reportText.isNotBlank()) {
+                Text(
+                    state.reportText,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = InkSecondary,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 10.dp),
+                )
+            }
             Button(
                 onClick = cb.onShare,
                 enabled = state.day.hasData,
@@ -666,12 +661,6 @@ private fun modeLabel(mode: WorkMode): String = stringResource(
         WorkMode.FIELD -> R.string.mode_field
     },
 )
-
-private fun modeIcon(mode: WorkMode): String = when (mode) {
-    WorkMode.BASE -> "🏢"
-    WorkMode.HOME -> "🏠"
-    WorkMode.FIELD -> "🚗"
-}
 
 /** A sensible starting point for the picker when nothing is set yet. */
 private fun defaultStartMinutes(mode: WorkMode): Int = when (mode) {

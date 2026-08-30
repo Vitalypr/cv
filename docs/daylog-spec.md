@@ -151,15 +151,16 @@ Four-tab bottom navigation (היום / היסטוריה / סטטיסטיקה / �
 
 - **Day card:** the day's total with its mode split (`סה״כ 9:00 — בסיס 4:00 · בית 2:00 · שטח 3:00`), the **חופש / חג** toggle chips, and — once the day has more than one session — the day-level time budget.
 - **One card per work session**, in logged order:
-  - header: mode icon + name (🏢 בסיס / 🏠 בית / 🚗 שטח), an optional free-text title (the site/client for a field session), and a remove control;
+  - header: the mode name (בסיס / בית / שטח), an optional free-text title (the site/client for a field session), and a remove control;
   - `כניסה —:—` / `יציאה —:—` values with **הגעתי / יצאתי** one-tap buttons when unset, ±5 nudges, a time picker on tap and an X that clears a value back to unset;
   - the session's **time budget** (below);
   - category chips in a flow row; tapping a chip adds an activity entry to *that* session — an inline row with the project (tap to reassign), a −½ / +½ duration stepper (30-minute steps, `—` when unstated), a one-line note field and an optional result field. A chip is highlighted while that session has an entry of it, and tapping again adds another.
-- **Add-session row:** **+ 🏢 בסיס / + 🏠 בית / + 🚗 שטח**. On today a new session starts at the current time (one tap = "I've just started"); on a past day it opens empty.
+- **Add-session row:** **+ בסיס / + בית / + שטח**. On today a new session starts at the current time (one tap = "I've just started"); on a past day it opens empty.
 - **Time budget (screen only, v2.0):** each session — and the day, when it has several — shows how much of the worked hours the logged activities account for and how much is left: *"מולאו 2:00 מתוך 4:00 · נותרו 2:00"*, green with a ✓ when it balances. When the activities claim **more** time than was worked the line turns red and names the excess: *"מולאו 6:00 מתוך 4:00 — עודף של 2:00"*. This is a filling aid for the person logging; it never appears in the report or the PDF.
 - **Special days:** marking **חופש / חג** suppresses the reminder and geofence prompts for the day, hides the sessions entirely (special days accept no hours) and replaces the report preview with a "no report today" state (S4).
 - **Notes card:** single free-text field.
-- **Report preview card:** live-rendered report text + **שליחה לוואטסאפ** button + status badge.
+- **Report preview card:** the live-rendered report text itself + **שליחה לוואטסאפ** button + status badge.
+- **Only the base is automated.** The office fence records hours at the base and nowhere else; work from home is always entered by hand, and a field session is created automatically only for a job location the user saved themselves (§6.6b). Everything the fence writes stays correctable by hand and by the widget.
 - On a non-workday the screen shows a "יום חופש" state with a **רישום יום בכל זאת** action (S4).
 
 ### 5.2 History (היסטוריה)

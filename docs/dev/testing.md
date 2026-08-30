@@ -25,6 +25,7 @@ TDD is the workflow, not a phase: failing test → implementation → green → 
 | F1 v2.0 work sessions (several a day, per mode; second visit ≠ overwrite) | `DayRepositoryTest`, domain `StatsCalculatorTest`, `GeofenceEngineTest` |
 | §5.1 time budget (worked vs. allocated vs. left, over-allocation) | domain `TimeBudgetTest`, `TodayViewModelTest`, `TodayScreenshotTest` (`today_over_allocated`) |
 | §5.5 notification variants table | `ReminderVariantsTest` — one test per table row |
+| §6.6 the ordinary day end to end (fence → widget → report), base-only writes | `WorkdayFlowTest` |
 | §6.6 geofence decision table + invariants | `GeofenceEngineTest` — one test per row, incl. never-overwrite-MANUAL and second-visit-opens-a-second-session |
 | §6.6 recovery from dropped transitions (missed exit, stranded debounce, two visits) | domain `FenceRecoveryTest`; `GeofenceEngineTest` automatic-mode rows; `EventTimeTest` (fix clamping) |
 | §6.6 office decision table as a state machine (all states x events, sequences) | domain `FenceMachineTest` (~35 cases incl. replayed days) |

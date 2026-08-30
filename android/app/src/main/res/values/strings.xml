@@ -15,15 +15,9 @@
     <string name="source_manual">ידני</string>
     <string name="minus_5">‎−5</string>
     <string name="plus_5">‎+5</string>
-    <string name="special_day">יום מיוחד:</string>
     <string name="day_off">חופש</string>
     <string name="holiday">חג</string>
 
-    <string name="field_jobs">עבודות שטח</string>
-    <string name="add_field_job">+ עבודת שטח</string>
-    <string name="field_job_title">אתר / לקוח</string>
-    <string name="field_job_location">מיקום (לא חובה)</string>
-    <string name="save">שמירה</string>
     <string name="cancel">ביטול</string>
 
     <!-- work sessions (v2.0): a day is one or more stretches of work, each with its own mode, hours and activities -->
@@ -31,28 +25,24 @@
     <string name="mode_home">בית</string>
     <string name="mode_field">שטח</string>
     <string name="add_session">‎+ %1$s</string>
-    <string name="session_title_hint">תיאור (לא חובה)</string>
-    <string name="session_site_hint">אתר / לקוח (לא חובה)</string>
+    <string name="session_title_hint">תיאור</string>
+    <string name="session_site_hint">אתר / לקוח</string>
     <string name="remove_session">מחיקת מקטע העבודה</string>
-    <string name="no_sessions_hint">הוסף מקטע עבודה — בסיס, בית או שטח — כדי להתחיל לרשום</string>
     <string name="day_total_modes">סה״כ %1$s — %2$s</string>
     <string name="budget_line">מולאו %1$s מתוך %2$s · נותרו %3$s</string>
     <string name="budget_complete">מולאו %1$s מתוך %2$s ✓</string>
     <string name="budget_over">מולאו %1$s מתוך %2$s — עודף של %3$s</string>
-    <string name="budget_no_span">מולאו %1$s · קבע כניסה ויציאה כדי לראות כמה זמן נותר</string>
+    <string name="budget_no_span">מולאו %1$s</string>
 
     <string name="activities">פעילויות</string>
-    <string name="activity_note_hint">מה נעשה… (לא חובה)</string>
-    <string name="activity_result_hint">תוצאה (לא חובה)…</string>
-    <string name="activity_duration">משך:</string>
+    <string name="activity_note_hint">הערה</string>
+    <string name="activity_result_hint">תוצאה</string>
     <string name="pick_project">בחר פרויקט</string>
-    <string name="no_projects_hint">אין פרויקטים — הוסף פרויקט בהגדרות כדי לרשום פעילות</string>
+    <string name="no_projects_hint">הוסף פרויקט בהגדרות</string>
     <string name="duration_unset">—</string>
     <string name="minus_step">‎−½</string>
     <string name="plus_step">‎+½</string>
     <string name="remove">הסרה</string>
-    <string name="start_time">שעת התחלה</string>
-    <string name="end_time">שעת סיום</string>
     <string name="time_unset">—:—</string>
     <string name="clear_time">איפוס %1$s</string>
 
@@ -61,13 +51,12 @@
     <string name="widget_special_day">%1$s — לא נרשמות שעות</string>
 
     <string name="notes">הערות</string>
-    <string name="notes_hint">הערות ליום…</string>
+    <string name="notes_hint"></string>
 
     <string name="report_preview">דוח יומי</string>
-    <string name="report_pdf_note">הדוח נשלח כקובץ PDF מעוצב, עם תקציר טקסט בהודעה</string>
     <string name="send_whatsapp">שליחה לוואטסאפ</string>
     <string name="resend_whatsapp">שליחה מחדש</string>
-    <string name="no_report_special_day">🏖️ %1$s — לא נשלח דוח</string>
+    <string name="no_report_special_day">%1$s — לא נשלח דוח</string>
 
     <string name="status_empty">ריק</string>
     <string name="status_logged">נרשם, לא נשלח</string>
@@ -123,7 +112,6 @@
     <string name="settings_data_section">נתונים</string>
     <string name="settings_export_json">ייצוא JSON</string>
     <string name="settings_export_csv">ייצוא CSV</string>
-    <string name="suggested_tag">מוצע</string>
     <string name="short_visit_tag">ביקור קצר</string>
     <string name="settings_projects">פרויקטים</string>
     <string name="settings_projects_sub">כל פעילות משויכת לפרויקט. פרויקט שכבר נרשמו עליו שעות עובר לארכיון במקום להימחק, כדי שההיסטוריה תמשיך להיקרא</string>
