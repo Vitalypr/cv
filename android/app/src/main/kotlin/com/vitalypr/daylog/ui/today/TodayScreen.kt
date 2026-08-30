@@ -59,6 +59,7 @@ import com.vitalypr.daylog.domain.time.formatMinutes
 import com.vitalypr.daylog.domain.time.hebrewDayName
 import com.vitalypr.daylog.reporting.ReportShare
 import com.vitalypr.daylog.ui.components.SectionCard
+import com.vitalypr.daylog.ui.components.TimeBudgetBar
 import com.vitalypr.daylog.ui.components.StatusBadge
 import com.vitalypr.daylog.ui.components.TimePickerDialog
 import com.vitalypr.daylog.ui.theme.Amber
@@ -201,7 +202,7 @@ private fun DayCard(state: TodayUiState, cb: TodayCallbacks) {
         // With one session its own card already says this; the day line earns its
         // place only when several sessions add up.
         if (!state.isSpecialDay && state.day.sessions.size > 1) {
-            BudgetLine(state.budget, Modifier.padding(top = 6.dp))
+            TimeBudgetBar(state.budget, Modifier.padding(top = 8.dp))
         }
     }
 }
@@ -275,7 +276,7 @@ private fun SessionCard(row: SessionRow, state: TodayUiState, cb: TodayCallbacks
             )
         }
 
-        BudgetLine(row.session.budget(), Modifier.padding(top = 4.dp))
+        TimeBudgetBar(row.session.budget(), Modifier.padding(top = 8.dp))
 
         HorizontalDivider(Modifier.padding(vertical = 6.dp))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -349,42 +350,6 @@ private fun AddSessionRow(state: TodayUiState, cb: TodayCallbacks) {
             }
         }
     }
-}
-
-/**
- * "How much of this time is described?" — worked vs. allocated vs. left, and a
- * red line when the activities add up to more than the hours actually worked.
- */
-@Composable
-private fun BudgetLine(budget: TimeBudget, modifier: Modifier = Modifier) {
-    val allocated = formatDuration(budget.allocatedMin)
-    val span = budget.spanMin
-    val remaining = budget.remainingMin
-    val problem = budget.overAllocated
-    val text = when {
-        span == null -> stringResource(R.string.budget_no_span, allocated)
-        problem -> stringResource(R.string.budget_over, allocated, formatDuration(span), formatDuration(-remaining!!))
-        remaining == 0 -> stringResource(R.string.budget_complete, allocated, formatDuration(span))
-        else -> stringResource(R.string.budget_line, allocated, formatDuration(span), formatDuration(remaining!!))
-    }
-    val color = when {
-        problem -> Warn
-        span != null && remaining == 0 -> SendGreen
-        else -> InkSecondary
-    }
-    Text(
-        text,
-        style = MaterialTheme.typography.bodySmall,
-        color = color,
-        modifier = if (problem) {
-            modifier
-                .fillMaxWidth()
-                .background(WarnTint, RoundedCornerShape(8.dp))
-                .padding(horizontal = 8.dp, vertical = 4.dp)
-        } else {
-            modifier
-        },
-    )
 }
 
 @Composable

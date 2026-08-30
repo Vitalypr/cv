@@ -24,7 +24,7 @@ TDD is the workflow, not a phase: failing test → implementation → green → 
 | §6.3 schema, DayWithEntries, status derivation | `app` `DayRepositoryTest`, domain `DayStatusTest` |
 | §6.3 v2.0 clean break (older DB rebuilt + re-seeded, never a crash) | `app` `SchemaResetTest` |
 | F1 v2.0 work sessions (several a day, per mode; second visit ≠ overwrite) | `DayRepositoryTest`, domain `StatsCalculatorTest`, `GeofenceEngineTest` |
-| §5.1 time budget (worked vs. allocated vs. left, over-allocation) | domain `TimeBudgetTest`, `TodayViewModelTest`, `TodayScreenshotTest` (`today_over_allocated`) |
+| §5.1 time budget (worked vs. allocated vs. left, over-allocation) | domain `TimeBudgetTest`, `TodayViewModelTest`; `TodayScreenshotTest` — `today_full` (filling), `today_balanced` (green), `today_over_allocated` (red) |
 | §5.5 notification variants table | `ReminderVariantsTest` — one test per table row |
 | §6.6 the ordinary day end to end (fence → widget → report), base-only writes | `WorkdayFlowTest` |
 | §6.6 geofence decision table + invariants | `GeofenceEngineTest` — one test per row, incl. never-overwrite-MANUAL and second-visit-opens-a-second-session |

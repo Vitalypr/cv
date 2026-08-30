@@ -161,6 +161,22 @@ class TodayScreenshotTest {
         ),
     )
 
+    /** Every worked hour described: the budget bar is full and green. */
+    @Test fun balancedDay() = capture(
+        "today_balanced",
+        snap(
+            listOf(
+                session(
+                    1, WorkMode.BASE, startMin = 600, endMin = 840,
+                    activities = listOf(
+                        ActivityEntry("רובוטיקה", "פיתוח", 150),
+                        ActivityEntry("AI למחלקה", "בדיקות", 90),
+                    ),
+                ),
+            ),
+        ),
+    )
+
     @Test fun dayOff() = capture("today_off", snap(dayType = DayType.OFF))
 
     @Test fun reportedDay() = capture(

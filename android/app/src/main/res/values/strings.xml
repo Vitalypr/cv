@@ -29,10 +29,11 @@
     <string name="session_site_hint">אתר / לקוח</string>
     <string name="remove_session">מחיקת מקטע העבודה</string>
     <string name="day_total_modes">סה״כ %1$s — %2$s</string>
-    <string name="budget_line">מולאו %1$s מתוך %2$s · נותרו %3$s</string>
-    <string name="budget_complete">מולאו %1$s מתוך %2$s ✓</string>
-    <string name="budget_over">מולאו %1$s מתוך %2$s — עודף של %3$s</string>
     <string name="budget_no_span">מולאו %1$s</string>
+    <string name="budget_stat_worked">עבדת</string>
+    <string name="budget_stat_filled">מולא</string>
+    <string name="budget_stat_left">נותר</string>
+    <string name="budget_stat_over">עודף</string>
 
     <string name="activities">פעילויות</string>
     <string name="activity_note_hint">הערה</string>

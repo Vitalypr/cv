@@ -27,6 +27,16 @@ Dynamic color (Material You) may *tint* neutrals but the semantic trio (petrol/s
 - **Reports:** every line starts with RLM `‏` (ReportBuilder owns this). Time ranges `10:00–13:30` use en-dash between LTR runs. Golden tests are canonical.
 - Numerals: Western digits, 24h times, `dd.MM.yyyy`, week starts Sunday (א׳).
 
+## The time-budget bar (`ui/components/TimeBudgetBar`)
+
+One shared component for the day card and every session card: three figures
+(עבדת / מולא / נותר) over a full-width 12dp rounded track. Petrol while filling,
+`SendGreen` when it balances exactly, `Warn` + `WarnTint` across the whole track
+when over-allocated — with the third figure switching to עודף and naming the
+excess. The numbers are the source of truth; the bar is the glance. It renders
+nothing at all for a session with no hours and no activities yet, and falls back
+to a single "מולאו X" line while a session has no measurable span.
+
 ## Charts
 
 Follow the dataviz method: stacked thin bars, 2dp surface gaps between segments, rounded 2dp data ends, dashed average reference line, RTL time axis (day 1 at the right), legend above plot, tap tooltip with exact values, y-axis labels muted. Exact values must also exist as text (KPI tiles / share text) — charts are never the only source.
