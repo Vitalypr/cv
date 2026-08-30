@@ -1,6 +1,7 @@
 package com.vitalypr.daylog.data.settings
 
 import android.content.Context
+import com.vitalypr.daylog.domain.geo.GeofenceRules
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.doublePreferencesKey
 import androidx.datastore.preferences.core.edit
@@ -29,7 +30,7 @@ data class Settings(
     val silentGeofence: Boolean = true,
     val officeLat: Double? = null,
     val officeLon: Double? = null,
-    val officeRadiusM: Int = 150,
+    val officeRadiusM: Int = GeofenceRules.DEFAULT_OFFICE_RADIUS_M,
 )
 
 private val Context.dataStore by preferencesDataStore(name = "settings")
@@ -64,7 +65,9 @@ class SettingsRepository @Inject constructor(
             silentGeofence = p[Keys.silentGeofence] ?: defaults.silentGeofence,
             officeLat = p[Keys.officeLat],
             officeLon = p[Keys.officeLon],
-            officeRadiusM = p[Keys.officeRadius] ?: defaults.officeRadiusM,
+            // Snapped, so the fence and the Settings chips can never disagree —
+            // including for a radius stored before the ladder existed.
+            officeRadiusM = GeofenceRules.snapRadius(p[Keys.officeRadius] ?: defaults.officeRadiusM),
         )
     }
 

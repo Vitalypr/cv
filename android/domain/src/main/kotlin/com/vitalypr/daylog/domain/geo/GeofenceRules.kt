@@ -31,6 +31,26 @@ object GeofenceRules {
      */
     val MIN_VISIT: Duration = Duration.ofHours(1)
 
+    /**
+     * The office fence radii the user may choose from (product-owner list).
+     * Wider is not worse for battery — the OS geofences either way — but it does
+     * decide how far from the desk an arrival still counts, so it is the user's
+     * call, not a constant.
+     */
+    val OFFICE_RADIUS_OPTIONS: List<Int> = listOf(100, 300, 500, 1000, 1500, 2000)
+
+    /** Big enough to survive indoor GPS drift, small enough to mean "at the office". */
+    const val DEFAULT_OFFICE_RADIUS_M: Int = 300
+
+    /**
+     * Maps any stored radius onto the offered list, so what the fence uses and
+     * what the Settings screen shows can never disagree. A value between two
+     * options rounds **up**: a fence that is too small misses arrivals, which is
+     * the failure the user actually feels.
+     */
+    fun snapRadius(meters: Int): Int =
+        OFFICE_RADIUS_OPTIONS.firstOrNull { it >= meters } ?: OFFICE_RADIUS_OPTIONS.last()
+
     /** A transition older than this is a catch-up delivery we cannot act on. */
     val MAX_EVENT_AGE: Duration = Duration.ofMinutes(60)
 

@@ -241,12 +241,12 @@ fun SettingsContent(
                     .fillMaxWidth()
                     .padding(top = 4.dp),
             ) {
-                listOf(100, 150, 200, 300).forEach { meters ->
+                com.vitalypr.daylog.domain.geo.GeofenceRules.OFFICE_RADIUS_OPTIONS.forEach { meters ->
                     FilterChip(
                         selected = settings.officeRadiusM == meters,
                         onClick = { onSetOfficeRadius(meters) },
-                        // Bare value: four "רדיוס NNN מ׳" chips overflow a phone row.
-                        label = { Text(stringResource(R.string.radius_value, meters)) },
+                        // Bare value: "רדיוס NNN מ׳" on every chip overflows a phone row.
+                        label = { Text(radiusLabel(meters)) },
                     )
                 }
             }
@@ -498,11 +498,12 @@ fun SettingsContent(
     }
 }
 
-/** Metres below a kilometre, kilometres above it — 2000 מ׳ reads as a mistake. */
+/** Metres below a kilometre, kilometres above it — 1500 מ׳ reads as a mistake. */
 @Composable
 private fun radiusLabel(meters: Int): String =
-    if (meters >= 1000 && meters % 1000 == 0) {
-        stringResource(R.string.radius_km, meters / 1000)
+    if (meters >= 1000) {
+        val km = meters / 1000.0
+        stringResource(R.string.radius_km, if (km % 1 == 0.0) "${km.toInt()}" else "$km")
     } else {
         stringResource(R.string.radius_value, meters)
     }

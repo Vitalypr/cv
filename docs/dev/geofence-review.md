@@ -15,7 +15,7 @@ Play Services  ──ENTER/EXIT──▶  GeofenceReceiver  ──▶ GeofenceEn
                                               Notifier / DayRepository ◀───────────────┘
 ```
 
-1. **Registration** (`GeofenceManager.sync()`): one 150 m office fence + one 2 km
+1. **Registration** (`GeofenceManager.sync()`): one office fence (configurable radius) + one 2 km
    fence per job location, `setInitialTrigger(0)`. Requires FINE **and**
    BACKGROUND location; otherwise nothing registers and `GeofenceStatus` says why.
 2. **Delivery** (`GeofenceReceiver`): Play Services reports a crossing only when it
@@ -75,7 +75,8 @@ it was registered and never recovered.
 ### RC-6 — 150 m fence, not adjustable
 
 The default office radius is at the tight end for urban GPS, and the Settings
-screen displayed it without offering a way to change it.
+screen displayed it without offering a way to change it. *(v2.0: the radius is
+now chosen from 100 / 300 / 500 m / 1 / 1.5 / 2 km, default 300 m.)*
 
 ### RC-7 — No way to see what happened
 

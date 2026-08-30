@@ -97,4 +97,26 @@ class GeofenceRulesTest {
         val d = GeofenceRules.distanceMeters(32.0000, 34.8000, 32.0009, 34.8000)
         assertTrue(d < 150, "expected under 150 m, got $d")
     }
+
+    @Test
+    fun `the office radius options are the configured ladder`() {
+        assertEquals(listOf(100, 300, 500, 1000, 1500, 2000), GeofenceRules.OFFICE_RADIUS_OPTIONS)
+        assertTrue(GeofenceRules.DEFAULT_OFFICE_RADIUS_M in GeofenceRules.OFFICE_RADIUS_OPTIONS)
+    }
+
+    @Test
+    fun `every option snaps to itself`() {
+        GeofenceRules.OFFICE_RADIUS_OPTIONS.forEach {
+            assertEquals(it, GeofenceRules.snapRadius(it))
+        }
+    }
+
+    /** A radius stored before the ladder existed must land on an offered value. */
+    @Test
+    fun `a value between two options rounds up`() {
+        assertEquals(300, GeofenceRules.snapRadius(150)) // the old default
+        assertEquals(100, GeofenceRules.snapRadius(1))
+        assertEquals(500, GeofenceRules.snapRadius(301))
+        assertEquals(2000, GeofenceRules.snapRadius(5000)) // never past the widest
+    }
 }

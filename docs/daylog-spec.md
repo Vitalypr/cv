@@ -175,7 +175,7 @@ Four-tab bottom navigation (היום / היסטוריה / סטטיסטיקה / �
 - **שיתוף** button: sends the selected period's text summary (§2.5).
 
 ### 5.4 Settings (הגדרות)
-- Office location: **"קבע למיקום הנוכחי"** (one-shot fix while standing at the office) **or a map pin picker** (v0.7: OpenStreetMap via osmdroid — no API keys, no Google account; requires the N3-revised INTERNET permission for tile downloads). Job locations get the same two options. Geofence radius (default 150 m) + on/off.
+- Office location: **"קבע למיקום הנוכחי"** (one-shot fix while standing at the office) **or a map pin picker** (v0.7: OpenStreetMap via osmdroid — no API keys, no Google account; requires the N3-revised INTERNET permission for tile downloads). Job locations get the same two options. Geofence radius (default 300 m) + on/off.
 - Work-week day toggles (default Sun–Thu); report reminder time.
 - Arrival/departure confirmation behavior: confirm-via-notification (default) or auto-log silently (opt-in; silent mode still never overwrites MANUAL values).
 - Manage activity categories; Auto Backup toggle; report template preview; export JSON/CSV; about.

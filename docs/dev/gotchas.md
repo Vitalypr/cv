@@ -35,10 +35,12 @@
 - `triggeringLocation.time` is the age of the FIX, not of the crossing. Clamp it (`eventTime()`): older than 10 min or in the future → use delivery time. Trusting it wrote wrong hours; dropping stale events lost days.
 - Automatic recording (`silentGeofence`) is ON by default since v1.1: a suggestion that is never tapped is data lost. GEOFENCE writes still never overwrite MANUAL.
 - Registration can lapse without any callback (location toggled, GMS update). The fingerprint skip expires after 30 min, `PROVIDERS_CHANGED`/boot call `resync()`, and a GMS error event triggers one too.
+- The office radius is one of `GeofenceRules.OFFICE_RADIUS_OPTIONS` (100 m … 2 km, default 300 m); `SettingsRepository` snaps whatever is stored onto that ladder so the fence and the Settings chips can never disagree. Changing it calls `resync()` — a new size is a new fence.
+- A wide office radius swallows nearby job locations: `GeofenceManager` deliberately does not track a job pin that falls inside the office fence (otherwise every office arrival opens a field visit too). At 2 km that is most of a small town.
 - `GeofenceLog` keeps the last 50 transitions and what each did, shown in Settings → אבחון מעקב. Field failures here are otherwise unreproducible; ask for that list first.
 - **The office decision table lives in `OfficeFenceMachine` (`:domain`), not in the engine.** The engine only resolves the day, loads state, and performs the returned actions. Add a rule there, with a case in `FenceMachineTest` — never as an `if` in the engine.
 - A leaving time is never suggested for a stay under `GeofenceRules.MIN_VISIT` (1 h); the arrival survives but is flagged `arrivalUncertain` (amber "ביקור קצר"). Job-site dwell is measured over the CURRENT visit, not from the day's first arrival, or an evening pass-by drags a real departure later.
-- Indoor GPS drifts past a 150 m fence while the user sits at their desk. The 10-min debounce only helps if a re-ENTER follows; `MIN_VISIT` is what stops drift from generating a departure. Don't lower it to "make suggestions faster".
+- Indoor GPS drifts past a tight fence while the user sits at their desk. The 10-min debounce only helps if a re-ENTER follows; `MIN_VISIT` is what stops drift from generating a departure. Don't lower it to "make suggestions faster".
 - Re-registering geofences resets the platform's inside/outside belief and loses in-flight transitions — `GeofenceManager` skips registration when the fence set is unchanged. The fingerprint is per-process on purpose, so a reboot still re-registers.
 - Cancel alarms with `FLAG_NO_CREATE`; `FLAG_UPDATE_CURRENT` rewrites the pending intent's extras first, which can race a firing alarm into using the placeholder value.
 

@@ -96,7 +96,7 @@
     <string name="settings_report_time">שעת תזכורת הדוח</string>
     <string name="settings_report_time_sub">בימי עבודה, או בכל יום עם נתונים</string>
     <string name="settings_radius">רדיוס זיהוי המשרד</string>
-    <string name="settings_radius_sub">העיגול שבתוכו נרשמות שעות הכניסה והיציאה שלך. גדול יותר = זיהוי אמין יותר, פחות החמצות</string>
+    <string name="settings_radius_sub">גדול יותר = פחות החמצות</string>
     <string name="settings_diagnostics">אבחון מעקב</string>
     <string name="settings_diagnostics_sub">האירועים האחרונים שהתקבלו מהגדר ומה נרשם בעקבותיהם</string>
     <string name="settings_diagnostics_empty">טרם התקבלו אירועים</string>
@@ -124,7 +124,7 @@
     <string name="settings_job_name_hint">שם האתר / הלקוח…</string>
     <string name="settings_add_job_here">הוסף במיקום הנוכחי</string>
     <string name="radius_value">%1$d מ׳</string>
-    <string name="radius_km">%1$d ק״מ</string>
+    <string name="radius_km">%1$s ק״מ</string>
     <string name="settings_battery">סוללה (Samsung)</string>
     <string name="settings_battery_sub">להצעות גדר אמינות, בחר ״ללא הגבלה״ בהגדרות הסוללה</string>
     <string name="settings_open">פתיחה</string>
