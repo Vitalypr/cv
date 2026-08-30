@@ -27,4 +27,10 @@ interface JobLocationDao {
 
     @Delete
     suspend fun delete(location: JobLocationEntity)
+
+    @Insert
+    suspend fun insertAll(locations: List<JobLocationEntity>)
+
+    @Query("DELETE FROM job_location")
+    suspend fun clear()
 }

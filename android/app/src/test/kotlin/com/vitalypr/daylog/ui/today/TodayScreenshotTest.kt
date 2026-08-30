@@ -76,7 +76,7 @@ class TodayScreenshotTest {
             arrivalMin = 492, departureMin = 1055,
             fieldJobs = listOf(FieldJob("תחנת משנה אקמה", "צפון", 600, 810)),
             activities = listOf(
-                ActivityEntry("התקנה", 150, "חיווט לוח, תא 4", "הושלם"),
+                ActivityEntry("התקנה", "רובוטיקה", 150, "חיווט לוח, תא 4", "הושלם"),
                 ActivityEntry("דיון", note = "סקירת ליקויים"),
             ),
             notes = "הוזמן CT רזרבי",
@@ -86,8 +86,8 @@ class TodayScreenshotTest {
             snap(
                 day,
                 rows = listOf(
-                    ActivityRow(1, 2, "התקנה", 150, "חיווט לוח, תא 4", "הושלם", date, 0),
-                    ActivityRow(2, 1, "דיון", null, "סקירת ליקויים", "", date, 1),
+                    ActivityRow(1, 2, "התקנה", 150, 1, "רובוטיקה", "חיווט לוח, תא 4", "הושלם", date, 0),
+                    ActivityRow(2, 1, "דיון", null, 1, "רובוטיקה", "סקירת ליקויים", "", date, 1),
                 ),
                 jobs = listOf(FieldJobRow(1, "תחנת משנה אקמה", "צפון", 600, 810)),
             ),

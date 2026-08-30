@@ -39,7 +39,7 @@ class ReportPdfTest {
             date = LocalDate.of(2026, 8, 4),
             arrivalMin = 492, departureMin = 1055,
             fieldJobs = listOf(FieldJob("תחנת משנה אקמה", null, 600, 810)),
-            activities = listOf(ActivityEntry("התקנה", 150, "חיווט לוח", "הושלם")),
+            activities = listOf(ActivityEntry("התקנה", "רובוטיקה", 150, "חיווט לוח", "הושלם")),
             notes = "הערה",
         )
         val bitmap = draw(day)

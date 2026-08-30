@@ -48,6 +48,8 @@ object ReportBuilder {
             lines += "✅ פעילויות:"
             for (a in acts) {
                 var r = "• ${a.category}"
+                // The project the work went to — the point of tagging it (v1.2).
+                if (a.project.isNotBlank()) r += " · ${a.project}"
                 r += if (a.durationMin != null) " (${formatActivityDuration(a.durationMin)})" else ""
                 if (a.note.isNotBlank()) r += " — ${a.note.trim()}"
                 if (a.result.isNotBlank()) r += " · תוצאה: ${a.result.trim()}"

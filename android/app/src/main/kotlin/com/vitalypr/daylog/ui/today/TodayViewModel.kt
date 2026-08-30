@@ -33,6 +33,7 @@ data class TodayUiState(
     val activityRows: List<ActivityRow> = emptyList(),
     val fieldJobRows: List<FieldJobRow> = emptyList(),
     val categories: List<CategoryEntity> = emptyList(),
+    val projects: List<com.vitalypr.daylog.data.db.ProjectEntity> = emptyList(),
     val reportText: String = "",
     val status: DayStatus = DayStatus.EMPTY,
 ) {
@@ -47,6 +48,7 @@ sealed interface TodayEffect {
 @HiltViewModel
 class TodayViewModel @Inject constructor(
     private val repository: DayRepository,
+    private val projectRepository: com.vitalypr.daylog.data.repo.ProjectRepository,
     private val reportPdf: com.vitalypr.daylog.reporting.DailyPdfRenderer,
     @Now private val now: () -> LocalDateTime,
     savedStateHandle: androidx.lifecycle.SavedStateHandle,
@@ -61,7 +63,8 @@ class TodayViewModel @Inject constructor(
     val uiState: StateFlow<TodayUiState> = combine(
         repository.observeEditable(date),
         repository.observeVisibleCategories(),
-    ) { editable: EditableDay?, categories ->
+        projectRepository.observeActive(),
+    ) { editable: EditableDay?, categories, projects ->
         val snapshot = editable?.snapshot ?: DaySnapshot(date = date)
         TodayUiState(
             date = date,
@@ -69,6 +72,7 @@ class TodayViewModel @Inject constructor(
             activityRows = editable?.activityRows.orEmpty(),
             fieldJobRows = editable?.fieldJobRows.orEmpty(),
             categories = categories,
+            projects = projects,
             reportText = if (snapshot.dayType == DayType.WORK) ReportBuilder.daily(snapshot) else "",
             status = snapshot.status(),
         )
@@ -90,7 +94,10 @@ class TodayViewModel @Inject constructor(
         repository.setDayType(date, if (current == type) DayType.WORK else type)
     }
 
-    fun addActivity(categoryId: Long) = viewModelScope.launch { repository.addActivity(date, categoryId) }
+    /** An activity cannot exist without a project (v1.2) — the screen picks one first. */
+    fun addActivity(categoryId: Long, projectId: Long) = viewModelScope.launch {
+        repository.addActivity(date, categoryId, projectId)
+    }
     fun updateActivity(row: ActivityRow) = viewModelScope.launch { repository.updateActivity(row.toEntity()) }
     fun removeActivity(id: Long) = viewModelScope.launch { repository.removeActivity(date, id) }
 

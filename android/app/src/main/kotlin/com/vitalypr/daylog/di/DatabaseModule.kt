@@ -29,6 +29,7 @@ object DatabaseModule {
 
     @Provides fun dayDao(db: DayLogDb): DayDao = db.dayDao()
     @Provides fun categoryDao(db: DayLogDb): CategoryDao = db.categoryDao()
+    @Provides fun projectDao(db: DayLogDb): com.vitalypr.daylog.data.db.ProjectDao = db.projectDao()
     @Provides fun jobLocationDao(db: DayLogDb): com.vitalypr.daylog.data.db.JobLocationDao = db.jobLocationDao()
 
     @Provides fun clock(): () -> Instant = Instant::now
@@ -39,6 +40,12 @@ object DatabaseModule {
             DayLogDb.DEFAULT_CATEGORIES.forEachIndexed { i, name ->
                 db.execSQL(
                     "INSERT INTO category (name, emoji, isHidden, sortOrder) VALUES (?, NULL, 0, ?)",
+                    arrayOf(name, i),
+                )
+            }
+            DayLogDb.DEFAULT_PROJECTS.forEachIndexed { i, name ->
+                db.execSQL(
+                    "INSERT INTO project (name, isArchived, sortOrder) VALUES (?, 0, ?)",
                     arrayOf(name, i),
                 )
             }

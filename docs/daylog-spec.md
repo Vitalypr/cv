@@ -114,6 +114,8 @@ Generated in the Statistics tab for the selected week, month, or year and — li
 | F1 | Record arrival and departure time per day; manual entry/edit always possible | Must |
 | F2 | Geofence around a user-defined office location suggests arrival/departure via confirmable notifications; a geofence confirmation never overwrites a MANUAL-source value | Must |
 | F3 | Log zero or more field jobs per day: title/client, optional location text, start/end times | Must |
+| F4a | **Projects (v1.2):** a user-managed list, seeded with רובוטיקה / הנדסת מערכת למחלקה / AI למחלקה. Every activity must name a project — it cannot be logged without one. A project still referenced by logged work is archived rather than deleted, so history keeps rendering | Must |
+| F12a | **Full backup (v1.2):** one action writes every table and every setting to a versioned JSON file, shareable to mail/Drive/files; one action restores it, replacing all app data atomically | Must |
 | F4 | Log zero or more activities per day from a category list — defaults: דיון, התקנה, בדיקות, פיתוח, תכנון, תיעוד, תמיכה, אחר — each entry with an optional **duration in 30-minute steps** (v0.9: no clock times on activities), optional free-text note, and optional result; multiple entries per category allowed (e.g., two separate discussions) | Must |
 | F5 | Category list is user-editable (add/rename/hide; no hard delete — history must keep rendering) | Should |
 | F6 | Free-text daily notes field | Must |
@@ -261,10 +263,17 @@ Activity
   id: Long (PK)
   date: LocalDate (FK → WorkDay, indexed)
   categoryId: Long (FK → Category)           // multiple rows per category allowed
+  projectId: Long (FK → Project)             // v1.2: mandatory — no activity without a project
   durationMin: Int?                          // v0.9: 30-minute steps, max 12 h; null = not stated
   note: String
   result: String                             // optional outcome, e.g. "הושלם", "עברו"
   sortOrder: Int                             // report order (activities have no clock times)
+
+Project                                      // v1.2
+  id: Long (PK)
+  name: String                               // seeded: רובוטיקה, הנדסת מערכת למחלקה, AI למחלקה
+  isArchived: Boolean                        // archived once used, never hard-deleted
+  sortOrder: Int
 
 Category
   id: Long (PK)
@@ -330,6 +339,7 @@ Beyond the office fence, the user saves **job locations** (client sites): name +
 
 ### 6.7 Export & backup
 
+- **Backup (v1.2):** `BackupRepository` reads every table plus every DataStore setting into a versioned `BackupDocument` (`BackupCodec`, plain JSON) and restores one atomically inside a single Room transaction — replacing, never merging, since a half-applied restore would leave activities pointing at projects that no longer exist. Row ids are preserved so the links between days, activities, categories and projects survive. Shared via `FileProvider`; restored through the system file picker. A document from a newer app version is refused rather than partially read.
 - **Export:** JSON via `kotlinx.serialization` (full fidelity, schema version field from day one, re-importable in a future version) and a hand-rolled CSV (one row per day: date, in, out, total, day-off, field-job count and titles `;`-joined, activity categories `;`-joined, notes) — both shared via `FileProvider` + `ACTION_SEND`.
 - **Backup:** Android Auto Backup enabled by default (DB + DataStore, far below the 25 MB cap) with an off toggle (N3's documented exception); Settings recommends a periodic JSON export to Drive/email as belt-and-braces.
 

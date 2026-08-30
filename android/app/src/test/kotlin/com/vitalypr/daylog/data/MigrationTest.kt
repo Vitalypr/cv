@@ -14,7 +14,8 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * Migrations 1→2 (spec §6.6b) and 2→3 (activity durations). MigrationTestHelper cannot see app assets under
+ * Migrations 1→2 (job locations), 2→3 (activity durations), 3→4 (short-visit flag)
+ * and 4→5 (projects). MigrationTestHelper cannot see app assets under
  * Robolectric (instrumentation.context serves only framework assets), so this
  * builds a REAL v1 database from the exported v1 schema SQL and lets Room run
  * the migration and validate the resulting schema on open — a failure in the
@@ -37,7 +38,7 @@ class MigrationTest {
     )
 
     @Test
-    fun `migrate 1 to 3 preserves data and yields a valid schema`() = runTest {
+    fun `migrate 1 to 5 preserves data and yields a valid schema`() = runTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val dbFile = context.getDatabasePath("migration-test.db")
         dbFile.parentFile?.mkdirs()
@@ -75,6 +76,14 @@ class MigrationTest {
             assertEquals(90, acts[0].activity.durationMin) // 95 min → 1:30
             assertEquals("קוד", acts[0].activity.note)
             assertNull(acts[1].activity.durationMin)
+
+            // v5: projects exist, the defaults are seeded, and activities that
+            // predate the feature are parked under a clearly-named project
+            // rather than being misfiled under a real one.
+            val projects = db.projectDao().all()
+            assertTrue(projects.map { it.name }.containsAll(DayLogDb.DEFAULT_PROJECTS))
+            val legacy = projects.first { it.name == DayLogDb.LEGACY_PROJECT }
+            assertTrue(acts.all { it.activity.projectId == legacy.id })
 
             // New table is usable post-migration.
             db.jobLocationDao().insert(

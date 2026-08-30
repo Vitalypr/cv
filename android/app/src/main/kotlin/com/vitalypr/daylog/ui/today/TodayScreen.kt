@@ -105,7 +105,7 @@ data class TodayCallbacks(
     val onClearArrival: () -> Unit = {},
     val onClearDeparture: () -> Unit = {},
     val onToggleDayType: (DayType) -> Unit = {},
-    val onAddActivity: (Long) -> Unit = {},
+    val onAddActivity: (Long, Long) -> Unit = { _, _ -> },
     val onUpdateActivity: (ActivityRow) -> Unit = {},
     val onRemoveActivity: (Long) -> Unit = {},
     val onAddFieldJob: (String, String?, Int?, Int?) -> Unit = { _, _, _, _ -> },
@@ -396,24 +396,84 @@ private fun FieldJobSheet(onSave: (String, String?, Int?, Int?) -> Unit, onDismi
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ActivitiesCard(state: TodayUiState, cb: TodayCallbacks) {
+    // An activity always belongs to a project, so the category tap asks which one
+    // before anything is created (v1.2).
+    var pendingCategory by remember { mutableStateOf<Long?>(null) }
+
     SectionCard(title = stringResource(R.string.activities)) {
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             state.categories.forEach { cat ->
                 FilterChip(
                     selected = state.activityRows.any { it.categoryId == cat.id },
-                    onClick = { cb.onAddActivity(cat.id) },
+                    onClick = {
+                        // One project: no question worth asking. Several: pick.
+                        val only = state.projects.singleOrNull()
+                        if (only != null) cb.onAddActivity(cat.id, only.id) else pendingCategory = cat.id
+                    },
                     label = { Text(cat.name) },
                 )
             }
         }
-        state.activityRows.forEach { row ->
-            androidx.compose.runtime.key(row.id) { ActivityEditor(row, cb) }
+        if (state.projects.isEmpty()) {
+            Text(
+                stringResource(R.string.no_projects_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = com.vitalypr.daylog.ui.theme.Amber,
+                modifier = Modifier.padding(top = 6.dp),
+            )
         }
+        state.activityRows.forEach { row ->
+            androidx.compose.runtime.key(row.id) { ActivityEditor(row, state.projects, cb) }
+        }
+    }
+
+    pendingCategory?.let { categoryId ->
+        ProjectPickerDialog(
+            projects = state.projects,
+            onPick = { projectId ->
+                cb.onAddActivity(categoryId, projectId)
+                pendingCategory = null
+            },
+            onDismiss = { pendingCategory = null },
+        )
     }
 }
 
+/** Which project does this work belong to? Asked once, at creation. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun ActivityEditor(row: ActivityRow, cb: TodayCallbacks) {
+private fun ProjectPickerDialog(
+    projects: List<com.vitalypr.daylog.data.db.ProjectEntity>,
+    onPick: (Long) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.pick_project)) },
+        text = {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                projects.forEach { project ->
+                    FilterChip(
+                        selected = false,
+                        onClick = { onPick(project.id) },
+                        label = { Text(project.name) },
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+        },
+    )
+}
+
+@Composable
+private fun ActivityEditor(
+    row: ActivityRow,
+    projects: List<com.vitalypr.daylog.data.db.ProjectEntity>,
+    cb: TodayCallbacks,
+) {
+    var reassigning by remember { mutableStateOf(false) }
     HorizontalDivider(Modifier.padding(vertical = 5.dp))
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
@@ -421,7 +481,19 @@ private fun ActivityEditor(row: ActivityRow, cb: TodayCallbacks) {
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.primary,
         )
-        Spacer(Modifier.width(8.dp))
+        // The project is part of the entry's identity — tap to move the work.
+        TextButton(
+            onClick = { reassigning = true },
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp),
+            modifier = Modifier.height(24.dp),
+        ) {
+            Text(
+                row.project.ifBlank { stringResource(R.string.pick_project) },
+                style = MaterialTheme.typography.labelSmall,
+                color = InkSecondary,
+            )
+        }
+        Spacer(Modifier.width(4.dp))
         NoteField(
             value = row.note,
             hint = stringResource(R.string.activity_note_hint),
@@ -431,6 +503,16 @@ private fun ActivityEditor(row: ActivityRow, cb: TodayCallbacks) {
         IconButton(onClick = { cb.onRemoveActivity(row.id) }, modifier = Modifier.height(28.dp).width(32.dp)) {
             Icon(Icons.Default.Close, contentDescription = stringResource(R.string.remove), tint = InkMuted)
         }
+    }
+    if (reassigning) {
+        ProjectPickerDialog(
+            projects = projects,
+            onPick = { projectId ->
+                cb.onUpdateActivity(row.copy(projectId = projectId))
+                reassigning = false
+            },
+            onDismiss = { reassigning = false },
+        )
     }
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         // Duration in half-hour steps — no clock times on activities (spec F4 v0.9).

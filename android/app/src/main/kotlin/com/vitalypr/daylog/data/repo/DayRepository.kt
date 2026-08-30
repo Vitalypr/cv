@@ -48,6 +48,7 @@ class DayRepository @Inject constructor(
                         ActivityRow(
                             id = a.activity.id, categoryId = a.activity.categoryId,
                             category = a.category.name, durationMin = a.activity.durationMin,
+                            projectId = a.activity.projectId, project = a.project?.name.orEmpty(),
                             note = a.activity.note, result = a.activity.result,
                             date = date, sortOrder = a.activity.sortOrder,
                         )
@@ -129,10 +130,13 @@ class DayRepository @Inject constructor(
 
     suspend fun setDayType(date: LocalDate, type: DayType) = edit(date) { upsertEdited(it.copy(dayType = type.name)) }
 
-    suspend fun addActivity(date: LocalDate, categoryId: Long): Long = edit(date) { day ->
+    /** An activity always belongs to a project (v1.2) — the caller must supply one. */
+    suspend fun addActivity(date: LocalDate, categoryId: Long, projectId: Long): Long = edit(date) { day ->
         markEdited(day)
         val order = (dayDao.getDay(day.date)?.activities?.maxOfOrNull { it.activity.sortOrder } ?: -1) + 1
-        dayDao.insertActivity(ActivityEntity(date = day.date, categoryId = categoryId, sortOrder = order))
+        dayDao.insertActivity(
+            ActivityEntity(date = day.date, categoryId = categoryId, projectId = projectId, sortOrder = order),
+        )
     }
 
     suspend fun updateActivity(activity: ActivityEntity) = writeLock.withLock {
@@ -201,13 +205,15 @@ data class ActivityRow(
     val category: String,
     /** Half-hour steps; null = not stated (spec F4). */
     val durationMin: Int?,
+    val projectId: Long,
+    val project: String,
     val note: String,
     val result: String,
     val date: LocalDate,
     val sortOrder: Int,
 ) {
     fun toEntity() = ActivityEntity(
-        id = id, date = date.toString(), categoryId = categoryId,
+        id = id, date = date.toString(), categoryId = categoryId, projectId = projectId,
         durationMin = durationMin, note = note, result = result, sortOrder = sortOrder,
     )
 }
@@ -243,7 +249,15 @@ internal fun DayWithEntries.toSnapshot(): DaySnapshot = DaySnapshot(
     },
     activities = activities
         .sortedBy { it.activity.sortOrder }
-        .map { ActivityEntry(it.category.name, it.activity.durationMin, it.activity.note, it.activity.result) },
+        .map {
+            ActivityEntry(
+                category = it.category.name,
+                project = it.project?.name.orEmpty(),
+                durationMin = it.activity.durationMin,
+                note = it.activity.note,
+                result = it.activity.result,
+            )
+        },
     reported = day.reportedAt != null,
     editedAfterReport = day.editedAfterReport,
 )

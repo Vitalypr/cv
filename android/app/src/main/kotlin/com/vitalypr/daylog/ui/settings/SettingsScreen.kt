@@ -22,6 +22,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -31,6 +32,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,7 +60,12 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
     val jobLocations by viewModel.jobLocations.collectAsStateWithLifecycle()
     val geofenceStatus by viewModel.geofenceStatus.collectAsStateWithLifecycle()
     val geofenceEvents by viewModel.geofenceEvents.collectAsStateWithLifecycle()
+    val projects by viewModel.projects.collectAsStateWithLifecycle()
     val context = LocalContext.current
+
+    val pickBackup = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { uri -> uri?.let(viewModel::restoreBackup) }
 
     val locationPermission = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -110,7 +117,13 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
         jobLocations = jobLocations,
         geofenceStatus = geofenceStatus,
         geofenceEvents = geofenceEvents,
+        projects = projects,
+        onAddProject = viewModel::addProject,
+        onRemoveProject = viewModel::removeProject,
+        onRestoreProject = viewModel::restoreProject,
         onSetOfficeRadius = viewModel::setOfficeRadius,
+        onExportBackup = viewModel::exportBackup,
+        onImportBackup = { pickBackup.launch(arrayOf("application/json", "text/plain", "*/*")) },
         onAddJobLocation = viewModel::addJobLocation,
         onRemoveJobLocation = viewModel::removeJobLocation,
         onToggleWorkDay = viewModel::toggleWorkDay,
@@ -145,7 +158,13 @@ fun SettingsContent(
     jobLocations: List<com.vitalypr.daylog.data.db.JobLocationEntity> = emptyList(),
     geofenceStatus: com.vitalypr.daylog.geofence.GeofenceStatus = com.vitalypr.daylog.geofence.GeofenceStatus.Unknown,
     geofenceEvents: List<String> = emptyList(),
+    projects: List<com.vitalypr.daylog.data.db.ProjectEntity> = emptyList(),
+    onAddProject: (String) -> Unit = {},
+    onRemoveProject: (com.vitalypr.daylog.data.db.ProjectEntity) -> Unit = {},
+    onRestoreProject: (com.vitalypr.daylog.data.db.ProjectEntity) -> Unit = {},
     onSetOfficeRadius: (Int) -> Unit = {},
+    onExportBackup: () -> Unit = {},
+    onImportBackup: () -> Unit = {},
     onAddJobLocation: (String) -> Unit = {},
     onRemoveJobLocation: (com.vitalypr.daylog.data.db.JobLocationEntity) -> Unit = {},
     onToggleWorkDay: (DayOfWeek) -> Unit = {},
@@ -232,6 +251,59 @@ fun SettingsContent(
                 }
             }
             GeofenceStatusRow(geofenceStatus, onOpenLocationSettings = onBatterySettings)
+        }
+
+        SectionCard(title = stringResource(R.string.settings_projects)) {
+            Text(
+                stringResource(R.string.settings_projects_sub),
+                style = MaterialTheme.typography.bodySmall,
+                color = com.vitalypr.daylog.ui.theme.InkSecondary,
+            )
+            projects.forEach { project ->
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(top = 6.dp),
+                ) {
+                    Text(
+                        project.name,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (project.isArchived) {
+                            com.vitalypr.daylog.ui.theme.InkMuted
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
+                        modifier = Modifier.weight(1f),
+                    )
+                    if (project.isArchived) {
+                        Text(
+                            stringResource(R.string.project_archived),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = com.vitalypr.daylog.ui.theme.InkMuted,
+                        )
+                        TextButton(onClick = { onRestoreProject(project) }) {
+                            Text(stringResource(R.string.project_restore))
+                        }
+                    } else {
+                        TextButton(onClick = { onRemoveProject(project) }) {
+                            Text(stringResource(R.string.remove))
+                        }
+                    }
+                }
+            }
+            var newProject by rememberSaveable { mutableStateOf("") }
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 6.dp)) {
+                OutlinedTextField(
+                    value = newProject,
+                    onValueChange = { newProject = it },
+                    placeholder = { Text(stringResource(R.string.settings_project_name_hint)) },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(
+                    onClick = { onAddProject(newProject); newProject = "" },
+                    enabled = newProject.isNotBlank(),
+                ) { Text(stringResource(R.string.settings_add_project)) }
+            }
         }
 
         SectionCard(title = stringResource(R.string.settings_job_locations)) {
@@ -338,6 +410,46 @@ fun SettingsContent(
                         modifier = Modifier.padding(top = 4.dp),
                     )
                 }
+            }
+        }
+
+        SectionCard(title = stringResource(R.string.settings_backup)) {
+            Text(
+                stringResource(R.string.settings_backup_sub),
+                style = MaterialTheme.typography.bodySmall,
+                color = com.vitalypr.daylog.ui.theme.InkSecondary,
+            )
+            SettingsRow(
+                title = stringResource(R.string.settings_backup_export),
+                subtitle = stringResource(R.string.settings_backup_export_sub),
+            ) {
+                TextButton(onClick = onExportBackup) { Text(stringResource(R.string.settings_backup_export_action)) }
+            }
+            var confirmRestore by remember { mutableStateOf(false) }
+            SettingsRow(
+                title = stringResource(R.string.settings_backup_import),
+                subtitle = stringResource(R.string.settings_backup_import_sub),
+            ) {
+                TextButton(onClick = { confirmRestore = true }) {
+                    Text(stringResource(R.string.settings_backup_import_action))
+                }
+            }
+            if (confirmRestore) {
+                androidx.compose.material3.AlertDialog(
+                    onDismissRequest = { confirmRestore = false },
+                    title = { Text(stringResource(R.string.settings_backup_import)) },
+                    text = { Text(stringResource(R.string.settings_backup_import_warning)) },
+                    confirmButton = {
+                        TextButton(onClick = { confirmRestore = false; onImportBackup() }) {
+                            Text(stringResource(R.string.settings_backup_import_action))
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { confirmRestore = false }) {
+                            Text(stringResource(R.string.cancel))
+                        }
+                    },
+                )
             }
         }
 

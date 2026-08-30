@@ -26,6 +26,8 @@ TDD is the workflow, not a phase: failing test → implementation → green → 
 | §6.6 ordering invariants (occupancy, event day, staleness, dwell) | domain `GeofenceRulesTest`; `GeofenceEngineTest` (phantom exit, drift, overnight, drive-past), `JobLocationEngineTest` |
 | §6.4/§6.5 share intent, trampoline activity, alarm re-arm | `ReportShareTest`, `SendReportActivityTest`, `ReminderSchedulerTest`, `BootReceiverTest` |
 | §5.6 widget: override rules, special day, state selection | `WidgetActionsTest`, `WidgetStateTest`, `DayWidgetScreenshotTest` (inflates the real RemoteViews at 250x40dp) |
+| F4a projects (defaults, add, archive-vs-delete, mandatory link) | `ProjectRepositoryTest`, `TodayViewModelTest`, `MigrationTest` (4→5) |
+| F12a full backup (every table + setting, atomic restore, bad file refused) | `BackupRoundTripTest` |
 | N3 no INTERNET | `ManifestGuardTest` (parses merged manifest) |
 | UI per mockup | Roborazzi snapshots per screen × config |
 

@@ -68,16 +68,30 @@ data class JobLocationEntity(
             onDelete = ForeignKey.RESTRICT, // categories are hidden, never deleted (spec F5)
         ),
     ],
-    indices = [Index("date"), Index("categoryId")],
+    indices = [Index("date"), Index("categoryId"), Index("projectId")],
 )
 data class ActivityEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val date: String,
     val categoryId: Long,
+    /** Mandatory since v1.2 — an activity always belongs to a project. */
+    val projectId: Long,
     /** Half-hour steps, null = not stated (v0.9 — replaced start/end times). */
     val durationMin: Int? = null,
     val note: String = "",
     val result: String = "",
+    val sortOrder: Int = 0,
+)
+
+/**
+ * A project an activity is booked against (v1.2). Archived rather than deleted
+ * once used, so past days keep rendering — the same rule categories follow.
+ */
+@Entity(tableName = "project")
+data class ProjectEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String,
+    val isArchived: Boolean = false,
     val sortOrder: Int = 0,
 )
 

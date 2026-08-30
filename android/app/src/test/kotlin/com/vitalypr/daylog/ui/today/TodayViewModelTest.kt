@@ -48,7 +48,8 @@ class TodayViewModelTest {
         val fakePdf = com.vitalypr.daylog.reporting.DailyPdfRenderer { day ->
             java.io.File.createTempFile("daylog-${day.date}", ".pdf").apply { writeText("%PDF-fake") }
         }
-        vm = TodayViewModel(repo, fakePdf, { fixedNow }, androidx.lifecycle.SavedStateHandle())
+        val projects = com.vitalypr.daylog.data.repo.ProjectRepository(db.projectDao())
+        vm = TodayViewModel(repo, projects, fakePdf, { fixedNow }, androidx.lifecycle.SavedStateHandle())
     }
 
     @After fun teardown() {
@@ -130,11 +131,15 @@ class TodayViewModelTest {
     @Test fun `adding activity from category chip appears with category name`() = runTest(dispatcher) {
         vm.uiState.test {
             awaitItem()
-            val cats = expectMostRecentItemAfter { it.categories.isNotEmpty() }.categories
-            val pituach = cats.first { it.name == "פיתוח" }
-            vm.addActivity(pituach.id)
+            // Categories and projects arrive in the same emission.
+            val loaded = expectMostRecentItemAfter { it.categories.isNotEmpty() && it.projects.isNotEmpty() }
+            val pituach = loaded.categories.first { it.name == "פיתוח" }
+            val project = loaded.projects.first { it.name == "רובוטיקה" }
+            vm.addActivity(pituach.id, project.id)
             val state = expectMostRecentItemAfter { it.activityRows.isNotEmpty() }
-            assertEquals("פיתוח", state.activityRows.single().category)
+            val row = state.activityRows.single()
+            assertEquals("פיתוח", row.category)
+            assertEquals("רובוטיקה", row.project) // an activity always names its project
         }
     }
 

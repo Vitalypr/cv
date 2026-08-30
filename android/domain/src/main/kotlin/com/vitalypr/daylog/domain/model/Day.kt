@@ -12,6 +12,8 @@ enum class TimeSource { MANUAL, GEOFENCE }
  */
 data class ActivityEntry(
     val category: String,
+    /** The project the work was booked against (v1.2); blank only for legacy rows. */
+    val project: String = "",
     val durationMin: Int? = null,
     val note: String = "",
     val result: String = "",

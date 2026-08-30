@@ -48,6 +48,12 @@
 - Label above time, not beside it: side-by-side caps the time at ~20sp on a 4-cell width before the digits clip.
 - Redraws are event-driven via `DayWidgetRefresher`, called from exactly three places: widget taps, geofence writes, and `MainActivity.onStop` (covers all in-app edits). A new write path for arrival/departure must call it too.
 
+## Projects & backup
+- `activity.projectId` is NOT NULL: an activity cannot exist without a project. The Today screen asks which one *before* creating the row, and skips the question when only one project exists.
+- A project with logged work is **archived**, never deleted — deleting it would orphan history. `ProjectRepository.remove` decides; re-adding an archived name revives it instead of duplicating.
+- **`BackupRepository` must know about every table and every setting.** Adding either means adding it to `BackupCodec` AND `SettingsRepository.replaceAll` — `BackupRoundTripTest` compares a full export before and after a wipe+restore, so an omission fails the build rather than silently losing the user's data.
+- Restore replaces inside one `withTransaction`, children cleared first and parents inserted first; ids are preserved so activity→project links survive.
+
 ## Bidi / Hebrew
 - Lines starting with emoji/digits flip in WhatsApp without leading RLM (`‏`). ReportBuilder owns RLM; nothing else appends it.
 - Mixed Hebrew + Latin (client names) inside a line is fine once the line has RLM; ranges like `10:00–13:30` must be en-dash between complete LTR runs.

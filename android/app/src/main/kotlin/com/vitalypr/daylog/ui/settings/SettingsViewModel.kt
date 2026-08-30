@@ -39,12 +39,33 @@ class SettingsViewModel @Inject constructor(
     private val officeLocator: com.vitalypr.daylog.geofence.OfficeLocator,
     private val jobLocationRepository: com.vitalypr.daylog.data.repo.JobLocationRepository,
     private val geofenceLog: com.vitalypr.daylog.geofence.GeofenceLog,
+    private val projectRepository: com.vitalypr.daylog.data.repo.ProjectRepository,
+    private val backupRepository: com.vitalypr.daylog.data.backup.BackupRepository,
+    private val reminderScheduler: com.vitalypr.daylog.reminder.ReminderScheduler,
+    private val widgetRefresher: com.vitalypr.daylog.widget.DayWidgetRefresher,
     @Now private val now: () -> LocalDateTime,
 ) : ViewModel() {
 
     val jobLocations: StateFlow<List<com.vitalypr.daylog.data.db.JobLocationEntity>> =
         jobLocationRepository.observeAll()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val projects: StateFlow<List<com.vitalypr.daylog.data.db.ProjectEntity>> =
+        projectRepository.observeAll()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    fun addProject(name: String) = viewModelScope.launch {
+        if (projectRepository.add(name) >= 0) effects.send(SettingsEffect.Toast("הפרויקט נוסף"))
+    }
+
+    fun removeProject(project: com.vitalypr.daylog.data.db.ProjectEntity) = viewModelScope.launch {
+        // A project with logged work is archived, never deleted — history must keep rendering.
+        val deleted = projectRepository.remove(project)
+        effects.send(SettingsEffect.Toast(if (deleted) "הפרויקט נמחק" else "הפרויקט הועבר לארכיון (יש עליו רישומים)"))
+    }
+
+    fun restoreProject(project: com.vitalypr.daylog.data.db.ProjectEntity) =
+        viewModelScope.launch { projectRepository.restore(project) }
 
     /** Last transitions and what each one did — the field-diagnosis trail. */
     val geofenceEvents: StateFlow<List<String>> = geofenceLog.entries
@@ -160,6 +181,38 @@ class SettingsViewModel @Inject constructor(
             geofenceManager.sync()
             effects.send(SettingsEffect.Toast("מיקום המשרד נשמר"))
         }
+    }
+
+    /** Everything the app owns, in one file the user can mail to themselves. */
+    fun exportBackup() = viewModelScope.launch {
+        val json = backupRepository.exportJson()
+        val stamp = now().toLocalDate()
+        val dir = File(context.cacheDir, "exports").apply { mkdirs() }
+        val file = File(dir, "daylog-backup-$stamp.json").apply { writeText(json) }
+        effects.send(SettingsEffect.ShareFile(file, "application/json"))
+    }
+
+    /**
+     * Replaces everything with the contents of [uri]. Destructive by design —
+     * the screen confirms first — and it re-arms the systems that depend on
+     * settings, since the restored values may point somewhere else entirely.
+     */
+    fun restoreBackup(uri: android.net.Uri) = viewModelScope.launch {
+        val json = runCatching {
+            context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+        }.getOrNull()
+        if (json.isNullOrBlank()) {
+            effects.send(SettingsEffect.Toast("לא ניתן לקרוא את הקובץ"))
+            return@launch
+        }
+        runCatching { backupRepository.restoreJson(json) }
+            .onSuccess {
+                reminderScheduler.scheduleNext()
+                geofenceManager.resync()
+                widgetRefresher.refresh()
+                effects.send(SettingsEffect.Toast("הגיבוי שוחזר"))
+            }
+            .onFailure { effects.send(SettingsEffect.Toast(it.message ?: "שחזור נכשל")) }
     }
 
     fun exportJson() = export("daylog-export.json", "application/json") { from, to -> exporter.exportJson(from, to) }

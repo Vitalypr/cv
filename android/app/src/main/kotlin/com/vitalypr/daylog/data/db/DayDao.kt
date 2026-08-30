@@ -15,6 +15,8 @@ data class ActivityWithCategory(
     @Embedded val activity: ActivityEntity,
     @Relation(parentColumn = "categoryId", entityColumn = "id")
     val category: CategoryEntity,
+    @Relation(parentColumn = "projectId", entityColumn = "id")
+    val project: ProjectEntity?,
 )
 
 data class DayWithEntries(
@@ -46,6 +48,35 @@ interface DayDao {
 
     @Upsert
     suspend fun upsertDay(day: WorkDayEntity)
+
+    // --- backup/restore: whole-table read and replace -----------------------
+
+    @Query("SELECT * FROM work_day ORDER BY date")
+    suspend fun allDays(): List<WorkDayEntity>
+
+    @Query("SELECT * FROM field_job ORDER BY id")
+    suspend fun allFieldJobs(): List<FieldJobEntity>
+
+    @Query("SELECT * FROM activity ORDER BY id")
+    suspend fun allActivities(): List<ActivityEntity>
+
+    @Insert
+    suspend fun insertDays(days: List<WorkDayEntity>)
+
+    @Insert
+    suspend fun insertFieldJobs(jobs: List<FieldJobEntity>)
+
+    @Insert
+    suspend fun insertActivities(activities: List<ActivityEntity>)
+
+    @Query("DELETE FROM activity")
+    suspend fun clearActivities()
+
+    @Query("DELETE FROM field_job")
+    suspend fun clearFieldJobs()
+
+    @Query("DELETE FROM work_day")
+    suspend fun clearDays()
 
     @Query("SELECT EXISTS(SELECT 1 FROM work_day WHERE date = :date)")
     suspend fun dayExists(date: String): Boolean
@@ -89,4 +120,44 @@ interface CategoryDao {
 
     @Update
     suspend fun update(category: CategoryEntity)
+
+    @Query("SELECT * FROM category ORDER BY sortOrder")
+    suspend fun all(): List<CategoryEntity>
+
+    @Query("DELETE FROM category")
+    suspend fun clear()
+}
+
+@Dao
+interface ProjectDao {
+
+    @Query("SELECT * FROM project ORDER BY sortOrder, name")
+    fun observeAll(): Flow<List<ProjectEntity>>
+
+    @Query("SELECT * FROM project WHERE isArchived = 0 ORDER BY sortOrder, name")
+    fun observeActive(): Flow<List<ProjectEntity>>
+
+    @Query("SELECT * FROM project ORDER BY sortOrder, name")
+    suspend fun all(): List<ProjectEntity>
+
+    @Query("SELECT COUNT(*) FROM project")
+    suspend fun count(): Int
+
+    @Query("SELECT COUNT(*) FROM activity WHERE projectId = :projectId")
+    suspend fun activityCount(projectId: Long): Int
+
+    @Insert
+    suspend fun insert(project: ProjectEntity): Long
+
+    @Insert
+    suspend fun insertAll(projects: List<ProjectEntity>)
+
+    @Update
+    suspend fun update(project: ProjectEntity)
+
+    @Query("DELETE FROM project WHERE id = :projectId")
+    suspend fun deleteById(projectId: Long)
+
+    @Query("DELETE FROM project")
+    suspend fun clear()
 }

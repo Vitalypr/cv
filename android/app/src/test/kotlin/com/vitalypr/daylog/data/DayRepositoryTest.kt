@@ -128,7 +128,8 @@ class DayRepositoryTest {
     @Test fun `activities carry category name, duration, note, result`() = runTest {
         repo.setArrival(date, 492, TimeSource.MANUAL)
         val cats = db.dayDao().let { db.categoryDao() }
-        val id = repo.addActivity(date, categoryId = 4) // פיתוח is 4th seed → id 4
+        val projectId = db.projectDao().all().first().id
+        val id = repo.addActivity(date, categoryId = 4, projectId = projectId) // פיתוח is 4th seed → id 4
         repo.updateActivity(
             db.dayDao().getDay(date.toString())!!.activities.first().activity
                 .copy(durationMin = 90, note = "בדיקת קוד", result = "הושלם"),

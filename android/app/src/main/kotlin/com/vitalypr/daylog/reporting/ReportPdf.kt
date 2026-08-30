@@ -92,7 +92,9 @@ class ReportPdf @Inject constructor(
             y = drawSectionLabel(canvas, "פעילויות", y + 30f)
             acts.forEach { a ->
                 val duration = a.durationMin?.let(::formatActivityDuration) ?: ""
-                val text = a.category + (if (a.note.isNotBlank()) " — ${a.note.trim()}" else "")
+                val text = a.category +
+                    (if (a.project.isNotBlank()) " · ${a.project}" else "") +
+                    (if (a.note.isNotBlank()) " — ${a.note.trim()}" else "")
                 y = drawTableRow(canvas, duration, text, a.result.trim(), y)
             }
         }

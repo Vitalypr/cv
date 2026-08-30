@@ -85,4 +85,22 @@ class SettingsRepository @Inject constructor(
         it[Keys.officeLon] = lon
         it[Keys.officeRadius] = radiusM
     }
+
+    /**
+     * Writes every setting at once — the restore half of a backup.
+     *
+     * Deliberately exhaustive rather than a merge: a restored backup must leave
+     * the app in exactly the state it was captured in, including values the user
+     * has since changed. Adding a setting means adding it here, and
+     * `BackupRoundTripTest` fails if the backup drops one.
+     */
+    suspend fun replaceAll(settings: Settings) = context.dataStore.edit { p ->
+        p[Keys.workDays] = settings.workDays.joinToString(",") { d -> d.value.toString() }
+        p[Keys.reportTime] = settings.reportTimeMin
+        p[Keys.geofenceEnabled] = settings.geofenceEnabled
+        p[Keys.silentGeofence] = settings.silentGeofence
+        p[Keys.officeRadius] = settings.officeRadiusM
+        if (settings.officeLat != null) p[Keys.officeLat] = settings.officeLat else p.remove(Keys.officeLat)
+        if (settings.officeLon != null) p[Keys.officeLon] = settings.officeLon else p.remove(Keys.officeLon)
+    }
 }
