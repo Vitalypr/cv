@@ -30,7 +30,7 @@ android/
     src/main/res/   values/strings.xml is HEBREW (default locale); backup rules in xml/
     src/test/       Robolectric + Roborazzi tests, package-mirrored
     schemas/        exported Room schemas — COMMIT these; from v6 forward every bump ships a Migration + test
-                    (v1–v5 were removed with the v2.0 clean break)
+                    (v1–v5 went with the v2.0 clean break; 6→7 retired activity.result)
 ```
 
 Rules of placement:

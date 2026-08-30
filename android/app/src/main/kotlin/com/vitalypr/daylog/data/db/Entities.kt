@@ -73,8 +73,8 @@ data class ActivityEntity(
     val projectId: Long,
     /** Half-hour steps, null = not stated. */
     val durationMin: Int? = null,
+    /** Free-text detail — what was actually done. */
     val note: String = "",
-    val result: String = "",
     val sortOrder: Int = 0,
 )
 

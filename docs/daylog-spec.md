@@ -78,7 +78,7 @@ Plain text in Hebrew (WhatsApp-friendly, no markdown dependency), rendered from 
 ‏דוח יומי — יום ד׳ 05.08.2026
 ‏סה״כ 9:00 — בסיס 4:00 · בית 2:00 · שטח 3:00
 ‏בסיס 10:00–14:00 (4:00)
-‏• רובוטיקה · התקנה — חיווט לוח, תא 4 (2:30 שע׳) · תוצאה: הושלם
+‏• רובוטיקה · התקנה — חיווט לוח, תא 4 (2:30 שע׳)
 ‏• רובוטיקה · דיון — סקירת ליקויים
 ‏שטח: תחנת משנה אקמה 06:00–09:00 (3:00)
 ‏• AI למחלקה · בדיקות (2 שע׳)
@@ -93,7 +93,7 @@ reads; the icons added nothing the Hebrew label does not already say. Mode names
 Template rules:
 - One block per work session, in the order the sessions were logged: an icon + mode header (with the site/client after a colon for a field session), the time range, and the span in parentheses; then that session's activities.
 - Sections with no content are omitted entirely. Missing fragments are omitted too: an open session renders without an end and without a span; the total line appears only once some session has both times.
-- **Activity lines read `פרויקט · קטגוריה — הערה (משך) · תוצאה: …`** — project first, then what was done, then the description, then how long (product-owner order, v2.0). The note, duration and result are each optional and each fragment is omitted when empty (a project and category always render). Durations are half-hour steps rendered with a unit — `30 דק׳`, `1 שע׳`, `2:30 שע׳` — so they never read as a clock time. Activities render in the order they were logged.
+- **Activity lines read `פרויקט · קטגוריה — פירוט (משך)`** — project first, then what was done, then the detail, then how long (product-owner order, v2.0). The detail and duration are each optional and each fragment is omitted when empty (a project and category always render). There is no result field (retired v2.1 — it was rarely filled and said nothing the detail could not). Durations are half-hour steps rendered with a unit — `30 דק׳`, `1 שע׳`, `2:30 שע׳` — so they never read as a clock time. Activities render in the order they were logged.
 - Header date always present → safe to send late. Dates dd.MM.yyyy, Hebrew day names (יום א׳–ש׳), Western numerals, 24-hour times.
 - **RTL correctness in WhatsApp:** every line begins with an invisible RLM (U+200F) so lines that start with a digit still render right-to-left; times and number ranges are wrapped so `10:00–13:30` doesn't flip. `ReportBuilder` owns this and it is unit-tested against golden strings.
 - Fixed labels are string resources (Hebrew is the app's default locale); adding another language later is trivial.
@@ -123,7 +123,7 @@ Generated in the Statistics tab for the selected week, month, or year and — li
 | F3 | A field session carries a title/client and optional location text; job-location fences open and close them automatically (§6.6b) | Must |
 | F4a | **Projects (v1.2):** a user-managed list, seeded with רובוטיקה / הנדסת מערכת למחלקה / AI למחלקה. Every activity must name a project — it cannot be logged without one. A project still referenced by logged work is archived rather than deleted, so history keeps rendering | Must |
 | F12a | **Full backup (v1.2):** one action writes every table and every setting to a versioned JSON file, shareable to mail/Drive/files; one action restores it, replacing all app data atomically | Must |
-| F4 | Log zero or more activities **inside a session** (v2.0) from a category list — defaults: דיון, התקנה, בדיקות, פיתוח, תכנון, תיעוד, תמיכה, אחר — each entry with an optional **duration in 30-minute steps** (v0.9: no clock times on activities), optional free-text note, optional result, and a **mandatory project** (v1.2); multiple entries per category allowed (e.g., two separate discussions) | Must |
+| F4 | Log zero or more activities **inside a session** (v2.0) from a category list — defaults: דיון, התקנה, בדיקות, פיתוח, תכנון, תיעוד, תמיכה, אחר — each entry with an optional **duration in 30-minute steps** (v0.9: no clock times on activities), an optional free-text **detail** (פירוט), and a **mandatory project** (v1.2); multiple entries per category allowed (e.g., two separate discussions) | Must |
 | F5 | Category list is user-editable (add/rename/hide; no hard delete — history must keep rendering) | Should |
 | F6 | Free-text daily notes field | Must |
 | F7 | Daily reminder notification at a configured time, on configured workdays **or any day that has data**, with the variants of §5.4 | Must |
@@ -158,7 +158,7 @@ Four-tab bottom navigation (היום / היסטוריה / סטטיסטיקה / �
   - header: the mode name (בסיס / בית / שטח), an optional free-text title (the site/client for a field session), and a remove control;
   - `כניסה —:—` / `יציאה —:—` values with **הגעתי / יצאתי** one-tap buttons when unset, ±15 nudges, a time picker on tap and an X that clears a value back to unset;
   - the session's **time budget** (below);
-  - category chips in a flow row; tapping a chip adds an activity entry to *that* session — an inline row with the project (tap to reassign), a −½ / +½ duration stepper (30-minute steps, `—` when unstated), a one-line note field and an optional result field. A chip is highlighted while that session has an entry of it, and tapping again adds another.
+  - category chips in a flow row; tapping a chip adds an activity entry to *that* session. An entry is **two lines** (v2.1): `פרויקט | קטגוריה | −½ משך +½ | ✕` and, below it, a full-width `פירוט:` field. A chip is highlighted while that session has an entry of it, and tapping again adds another.
 - **Add-session row:** **+ בסיס / + בית / + שטח**. On today a new session starts at the current time (one tap = "I've just started"); on a past day it opens empty.
 - **Time budget (screen only, v2.0; graphical v2.1):** each session — and the day, when it has several — shows how much of the worked hours the logged activities account for, as a **full-width bar with three figures above it: עבדת / מולא / נותר**. The bar is petrol while filling, green when it balances, and red across its whole width when the activities claim **more** time than was worked — the third figure then reads **עודף** and names the excess. Exact values always sit beside the bar as text, so the colour is never the only source. This is a filling aid for the person logging; it never appears in the report or the PDF.
 - **Special days:** marking **חופש / חג** suppresses the reminder and geofence prompts for the day, hides the sessions entirely (special days accept no hours) and replaces the report preview with a "no report today" state (S4).
@@ -279,8 +279,7 @@ Activity
   categoryId: Long (FK → Category)           // multiple rows per category allowed
   projectId: Long (FK → Project)             // v1.2: mandatory — no activity without a project
   durationMin: Int?                          // v0.9: 30-minute steps, max 12 h; null = not stated
-  note: String
-  result: String                             // optional outcome, e.g. "הושלם", "עברו"
+  note: String                               // free-text detail (פירוט)
   sortOrder: Int                             // report order (activities have no clock times)
 
 Project                                      // v1.2
@@ -297,7 +296,9 @@ Category
   sortOrder: Int
 ```
 
-**Schema v6 is a clean break (v2.0, product-owner decision):** sessions are a different shape from arrival/departure + field jobs, not a widening of them, and the product owner chose to re-enter the data rather than carry a lossy conversion. There is no migration chain — an older database is dropped and rebuilt (`fallbackToDestructiveMigration`) and re-seeded on open, which `SchemaResetTest` guards. From v6 forward, every schema bump ships a Migration + test again.
+**Schema v7 retires `activity.result` (v2.1)** with a real Migration 6→7 that rebuilds the table and copies every row, ids included.
+
+**Schema v6 was a clean break (v2.0, product-owner decision):** sessions are a different shape from arrival/departure + field jobs, not a widening of them, and the product owner chose to re-enter the data rather than carry a lossy conversion. There is no migration chain — an older database is dropped and rebuilt (`fallbackToDestructiveMigration`) and re-seeded on open, which `SchemaResetTest` guards. From v6 forward, every schema bump ships a Migration + test again.
 
 `WorkDay` is created lazily on first fact logged for a date. A single `@Transaction` query (`DayWithEntries`) feeds the Today/Day-Editor screen. Status is derived: ריק (no row) / נרשם, לא נשלח (`reportedAt == null`) / נשלח / נשלח (עודכן) (`editedAfterReport`) / חופש or חג (`dayType`).
 
@@ -394,7 +395,7 @@ Beyond the office fence, the user saves **job locations** (client sites): name +
 | Marking day "נשלח" on intent launch, not actual send | Accepted inaccuracy; re-send always available and refreshes the timestamp |
 | RTL rendering glitches in WhatsApp (emoji/digit line starts) | RLM-prefixed lines, golden-string tests, manual verification on real device in M1 |
 
-**Resolved with the product owner:** language = Hebrew (v0.2 throughout); work-week = Sun–Thu; monthly summary is shareable like the daily report (F11, §2.5); activities carry an optional result, with repeated categories allowed (v0.3); daily report delivered as a styled PDF with text caption (v0.5); activities record a **duration in 30-minute steps** rather than start/end times (v0.9 — what the work was matters, the minute it began does not, and stepping is faster than two time pickers).
+**Resolved with the product owner:** language = Hebrew (v0.2 throughout); work-week = Sun–Thu; monthly summary is shareable like the daily report (F11, §2.5); repeated categories allowed (v0.3, and the result field retired in v2.1); daily report delivered as a styled PDF with text caption (v0.5); activities record a **duration in 30-minute steps** rather than start/end times (v0.9 — what the work was matters, the minute it began does not, and stepping is faster than two time pickers).
 
 **Still open:**
 1. Should field jobs support photo attachments (site evidence) in a future version? Nothing in v1 changes either way, but a `FieldJobPhoto` table would be added later.

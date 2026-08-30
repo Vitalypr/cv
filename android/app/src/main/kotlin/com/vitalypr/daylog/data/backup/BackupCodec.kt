@@ -106,7 +106,6 @@ object BackupCodec {
         put("projectId", a.projectId)
         put("durationMin", a.durationMin ?: JSONObject.NULL)
         put("note", a.note)
-        put("result", a.result)
         put("sortOrder", a.sortOrder)
     }
 
@@ -186,7 +185,6 @@ object BackupCodec {
         projectId = o.optLong("projectId"),
         durationMin = o.intOrNull("durationMin"),
         note = o.optString("note", ""),
-        result = o.optString("result", ""),
         sortOrder = o.optInt("sortOrder", 0),
     )
 

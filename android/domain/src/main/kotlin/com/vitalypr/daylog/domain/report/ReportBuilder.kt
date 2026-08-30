@@ -45,14 +45,13 @@ object ReportBuilder {
             session.spanMin?.let { header += " (${formatDuration(it)})" }
             lines += header
 
-            // Project first, then what was done, then the note, then how long
+            // Project first, then what was done, then the detail, then how long
             // (product-owner order, v2.0).
             for (a in session.activities) {
                 var r = "• "
                 r += listOf(a.project, a.category).filter { it.isNotBlank() }.joinToString(" · ")
                 if (a.note.isNotBlank()) r += " — ${a.note.trim()}"
                 if (a.durationMin != null) r += " (${formatActivityDuration(a.durationMin)})"
-                if (a.result.isNotBlank()) r += " · תוצאה: ${a.result.trim()}"
                 lines += r
             }
         }

@@ -32,7 +32,7 @@ fun interface DailyPdfRenderer {
 /**
  * Styled PDF of the daily report (spec §2.4 v0.5) in the approved "Ledger"
  * design: petrol double rule, title block, boxed summary row, hairline table
- * with time/activity/result columns, notes callout, numbered footer. Native
+ * with time/activity columns, notes callout, numbered footer. Native
  * android.graphics.pdf — offline, dependency-free. RTL via StaticLayout.
  */
 @Singleton
@@ -56,7 +56,6 @@ class ReportPdf @Inject constructor(
         const val MARGIN = 48f
         const val CONTENT_W = PAGE_W - 2 * MARGIN
         const val COL_TIME = 104f // right column: time ranges
-        const val COL_RESULT = 74f // left column: results
         const val COL_GAP = 10f
     }
 
@@ -85,12 +84,12 @@ class ReportPdf @Inject constructor(
             }
             val times = session.startMin?.let { formatRange(it, session.endMin) } ?: ""
             y = drawSectionLabel(canvas, header, y + 26f)
-            y = drawTableRow(canvas, times, session.spanMin?.let(::formatDuration) ?: "", "", y)
+            y = drawTableRow(canvas, times, session.spanMin?.let(::formatDuration) ?: "", y)
             session.activities.forEach { a ->
                 // Project first, then what was done, then the note (v2.0 order).
                 val text = listOf(a.project, a.category).filter { it.isNotBlank() }.joinToString(" · ") +
                     (if (a.note.isNotBlank()) " — ${a.note.trim()}" else "")
-                y = drawTableRow(canvas, a.durationMin?.let(::formatActivityDuration) ?: "", text, a.result.trim(), y)
+                y = drawTableRow(canvas, a.durationMin?.let(::formatActivityDuration) ?: "", text, y)
             }
         }
 
@@ -150,9 +149,9 @@ class ReportPdf @Inject constructor(
         return top + 18f
     }
 
-    /** One hairline table row: time (right col), text (middle), result (left col, green). */
-    private fun drawTableRow(canvas: Canvas, time: String, text: String, result: String, top: Float): Float {
-        val textW = (CONTENT_W - COL_TIME - COL_RESULT - 2 * COL_GAP).toInt()
+    /** One hairline table row: the time in the right column, the text beside it. */
+    private fun drawTableRow(canvas: Canvas, time: String, text: String, top: Float): Float {
+        val textW = (CONTENT_W - COL_TIME - COL_GAP).toInt()
         val layout = staticLayout(text, textPaint(12f, C.ink), textW)
         val rowH = maxOf(layout.height.toFloat() + 12f, 26f)
 
@@ -161,13 +160,9 @@ class ReportPdf @Inject constructor(
             canvas.drawText(time, PAGE_W - MARGIN, top + 15f, timePaint)
         }
         canvas.save()
-        canvas.translate(MARGIN + COL_RESULT + COL_GAP, top + 4f)
+        canvas.translate(MARGIN, top + 4f)
         layout.draw(canvas)
         canvas.restore()
-        if (result.isNotBlank()) {
-            val resPaint = textPaint(11f, C.sendGreen, bold = true).apply { textAlign = Paint.Align.LEFT }
-            canvas.drawText(result, MARGIN, top + 15f, resPaint)
-        }
         canvas.drawRect(MARGIN, top + rowH - 1f, PAGE_W - MARGIN, top + rowH - 0.25f, fill(C.hairline))
         return top + rowH
     }

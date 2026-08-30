@@ -36,8 +36,7 @@
     <string name="budget_stat_over">עודף</string>
 
     <string name="activities">פעילויות</string>
-    <string name="activity_note_hint">הערה</string>
-    <string name="activity_result_hint">תוצאה</string>
+    <string name="activity_detail_label">פירוט:</string>
     <string name="pick_project">בחר פרויקט</string>
     <string name="no_projects_hint">הוסף פרויקט בהגדרות</string>
     <string name="duration_unset">—</string>

@@ -41,7 +41,7 @@ class ReportPdfTest {
             sessions = listOf(
                 WorkSession(
                     mode = WorkMode.BASE, startMin = 492, endMin = 1055,
-                    activities = listOf(ActivityEntry("רובוטיקה", "התקנה", 150, "חיווט לוח", "הושלם")),
+                    activities = listOf(ActivityEntry("רובוטיקה", "התקנה", 150, "חיווט לוח")),
                 ),
                 WorkSession(mode = WorkMode.FIELD, startMin = 600, endMin = 810, title = "תחנת משנה אקמה"),
                 WorkSession(mode = WorkMode.HOME, startMin = 1140, endMin = 1260),

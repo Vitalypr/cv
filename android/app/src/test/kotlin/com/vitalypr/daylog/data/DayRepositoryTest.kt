@@ -155,19 +155,18 @@ class DayRepositoryTest {
         assertEquals(DayStatus.REPORTED_EDITED, repo.getDay(date)!!.status())
     }
 
-    @Test fun `activities carry project, category, duration, note, result`() = runTest {
+    @Test fun `activities carry project, category, duration and detail`() = runTest {
         val sessionId = repo.addSession(date, WorkMode.BASE, startMin = 480, endMin = 1005)
         val projectId = firstProjectId()
         repo.addActivity(sessionId, categoryId = 4, projectId = projectId) // פיתוח is the 4th seed
         val stored = db.dayDao().allActivities().single()
-        repo.updateActivity(stored.copy(durationMin = 90, note = "בדיקת קוד", result = "הושלם"))
+        repo.updateActivity(stored.copy(durationMin = 90, note = "בדיקת קוד"))
 
         val a = repo.getDay(date)!!.activities.single()
         assertEquals(DayLogDb.DEFAULT_PROJECTS.first(), a.project)
         assertEquals("פיתוח", a.category)
         assertEquals(90, a.durationMin)
         assertEquals("בדיקת קוד", a.note)
-        assertEquals("הושלם", a.result)
     }
 
     @Test fun `activities belong to their own session`() = runTest {

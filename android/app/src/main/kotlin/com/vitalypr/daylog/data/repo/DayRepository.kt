@@ -306,12 +306,11 @@ data class ActivityRow(
     /** Half-hour steps; null = not stated. */
     val durationMin: Int?,
     val note: String,
-    val result: String,
     val sortOrder: Int,
 ) {
     fun toEntity() = ActivityEntity(
         id = id, sessionId = sessionId, categoryId = categoryId, projectId = projectId,
-        durationMin = durationMin, note = note, result = result, sortOrder = sortOrder,
+        durationMin = durationMin, note = note, sortOrder = sortOrder,
     )
 }
 
@@ -352,7 +351,6 @@ internal fun com.vitalypr.daylog.data.db.SessionWithActivities.toDomain(): WorkS
             category = it.category?.name.orEmpty(),
             durationMin = it.activity.durationMin,
             note = it.activity.note,
-            result = it.activity.result,
         )
     },
 )
@@ -373,7 +371,6 @@ internal fun DayWithEntries.toEditable(): EditableDay = EditableDay(
                     project = a.project?.name.orEmpty(),
                     durationMin = a.activity.durationMin,
                     note = a.activity.note,
-                    result = a.activity.result,
                     sortOrder = a.activity.sortOrder,
                 )
             },

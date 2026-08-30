@@ -150,10 +150,6 @@ class TodayViewModel @Inject constructor(
         repository.editActivity(id) { it.copy(note = note) }
     }
 
-    fun setActivityResult(id: Long, result: String) = viewModelScope.launch {
-        repository.editActivity(id) { it.copy(result = result) }
-    }
-
     fun setActivityProject(id: Long, projectId: Long) = viewModelScope.launch {
         repository.editActivity(id) { it.copy(projectId = projectId) }
     }

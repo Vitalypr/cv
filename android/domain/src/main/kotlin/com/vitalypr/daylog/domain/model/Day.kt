@@ -21,8 +21,8 @@ data class ActivityEntry(
     val project: String = "",
     val category: String = "",
     val durationMin: Int? = null,
+    /** Free-text detail — what was actually done. */
     val note: String = "",
-    val result: String = "",
 )
 
 /**

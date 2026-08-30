@@ -58,8 +58,7 @@ class Exporter @Inject constructor(
                                         .put("project", a.project)
                                         .put("category", a.category)
                                         .put("durationMin", a.durationMin ?: JSONObject.NULL)
-                                        .put("note", a.note)
-                                        .put("result", a.result),
+                                        .put("note", a.note),
                                 )
                             }
                         },

@@ -66,6 +66,7 @@ import com.vitalypr.daylog.ui.theme.Amber
 import com.vitalypr.daylog.ui.theme.AmberTint
 import com.vitalypr.daylog.ui.theme.InkMuted
 import com.vitalypr.daylog.ui.theme.InkSecondary
+import com.vitalypr.daylog.ui.theme.Line
 import com.vitalypr.daylog.ui.theme.SendGreen
 import com.vitalypr.daylog.ui.theme.Warn
 import com.vitalypr.daylog.ui.theme.WarnTint
@@ -95,7 +96,6 @@ fun TodayScreen(viewModel: TodayViewModel = hiltViewModel()) {
             onToggleDayType = viewModel::toggleDayType,
             onAddActivity = viewModel::addActivity,
             onSetActivityNote = viewModel::setActivityNote,
-            onSetActivityResult = viewModel::setActivityResult,
             onSetActivityProject = viewModel::setActivityProject,
             onStepActivityDuration = viewModel::stepActivityDuration,
             onRemoveActivity = viewModel::removeActivity,
@@ -117,7 +117,6 @@ data class TodayCallbacks(
     val onToggleDayType: (DayType) -> Unit = {},
     val onAddActivity: (Long, Long, Long) -> Unit = { _, _, _ -> },
     val onSetActivityNote: (Long, String) -> Unit = { _, _ -> },
-    val onSetActivityResult: (Long, String) -> Unit = { _, _ -> },
     val onSetActivityProject: (Long, Long) -> Unit = { _, _ -> },
     val onStepActivityDuration: (Long, Boolean) -> Unit = { _, _ -> },
     val onRemoveActivity: (Long) -> Unit = {},
@@ -469,39 +468,68 @@ private fun ProjectPickerDialog(
 private fun ActivityEditor(row: ActivityRow, projects: List<ProjectEntity>, cb: TodayCallbacks) {
     var reassigning by remember { mutableStateOf(false) }
     HorizontalDivider(Modifier.padding(vertical = 5.dp))
+
+    // What it was, then how long — project | category | duration, then the
+    // detail on its own full-width line (product-owner layout).
     Row(verticalAlignment = Alignment.CenterVertically) {
-        // Project first, then what was done — the same order the report uses.
         TextButton(
             onClick = { reassigning = true },
             contentPadding = PaddingValues(horizontal = 4.dp),
-            modifier = Modifier.height(24.dp),
+            modifier = Modifier.height(26.dp),
         ) {
             Text(
                 row.project.ifBlank { stringResource(R.string.pick_project) },
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
+                maxLines = 1,
             )
         }
+        Separator()
+        Text(row.category, style = MaterialTheme.typography.labelLarge, maxLines = 1)
+        Separator()
+        // Duration in half-hour steps — no clock times on activities (spec F4 v0.9).
+        CompactOutlined(stringResource(R.string.minus_step)) { cb.onStepActivityDuration(row.id, false) }
         Text(
-            "· ${row.category}",
-            style = MaterialTheme.typography.labelSmall,
-            color = InkSecondary,
+            row.durationMin?.let(::formatActivityDuration) ?: stringResource(R.string.duration_unset),
+            style = MaterialTheme.typography.labelLarge,
+            color = if (row.durationMin != null) MaterialTheme.colorScheme.onSurface else InkMuted,
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = 2.dp),
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            maxLines = 1,
         )
-        Spacer(Modifier.width(4.dp))
-        NoteField(
-            value = row.note,
-            hint = stringResource(R.string.activity_note_hint),
-            onChange = { cb.onSetActivityNote(row.id, it) },
-            modifier = Modifier.weight(1f),
-        )
+        CompactOutlined(stringResource(R.string.plus_step)) { cb.onStepActivityDuration(row.id, true) }
         IconButton(
             onClick = { cb.onRemoveActivity(row.id) },
             modifier = Modifier
                 .height(28.dp)
-                .width(32.dp),
+                .width(28.dp),
         ) {
-            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.remove), tint = InkMuted)
+            Icon(
+                Icons.Default.Close,
+                contentDescription = stringResource(R.string.remove),
+                tint = InkMuted,
+                modifier = Modifier.size(16.dp),
+            )
         }
+    }
+    Row(
+        verticalAlignment = Alignment.Bottom,
+        modifier = Modifier.padding(top = 2.dp, bottom = 2.dp),
+    ) {
+        Text(
+            stringResource(R.string.activity_detail_label),
+            style = MaterialTheme.typography.bodySmall,
+            color = InkSecondary,
+            modifier = Modifier.padding(end = 6.dp),
+        )
+        NoteField(
+            value = row.note,
+            hint = "",
+            onChange = { cb.onSetActivityNote(row.id, it) },
+            modifier = Modifier.weight(1f),
+        )
     }
     if (reassigning) {
         ProjectPickerDialog(
@@ -513,25 +541,17 @@ private fun ActivityEditor(row: ActivityRow, projects: List<ProjectEntity>, cb: 
             onDismiss = { reassigning = false },
         )
     }
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        // Duration in half-hour steps — no clock times on activities (spec F4 v0.9).
-        CompactOutlined(stringResource(R.string.minus_step)) { cb.onStepActivityDuration(row.id, false) }
-        Text(
-            row.durationMin?.let(::formatActivityDuration) ?: stringResource(R.string.duration_unset),
-            style = MaterialTheme.typography.labelLarge,
-            color = if (row.durationMin != null) MaterialTheme.colorScheme.onSurface else InkMuted,
-            modifier = Modifier.width(64.dp),
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-        )
-        CompactOutlined(stringResource(R.string.plus_step)) { cb.onStepActivityDuration(row.id, true) }
-        Spacer(Modifier.width(6.dp))
-        NoteField(
-            value = row.result,
-            hint = stringResource(R.string.activity_result_hint),
-            onChange = { cb.onSetActivityResult(row.id, it) },
-            modifier = Modifier.weight(1f),
-        )
-    }
+}
+
+/** The "|" of the product owner's sketch: project | category | duration. */
+@Composable
+private fun Separator() {
+    Text(
+        "|",
+        style = MaterialTheme.typography.labelLarge,
+        color = Line,
+        modifier = Modifier.padding(horizontal = 4.dp),
+    )
 }
 
 /** Compact single-line field (32dp vs OutlinedTextField's 56dp minimum). */

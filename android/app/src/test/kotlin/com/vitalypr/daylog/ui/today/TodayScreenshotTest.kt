@@ -71,7 +71,7 @@ class TodayScreenshotTest {
                 id = id * 100 + i, sessionId = id,
                 categoryId = categories.first { it.name == a.category }.id, category = a.category,
                 projectId = projects.first { it.name == a.project }.id, project = a.project,
-                durationMin = a.durationMin, note = a.note, result = a.result, sortOrder = i,
+                durationMin = a.durationMin, note = a.note, sortOrder = i,
             )
         }
         return domain to SessionRow(entity, domain, rows)
@@ -128,7 +128,7 @@ class TodayScreenshotTest {
                 session(
                     1, WorkMode.BASE, startMin = 480, endMin = 840,
                     activities = listOf(
-                        ActivityEntry("רובוטיקה", "התקנה", 150, "חיווט לוח, תא 4", "הושלם"),
+                        ActivityEntry("רובוטיקה", "התקנה", 150, "חיווט לוח, תא 4"),
                         ActivityEntry("רובוטיקה", "דיון", 60, "סקירת ליקויים"),
                     ),
                 ),

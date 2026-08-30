@@ -1,6 +1,6 @@
 # DayLog (יומן עבודה)
 
-Hebrew-first, RTL Android app for a consultant's daily work log: arrival/departure, field jobs, activities (times/note/result), daily WhatsApp report via share intent, weekly/monthly/yearly statistics. Single user, offline-only, no backend.
+Hebrew-first, RTL Android app for a consultant's daily work log: arrival/departure, field jobs, work sessions and their activities, daily WhatsApp report via share intent, weekly/monthly/yearly statistics. Single user, offline-only, no backend.
 
 **Source of truth:** @docs/daylog-spec.md (v0.4, approved). Build order & gates: @docs/implementation-plan.md. Deviations go in the plan's deviation log, never silently.
 

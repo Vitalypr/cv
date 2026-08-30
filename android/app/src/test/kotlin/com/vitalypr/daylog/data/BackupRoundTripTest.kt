@@ -74,7 +74,7 @@ class BackupRoundTripTest {
         db.dayDao().insertActivity(
             ActivityEntity(
                 sessionId = baseId, categoryId = 4, projectId = projectId,
-                durationMin = 90, note = "חיווט", result = "הושלם", sortOrder = 0,
+                durationMin = 90, note = "חיווט", sortOrder = 0,
             ),
         )
         db.jobLocationDao().insert(JobLocationEntity(name = "אתר דרום", lat = 31.2, lon = 34.8, radiusM = 2000))

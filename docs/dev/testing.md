@@ -23,6 +23,7 @@ TDD is the workflow, not a phase: failing test → implementation → green → 
 | §6.2 time model >24h, day boundary | `TimesTest`, `ReportBuilderOvernightTest` |
 | §6.3 schema, DayWithEntries, status derivation | `app` `DayRepositoryTest`, domain `DayStatusTest` |
 | §6.3 v2.0 clean break (older DB rebuilt + re-seeded, never a crash) | `app` `SchemaResetTest` |
+| §6.3 Migration 6→7 (result retired; rows, ids and links survive) | `app` `MigrationTest` |
 | F1 v2.0 work sessions (several a day, per mode; second visit ≠ overwrite) | `DayRepositoryTest`, domain `StatsCalculatorTest`, `GeofenceEngineTest` |
 | §5.1 time budget (worked vs. allocated vs. left, over-allocation) | domain `TimeBudgetTest`, `TodayViewModelTest`; `TodayScreenshotTest` — `today_full` (filling), `today_balanced` (green), `today_over_allocated` (red) |
 | §5.5 notification variants table | `ReminderVariantsTest` — one test per table row |
@@ -33,7 +34,6 @@ TDD is the workflow, not a phase: failing test → implementation → green → 
 | §6.6 ordering invariants (occupancy, event day, staleness, dwell) | domain `GeofenceRulesTest`; `GeofenceEngineTest` (phantom exit, drift, overnight, drive-past), `JobLocationEngineTest` |
 | §6.4/§6.5 share intent, trampoline activity, alarm re-arm | `ReportShareTest`, `SendReportActivityTest`, `ReminderSchedulerTest`, `BootReceiverTest` |
 | §5.6 widget: override rules, special day, state selection | `WidgetActionsTest`, `WidgetStateTest`, `DayWidgetScreenshotTest` (inflates the real RemoteViews at 250x40dp) |
-| F4a projects (defaults, add, archive-vs-delete, mandatory link) | `ProjectRepositoryTest`, `TodayViewModelTest`, `MigrationTest` (4→5) |
 | F12a full backup (every table + setting, atomic restore, bad file refused) | `BackupRoundTripTest` |
 | N3 no INTERNET | `ManifestGuardTest` (parses merged manifest) |
 | UI per mockup | Roborazzi snapshots per screen × config |

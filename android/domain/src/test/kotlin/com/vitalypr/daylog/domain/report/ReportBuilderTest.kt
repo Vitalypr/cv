@@ -23,7 +23,7 @@ class ReportBuilderTest {
                 WorkSession(
                     mode = WorkMode.BASE, startMin = 10 * 60, endMin = 14 * 60,
                     activities = listOf(
-                        ActivityEntry("רובוטיקה", "התקנה", 150, "חיווט לוח, תא 4", "הושלם"),
+                        ActivityEntry("רובוטיקה", "התקנה", 150, "חיווט לוח, תא 4"),
                         ActivityEntry("רובוטיקה", "דיון", note = "סקירת ליקויים"),
                     ),
                 ),
@@ -40,7 +40,7 @@ class ReportBuilderTest {
             "דוח יומי — יום ג׳ 04.08.2026",
             "סה״כ 9:00 — בסיס 4:00 · בית 2:00 · שטח 3:00",
             "בסיס 10:00‎–‎14:00 (4:00)",
-            "• רובוטיקה · התקנה — חיווט לוח, תא 4 (2:30 שע׳) · תוצאה: הושלם",
+            "• רובוטיקה · התקנה — חיווט לוח, תא 4 (2:30 שע׳)",
             "• רובוטיקה · דיון — סקירת ליקויים",
             "שטח: תחנת משנה אקמה 06:00‎–‎09:00 (3:00)",
             "• AI למחלקה · בדיקות (2 שע׳)",
@@ -66,21 +66,21 @@ class ReportBuilderTest {
         assertEquals("${rlm}דוח יומי — יום ג׳ 04.08.2026", ReportBuilder.daily(DaySnapshot(tue)))
     }
 
-    @Test fun `the activity line reads project, work, note, then how long`() {
+    @Test fun `the activity line reads project, work, detail, then how long`() {
         val day = DaySnapshot(
             tue,
             listOf(
                 WorkSession(
                     startMin = 8 * 60, endMin = 16 * 60,
                     activities = listOf(
-                        ActivityEntry("AI למחלקה", "פיתוח", 120, "מודל ניבוי", "הושלם"),
+                        ActivityEntry("AI למחלקה", "פיתוח", 120, "מודל ניבוי"),
                         ActivityEntry("רובוטיקה", "תכנון"),
                     ),
                 ),
             ),
         )
         val lines = ReportBuilder.daily(day).lines()
-        assertEquals("$rlm• AI למחלקה · פיתוח — מודל ניבוי (2 שע׳) · תוצאה: הושלם", lines[3])
+        assertEquals("$rlm• AI למחלקה · פיתוח — מודל ניבוי (2 שע׳)", lines[3])
         assertEquals("$rlm• רובוטיקה · תכנון", lines[4])
     }
 
