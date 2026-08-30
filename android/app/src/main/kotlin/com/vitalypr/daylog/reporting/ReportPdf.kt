@@ -12,10 +12,11 @@ import android.text.StaticLayout
 import android.text.TextDirectionHeuristics
 import android.text.TextPaint
 import com.vitalypr.daylog.domain.model.DaySnapshot
+import com.vitalypr.daylog.domain.report.ReportBuilder
+import com.vitalypr.daylog.domain.stats.StatsCalculator
 import com.vitalypr.daylog.domain.time.formatActivityDuration
 import com.vitalypr.daylog.domain.time.formatDate
 import com.vitalypr.daylog.domain.time.formatDuration
-import com.vitalypr.daylog.domain.time.formatMinutes
 import com.vitalypr.daylog.domain.time.formatRange
 import com.vitalypr.daylog.domain.time.hebrewDayNameFull
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -77,25 +78,19 @@ class ReportPdf @Inject constructor(
         var y = drawRulesAndTitle(canvas, day)
         y = drawSummaryBox(canvas, day, y + 26f)
 
-        if (day.fieldJobs.isNotEmpty()) {
-            y = drawSectionLabel(canvas, "עבודות שטח", y + 30f)
-            day.fieldJobs.forEach { job ->
-                val range = job.startMin?.let { formatRange(it, job.endMin) } ?: ""
-                val text = job.title + (job.locationText?.let { " · $it" } ?: "")
-                y = drawTableRow(canvas, range, text, result = "", y)
+        day.sessions.filter { it.hasData }.forEach { session ->
+            val header = buildString {
+                append(ReportBuilder.modeName(session.mode))
+                if (session.title.isNotBlank()) append(": ${session.title.trim()}")
             }
-        }
-
-        // Logged order — activities carry a duration, not a clock range (v0.9).
-        val acts = day.activities
-        if (acts.isNotEmpty()) {
-            y = drawSectionLabel(canvas, "פעילויות", y + 30f)
-            acts.forEach { a ->
-                val duration = a.durationMin?.let(::formatActivityDuration) ?: ""
-                val text = a.category +
-                    (if (a.project.isNotBlank()) " · ${a.project}" else "") +
+            val times = session.startMin?.let { formatRange(it, session.endMin) } ?: ""
+            y = drawSectionLabel(canvas, header, y + 26f)
+            y = drawTableRow(canvas, times, session.spanMin?.let(::formatDuration) ?: "", "", y)
+            session.activities.forEach { a ->
+                // Project first, then what was done, then the note (v2.0 order).
+                val text = listOf(a.project, a.category).filter { it.isNotBlank() }.joinToString(" · ") +
                     (if (a.note.isNotBlank()) " — ${a.note.trim()}" else "")
-                y = drawTableRow(canvas, duration, text, a.result.trim(), y)
+                y = drawTableRow(canvas, a.durationMin?.let(::formatActivityDuration) ?: "", text, a.result.trim(), y)
             }
         }
 
@@ -128,17 +123,12 @@ class ReportPdf @Inject constructor(
         }
         canvas.drawRoundRect(RectF(MARGIN, top, PAGE_W - MARGIN, top + boxH), 4f, 4f, stroke)
 
-        val fieldMin = day.fieldJobs
-            .filter { it.startMin != null && it.endMin != null && it.endMin!! > it.startMin!! }
-            .sumOf { it.endMin!! - it.startMin!! }
-        val arr = day.arrivalMin
-        val dep = day.departureMin
-        val total = if (arr != null && dep != null && dep > arr) formatDuration(dep - arr) else "—"
+        val minutes = StatsCalculator.dayMinutes(day)
         val cells = listOf(
-            "כניסה" to (arr?.let(::formatMinutes) ?: "—"),
-            "יציאה" to (dep?.let(::formatMinutes) ?: "—"),
-            "סה״כ שעות" to total,
-            "שטח" to (if (fieldMin > 0) formatDuration(fieldMin) else "—"),
+            "סה״כ שעות" to (if (minutes.total > 0) formatDuration(minutes.total) else "—"),
+            "בסיס" to (if (minutes.base > 0) formatDuration(minutes.base) else "—"),
+            "בית" to (if (minutes.home > 0) formatDuration(minutes.home) else "—"),
+            "שטח" to (if (minutes.field > 0) formatDuration(minutes.field) else "—"),
         )
         val cellW = CONTENT_W / cells.size
         cells.forEachIndexed { i, (label, value) ->

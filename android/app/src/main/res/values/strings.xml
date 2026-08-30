@@ -26,6 +26,21 @@
     <string name="save">שמירה</string>
     <string name="cancel">ביטול</string>
 
+    <!-- work sessions (v2.0): a day is one or more stretches of work, each with its own mode, hours and activities -->
+    <string name="mode_base">בסיס</string>
+    <string name="mode_home">בית</string>
+    <string name="mode_field">שטח</string>
+    <string name="add_session">‎+ %1$s</string>
+    <string name="session_title_hint">תיאור (לא חובה)</string>
+    <string name="session_site_hint">אתר / לקוח (לא חובה)</string>
+    <string name="remove_session">מחיקת מקטע העבודה</string>
+    <string name="no_sessions_hint">הוסף מקטע עבודה — בסיס, בית או שטח — כדי להתחיל לרשום</string>
+    <string name="day_total_modes">סה״כ %1$s — %2$s</string>
+    <string name="budget_line">מולאו %1$s מתוך %2$s · נותרו %3$s</string>
+    <string name="budget_complete">מולאו %1$s מתוך %2$s ✓</string>
+    <string name="budget_over">מולאו %1$s מתוך %2$s — עודף של %3$s</string>
+    <string name="budget_no_span">מולאו %1$s · קבע כניסה ויציאה כדי לראות כמה זמן נותר</string>
+
     <string name="activities">פעילויות</string>
     <string name="activity_note_hint">מה נעשה… (לא חובה)</string>
     <string name="activity_result_hint">תוצאה (לא חובה)…</string>
@@ -71,7 +86,8 @@
     <string name="kpi_avg_day">ממוצע ליום</string>
     <string name="kpi_avg_arrival">כניסה ממוצעת</string>
     <string name="kpi_avg_departure">יציאה ממוצעת</string>
-    <string name="legend_office">משרד</string>
+    <string name="legend_office">בסיס</string>
+    <string name="legend_home">בית</string>
     <string name="legend_field">שטח</string>
     <string name="legend_avg">ממוצע</string>
     <string name="activities_by_category">פעילויות לפי קטגוריה</string>

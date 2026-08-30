@@ -29,11 +29,13 @@ class ReminderEngine @Inject constructor(
         val posted = when {
             day.dayType != DayType.WORK -> false // חופש/חג — no nag (spec S4)
             day.reported && !day.editedAfterReport -> false // already sent
-            day.arrivalMin != null && day.departureMin != null -> {
-                notifier.reportReady(today, ReportBuilder.daily(day)); true
-            }
-            day.arrivalMin != null -> {
+            // v2.0: "still at work" is any session still running, whatever its
+            // mode — an open evening session at home must nag just like the base.
+            day.sessions.any { it.isOpen } -> {
                 notifier.stillAtOffice(today); true
+            }
+            day.sessions.any { it.spanMin != null } -> {
+                notifier.reportReady(today, ReportBuilder.daily(day)); true
             }
             else -> {
                 notifier.completeYourLog(); true

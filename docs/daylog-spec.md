@@ -1,7 +1,7 @@
 # DayLog (יומן עבודה) — Consultant Daily Work Logger
 
 **Document type:** CONOPS + Technical Specification
-**Status:** Draft v0.7 — v0.6 + period PDFs, unified day-total rule, map picker (N3 revised)
+**Status:** v2.0 — work sessions (base / home / field per day), mandatory projects, per-session time budget, full backup
 **Platform:** Android (native)
 **Language & locale:** Hebrew UI and reports, full RTL; Israel defaults (Sun–Thu work-week, Asia/Jerusalem, dd.MM.yyyy)
 **Author:** Vitaly (product owner) with Claude (co-author)
@@ -75,19 +75,21 @@ Consultant opens the **Statistics** tab and switches between **שבוע / חוד
 Plain text in Hebrew (WhatsApp-friendly, no markdown dependency), rendered from a template:
 
 ```
-‏📋 דוח יומי — יום ג׳ 05.08.2026
-‏🕗 כניסה: 08:12 | יציאה: 17:35 | סה״כ 9:23
-‏🚗 שטח: תחנת משנה אקמה — הרצה (10:00–13:30)
-‏✅ פעילויות:
-‏• התקנה (2:30 שע׳) — חיווט לוח, תא 4 · תוצאה: הושלם
-‏• בדיקות (1:30 שע׳) — בדיקות קבלה לממסרים · תוצאה: עברו
-‏• דיון — סקירת ליקויים עם מנהל האתר
+‏📋 דוח יומי — יום ד׳ 05.08.2026
+‏🕗 סה״כ 9:00 — בסיס 4:00 · בית 2:00 · שטח 3:00
+‏🏢 בסיס 10:00–14:00 (4:00)
+‏• רובוטיקה · התקנה — חיווט לוח, תא 4 (2:30 שע׳) · תוצאה: הושלם
+‏• רובוטיקה · דיון — סקירת ליקויים
+‏🚗 שטח: תחנת משנה אקמה 06:00–09:00 (3:00)
+‏• AI למחלקה · בדיקות (2 שע׳)
+‏🏠 בית 18:00–20:00 (2:00)
 ‏📝 הערות: הוזמן CT רזרבי, צפי הגעה יום חמישי
 ```
 
 Template rules:
-- Sections with no content are omitted entirely (no "שטח: —"). Missing fragments are omitted too: no departure → the יציאה and סה״כ segments are dropped; a field job with only a start time renders `(10:00–…)`, with no times renders without parentheses.
-- Activity lines are `קטגוריה (משך) — הערה · תוצאה: …`; the duration, note, and result are each optional and each fragment is omitted when empty (a bare category renders alone). Durations are half-hour steps rendered with a unit — `30 דק׳`, `1 שע׳`, `2:30 שע׳` — so they never read as a clock time. Activities render in the order they were logged.
+- One block per work session, in the order the sessions were logged: an icon + mode header (with the site/client after a colon for a field session), the time range, and the span in parentheses; then that session's activities.
+- Sections with no content are omitted entirely. Missing fragments are omitted too: an open session renders without an end and without a span; the total line appears only once some session has both times.
+- **Activity lines read `פרויקט · קטגוריה — הערה (משך) · תוצאה: …`** — project first, then what was done, then the description, then how long (product-owner order, v2.0). The note, duration and result are each optional and each fragment is omitted when empty (a project and category always render). Durations are half-hour steps rendered with a unit — `30 דק׳`, `1 שע׳`, `2:30 שע׳` — so they never read as a clock time. Activities render in the order they were logged.
 - Header date always present → safe to send late. Dates dd.MM.yyyy, Hebrew day names (יום א׳–ש׳), Western numerals, 24-hour times.
 - **RTL correctness in WhatsApp:** every line begins with an invisible RLM (U+200F) so lines that start with emoji or digits still render right-to-left; times and number ranges are wrapped so `10:00–13:30` doesn't flip. `ReportBuilder` owns this and it is unit-tested against golden strings.
 - Fixed labels are string resources (Hebrew is the app's default locale); adding another language later is trivial.
@@ -98,12 +100,13 @@ Generated in the Statistics tab for the selected week, month, or year and — li
 
 ```
 ‏📊 סיכום חודשי — אוגוסט 2026
-‏ימי עבודה: 21 | סה״כ שעות: 186:30
+‏ימי עבודה: 21 | סה״כ שעות: 186:30 | ממוצע ליום: 8:52
+‏🕗 בסיס 150:00 · בית 20:00 · שטח 16:30
 ‏🚗 ימי שטח: 6
 ‏✅ פעילויות: פיתוח 14 · התקנה 9 · דיון 7 · בדיקות 5
 ```
 
-**Hours rule:** a day's total = office span (arrival→departure) **plus** field-job time that falls outside the office span (no double counting; partial overlap adds only the outside part); a day with only field jobs = sum of field-job spans. **v0.7: this single rule feeds every daily total** — the daily report's סה״כ line, the PDF summary cell, the Today screen total, and Statistics.
+**Hours rule (v2.0):** a day's total is the **sum of its work sessions** — four hours at the base plus two from home plus three on a client site is a nine-hour day, broken down by mode. Sessions are distinct stretches of time and are not expected to overlap, so they are simply added. This single rule feeds every daily total: the daily report's סה״כ line, the PDF summary cell, the Today screen, and Statistics.
 
 ---
 
@@ -111,19 +114,19 @@ Generated in the Statistics tab for the selected week, month, or year and — li
 
 | ID | Requirement | Priority |
 |----|-------------|----------|
-| F1 | Record arrival and departure time per day; manual entry/edit always possible | Must |
+| F1 | Record the day's worked time as one or more **work sessions** (v2.0), each with a mode — **בסיס / בית / שטח** — a start and an end; several per day, in any mix; manual entry/edit/clear always possible | Must |
 | F2 | Geofence around a user-defined office location suggests arrival/departure via confirmable notifications; a geofence confirmation never overwrites a MANUAL-source value | Must |
-| F3 | Log zero or more field jobs per day: title/client, optional location text, start/end times | Must |
+| F3 | A field session carries a title/client and optional location text; job-location fences open and close them automatically (§6.6b) | Must |
 | F4a | **Projects (v1.2):** a user-managed list, seeded with רובוטיקה / הנדסת מערכת למחלקה / AI למחלקה. Every activity must name a project — it cannot be logged without one. A project still referenced by logged work is archived rather than deleted, so history keeps rendering | Must |
 | F12a | **Full backup (v1.2):** one action writes every table and every setting to a versioned JSON file, shareable to mail/Drive/files; one action restores it, replacing all app data atomically | Must |
-| F4 | Log zero or more activities per day from a category list — defaults: דיון, התקנה, בדיקות, פיתוח, תכנון, תיעוד, תמיכה, אחר — each entry with an optional **duration in 30-minute steps** (v0.9: no clock times on activities), optional free-text note, and optional result; multiple entries per category allowed (e.g., two separate discussions) | Must |
+| F4 | Log zero or more activities **inside a session** (v2.0) from a category list — defaults: דיון, התקנה, בדיקות, פיתוח, תכנון, תיעוד, תמיכה, אחר — each entry with an optional **duration in 30-minute steps** (v0.9: no clock times on activities), optional free-text note, optional result, and a **mandatory project** (v1.2); multiple entries per category allowed (e.g., two separate discussions) | Must |
 | F5 | Category list is user-editable (add/rename/hide; no hard delete — history must keep rendering) | Should |
 | F6 | Free-text daily notes field | Must |
 | F7 | Daily reminder notification at a configured time, on configured workdays **or any day that has data**, with the variants of §5.4 | Must |
 | F8 | Send action opens WhatsApp (or WhatsApp Business) with the report text; system chooser as fallback | Must |
 | F9 | Day status (derived): ריק / נרשם, לא נשלח / נשלח / נשלח (עודכן) / חופש / חג; re-send possible any time and overwrites the sent timestamp | Must |
 | F10 | History view: browse, edit, and re-send any past day; mark any day as day-off (חופש) or holiday (חג) — also available for today on the Today screen | Must |
-| F11 | Statistics tab with weekly/monthly/yearly views: KPI tiles (total hours, work days, field days, avg day length, avg arrival, avg departure, off/holiday counts), stacked office/field hours chart with average reference line and tooltips, activity breakdown; each period's summary (§2.5) shareable to WhatsApp | Must |
+| F11 | Statistics tab with weekly/monthly/yearly views: KPI tiles (total hours, work days, field days, avg day length, avg arrival, avg departure, off/holiday counts), stacked base/home/field hours chart with average reference line and tooltips, activity breakdown; each period's summary (§2.5) shareable to WhatsApp | Must |
 | F12 | Export all data as JSON (full fidelity, versioned schema) and CSV via share sheet | Should |
 | F13 | Android Auto Backup of DB + settings (on by default, off toggle in Settings) | Should |
 | F14 | Works fully without location permission (geofencing simply off) | Must |
@@ -144,11 +147,17 @@ Generated in the Statistics tab for the selected week, month, or year and — li
 
 Four-tab bottom navigation (היום / היסטוריה / סטטיסטיקה / הגדרות), fully RTL. Visual language: Material 3, dynamic color, large touch targets, no decoration that doesn't serve logging speed.
 
-### 5.1 Today (היום)
-- **Time card:** big `כניסה —:—` / `יציאה —:—` values; tap a value to set/adjust via time picker; **הגעתי** / **יצאתי** one-tap buttons when unset.
-- **Field jobs card:** list + **+ עבודת שטח** button (bottom-sheet form: title, optional location, start/end).
-- **Activities card:** category chips in a flow row; tapping a chip adds a new activity entry below — an inline row with a −½ / +½ duration stepper (30-minute steps, `—` when unstated), a one-line note field, and an optional result field. Each entry has its own remove control; a chip is highlighted while it has at least one entry, and tapping it again adds another entry of the same category.
-- **Special-day row:** compact **חופש** / **חג** toggle chips in the time card; marking either suppresses the reminder and geofence prompts for the day and replaces the report preview with a "no report today" state (S4).
+### 5.1 Today (היום) — v2.0
+
+- **Day card:** the day's total with its mode split (`סה״כ 9:00 — בסיס 4:00 · בית 2:00 · שטח 3:00`), the **חופש / חג** toggle chips, and — once the day has more than one session — the day-level time budget.
+- **One card per work session**, in logged order:
+  - header: mode icon + name (🏢 בסיס / 🏠 בית / 🚗 שטח), an optional free-text title (the site/client for a field session), and a remove control;
+  - `כניסה —:—` / `יציאה —:—` values with **הגעתי / יצאתי** one-tap buttons when unset, ±5 nudges, a time picker on tap and an X that clears a value back to unset;
+  - the session's **time budget** (below);
+  - category chips in a flow row; tapping a chip adds an activity entry to *that* session — an inline row with the project (tap to reassign), a −½ / +½ duration stepper (30-minute steps, `—` when unstated), a one-line note field and an optional result field. A chip is highlighted while that session has an entry of it, and tapping again adds another.
+- **Add-session row:** **+ 🏢 בסיס / + 🏠 בית / + 🚗 שטח**. On today a new session starts at the current time (one tap = "I've just started"); on a past day it opens empty.
+- **Time budget (screen only, v2.0):** each session — and the day, when it has several — shows how much of the worked hours the logged activities account for and how much is left: *"מולאו 2:00 מתוך 4:00 · נותרו 2:00"*, green with a ✓ when it balances. When the activities claim **more** time than was worked the line turns red and names the excess: *"מולאו 6:00 מתוך 4:00 — עודף של 2:00"*. This is a filling aid for the person logging; it never appears in the report or the PDF.
+- **Special days:** marking **חופש / חג** suppresses the reminder and geofence prompts for the day, hides the sessions entirely (special days accept no hours) and replaces the report preview with a "no report today" state (S4).
 - **Notes card:** single free-text field.
 - **Report preview card:** live-rendered report text + **שליחה לוואטסאפ** button + status badge.
 - On a non-workday the screen shows a "יום חופש" state with a **רישום יום בכל זאת** action (S4).
@@ -160,7 +169,7 @@ Four-tab bottom navigation (היום / היסטוריה / סטטיסטיקה / �
 ### 5.3 Statistics (סטטיסטיקה)
 - **Period selector:** segmented control שבוע / חודש / שנה with previous/next arrows.
 - **KPI tiles** (2-column grid): סה״כ שעות, ימי עבודה, ימי שטח, ממוצע ליום, כניסה ממוצעת, יציאה ממוצעת; off/holiday counts as a secondary line.
-- **Hours chart:** stacked bars — office hours (`#00897B`) + field hours (`#9E6410`), a two-hue palette validated for color-vision deficiency and 3:1 surface contrast — per day (week/month) or per month (year), right-to-left time axis, dashed average reference line, 2px surface gaps between stacked segments, tap tooltip per bar with exact values, legend above the plot. Rendered with Compose Canvas (no chart library dependency); exact values always available via the KPI tiles and share text (accessibility relief).
+- **Hours chart:** stacked bars — base (`#00897B`) + home (`#4054B2`) + field (`#9E6410`), a three-hue palette validated for color-vision deficiency and 3:1 surface contrast (the split is also printed as text under the KPI tiles, so the chart is never the only source) — per day (week/month) or per month (year), right-to-left time axis, dashed average reference line, 2px surface gaps between stacked segments, tap tooltip per bar with exact values, legend above the plot. Rendered with Compose Canvas (no chart library dependency); exact values always available via the KPI tiles and share text (accessibility relief).
 - **Activity breakdown:** horizontal single-hue bars with count labels per category.
 - **שיתוף** button: sends the selected period's text summary (§2.5).
 
@@ -233,24 +242,23 @@ The one place bare wall-clock times would bite is midnight and travel, so:
 ```
 WorkDay
   date: LocalDate  (PK, ISO yyyy-MM-dd)     // the logical day
-  arrivalMin: Int?                           // minutes from midnight of `date`
-  departureMin: Int?                         // may exceed 1440 (past midnight)
   notes: String
   dayType: WORK | OFF | HOLIDAY              // OFF=חופש, HOLIDAY=חג — suppress reminder/geofence, no report (S4)
   reportedAt: Instant?                       // null = never sent; overwritten on re-send
   editedAfterReport: Boolean                 // drives the "נשלח (עודכן)" badge
-  arrivalSource / departureSource: MANUAL | GEOFENCE
 
-FieldJob
+WorkSession                                  // v2.0 — the day's worked time
   id: Long (PK)
-  date: LocalDate (FK → WorkDay, indexed)
-  title: String                              // client / site
+  date: LocalDate (FK → WorkDay, indexed, CASCADE)
+  mode: BASE | HOME | FIELD                  // בסיס / בית / שטח
+  startMin: Int?                             // minutes from midnight of `date`
+  endMin: Int?                               // may exceed 1440 (past midnight)
+  title: String                              // client / site for FIELD; free text otherwise
   locationText: String?
-  startMin: Int?                             // MANUAL times — always win
-  endMin: Int?
-  jobLocationId: Long?                       // v0.6: link to JobLocation when geo-created
-  suggestedStartMin: Int?                    // v0.6: first geofence ENTER of the day
-  suggestedEndMin: Int?                      // v0.6: last geofence EXIT (each exit overwrites)
+  startSource / endSource: MANUAL | GEOFENCE // GEOFENCE never overwrites MANUAL
+  startUncertain: Boolean                    // amber "ביקור קצר" — the geofence visit was under an hour
+  jobLocationId: Long?                       // set when a job fence opened this visit
+  sortOrder: Int
 
 JobLocation                                  // v0.6
   id: Long (PK)
@@ -261,7 +269,7 @@ JobLocation                                  // v0.6
 
 Activity
   id: Long (PK)
-  date: LocalDate (FK → WorkDay, indexed)
+  sessionId: Long (FK → WorkSession, indexed, CASCADE)   // v2.0: an activity belongs to a session
   categoryId: Long (FK → Category)           // multiple rows per category allowed
   projectId: Long (FK → Project)             // v1.2: mandatory — no activity without a project
   durationMin: Int?                          // v0.9: 30-minute steps, max 12 h; null = not stated
@@ -282,6 +290,8 @@ Category
   isHidden: Boolean                          // hide, never delete — history keeps rendering
   sortOrder: Int
 ```
+
+**Schema v6 is a clean break (v2.0, product-owner decision):** sessions are a different shape from arrival/departure + field jobs, not a widening of them, and the product owner chose to re-enter the data rather than carry a lossy conversion. There is no migration chain — an older database is dropped and rebuilt (`fallbackToDestructiveMigration`) and re-seeded on open, which `SchemaResetTest` guards. From v6 forward, every schema bump ships a Migration + test again.
 
 `WorkDay` is created lazily on first fact logged for a date. A single `@Transaction` query (`DayWithEntries`) feeds the Today/Day-Editor screen. Status is derived: ריק (no row) / נרשם, לא נשלח (`reportedAt == null`) / נשלח / נשלח (עודכן) (`editedAfterReport`) / חופש or חג (`dayType`).
 
@@ -328,13 +338,14 @@ Intent(Intent.ACTION_SEND).apply {
 - Office location is captured via a one-shot `FusedLocationProvider` fix ("קבע למיקום הנוכחי") — no Maps SDK, no network.
 - Permissions: `ACCESS_FINE_LOCATION` in-app, then `ACCESS_BACKGROUND_LOCATION`, which on Android 11+ **cannot be granted from an in-app dialog** — the flow explains and deep-links to system settings ("אפשר תמיד"). Requested only when the user enables geofencing; denial leaves the app fully functional (F14) and reverts the toggle. Play Console background-location declaration is an M4 deliverable.
 
-### 6.6b Job-location tracking (v0.6)
+### 6.6b Job-location tracking (v0.6, reworked v2.0)
 
 Beyond the office fence, the user saves **job locations** (client sites): name + one-shot coordinate capture, each with a **2 km radius** geofence (client-site arrival doesn't need office-grade precision; 2 km absorbs parking, gates, and large sites).
 
-- **First-enter / last-exit per day:** the first ENTER of a day writes the field job's *suggested start*; **every EXIT overwrites the suggested end** — so a lunch exit is automatically superseded by the final exit. No dwell heuristics needed; the surviving pair is first arrival / last leave.
-- On first ENTER the field job row for that day/location is **auto-created** (titled by the location name) if the user hasn't already added one.
-- Suggested times live in separate columns (`suggestedStartMin/EndMin`) and render **in amber with a מוצע tag**; a manually entered time always wins and is never overwritten (same invariant as F2). Reports and statistics use manual-if-set-else-suggested.
+- **A visit is a FIELD work session** (v2.0): ENTER opens one titled by the location, EXIT closes it, and everything is scoped **per location**, so two sites the same day track independently. A return to the same site after a real break is a second session, not an overwrite of the first — the same rule the base follows. (This replaces the v0.6 first-enter/last-exit merging, which existed only because a location had a single field-job row per day.)
+- A duplicate ENTER while a visit is running opens nothing; an EXIT with no recorded ENTER creates nothing.
+- A stay under `MIN_VISIT` (1 h) is a drive-past: no leaving time is invented, and the arrival is flagged `startUncertain` → **amber "ביקור קצר"** in the UI, exactly as at the office.
+- Geofence-written times carry `GEOFENCE` source and never overwrite a value the user typed (same invariant as F2).
 - Job fences are registered alongside the office fence (single GeofencingClient request set, request IDs `office` / `job_<id>`), governed by the same geofence master toggle and permissions.
 
 ### 6.7 Export & backup

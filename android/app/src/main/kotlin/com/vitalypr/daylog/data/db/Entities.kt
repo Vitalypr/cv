@@ -5,61 +5,55 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
-/** Room entities per spec §6.3. Dates are ISO yyyy-MM-dd; times are minutes from midnight (may exceed 1440). */
-
+/** The logical day. Worked time lives in its [WorkSessionEntity] rows (v2.0). */
 @Entity(tableName = "work_day")
 data class WorkDayEntity(
     @PrimaryKey val date: String,
-    val arrivalMin: Int? = null,
-    val departureMin: Int? = null,
-    val arrivalSource: String = "MANUAL",
-    val departureSource: String = "MANUAL",
-    /** The visit behind a geofence arrival was too short to be a work day (v1.0). */
-    val arrivalUncertain: Boolean = false,
     val notes: String = "",
     val dayType: String = "WORK",
     val reportedAt: Long? = null,
     val editedAfterReport: Boolean = false,
 )
 
+/**
+ * A stretch of work in one mode (BASE / HOME / FIELD). A day can hold several,
+ * and each carries its own activities — the same day can mix time at the base,
+ * from home and on a client site.
+ */
 @Entity(
-    tableName = "field_job",
-    foreignKeys = [ForeignKey(
-        entity = WorkDayEntity::class,
-        parentColumns = ["date"], childColumns = ["date"],
-        onDelete = ForeignKey.CASCADE,
-    )],
+    tableName = "work_session",
+    foreignKeys = [
+        ForeignKey(
+            entity = WorkDayEntity::class,
+            parentColumns = ["date"], childColumns = ["date"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
     indices = [Index("date")],
 )
-data class FieldJobEntity(
+data class WorkSessionEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val date: String,
-    val title: String,
-    val locationText: String? = null,
-    val startMin: Int? = null, // MANUAL times — always win over suggestions
+    val mode: String,
+    val startMin: Int? = null,
     val endMin: Int? = null,
-    val jobLocationId: Long? = null, // set when created/updated by a job-location geofence
-    val suggestedStartMin: Int? = null, // first ENTER of the day
-    val suggestedEndMin: Int? = null, // last EXIT of the day (every exit overwrites)
-)
-
-/** Saved client-site location with a wide geofence (spec §6.6b, default 2 km). */
-@Entity(tableName = "job_location")
-data class JobLocationEntity(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val name: String,
-    val lat: Double,
-    val lon: Double,
-    val radiusM: Int = 2000,
-    val isActive: Boolean = true,
+    val title: String = "",
+    val locationText: String? = null,
+    val startSource: String = "MANUAL",
+    val endSource: String = "MANUAL",
+    /** The geofence visit behind the start was under an hour — shown amber. */
+    val startUncertain: Boolean = false,
+    /** Set when a job-location fence opened this session. */
+    val jobLocationId: Long? = null,
+    val sortOrder: Int = 0,
 )
 
 @Entity(
     tableName = "activity",
     foreignKeys = [
         ForeignKey(
-            entity = WorkDayEntity::class,
-            parentColumns = ["date"], childColumns = ["date"],
+            entity = WorkSessionEntity::class,
+            parentColumns = ["id"], childColumns = ["sessionId"],
             onDelete = ForeignKey.CASCADE,
         ),
         ForeignKey(
@@ -68,15 +62,16 @@ data class JobLocationEntity(
             onDelete = ForeignKey.RESTRICT, // categories are hidden, never deleted (spec F5)
         ),
     ],
-    indices = [Index("date"), Index("categoryId"), Index("projectId")],
+    indices = [Index("sessionId"), Index("categoryId"), Index("projectId")],
 )
 data class ActivityEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val date: String,
+    /** An activity always belongs to a session, and through it to a day. */
+    val sessionId: Long,
     val categoryId: Long,
-    /** Mandatory since v1.2 — an activity always belongs to a project. */
+    /** Mandatory — an activity always belongs to a project. */
     val projectId: Long,
-    /** Half-hour steps, null = not stated (v0.9 — replaced start/end times). */
+    /** Half-hour steps, null = not stated. */
     val durationMin: Int? = null,
     val note: String = "",
     val result: String = "",
@@ -84,8 +79,8 @@ data class ActivityEntity(
 )
 
 /**
- * A project an activity is booked against (v1.2). Archived rather than deleted
- * once used, so past days keep rendering — the same rule categories follow.
+ * A project an activity is booked against. Archived rather than deleted once
+ * used, so past days keep rendering — the same rule categories follow.
  */
 @Entity(tableName = "project")
 data class ProjectEntity(
@@ -102,4 +97,14 @@ data class CategoryEntity(
     val emoji: String? = null,
     val isHidden: Boolean = false,
     val sortOrder: Int = 0,
+)
+
+@Entity(tableName = "job_location")
+data class JobLocationEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String,
+    val lat: Double,
+    val lon: Double,
+    val radiusM: Int = 2000,
+    val isActive: Boolean = true,
 )

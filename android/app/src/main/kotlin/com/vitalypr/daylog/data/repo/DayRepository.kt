@@ -5,13 +5,14 @@ import com.vitalypr.daylog.data.db.CategoryDao
 import com.vitalypr.daylog.data.db.CategoryEntity
 import com.vitalypr.daylog.data.db.DayDao
 import com.vitalypr.daylog.data.db.DayWithEntries
-import com.vitalypr.daylog.data.db.FieldJobEntity
 import com.vitalypr.daylog.data.db.WorkDayEntity
+import com.vitalypr.daylog.data.db.WorkSessionEntity
 import com.vitalypr.daylog.domain.model.ActivityEntry
 import com.vitalypr.daylog.domain.model.DaySnapshot
 import com.vitalypr.daylog.domain.model.DayType
-import com.vitalypr.daylog.domain.model.FieldJob
 import com.vitalypr.daylog.domain.model.TimeSource
+import com.vitalypr.daylog.domain.model.WorkMode
+import com.vitalypr.daylog.domain.model.WorkSession
 import java.time.Instant
 import java.time.LocalDate
 import javax.inject.Inject
@@ -22,9 +23,9 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 /**
- * Single write/read gateway for day data. Enforces the source rules from spec §6.6:
- * a GEOFENCE-sourced write never overwrites a MANUAL value (callers pass the source).
- * Room entities never leak above this class — everything maps to domain models.
+ * Single write/read gateway for day data. Worked time is a list of sessions
+ * (v2.0); a GEOFENCE-sourced write never overwrites a MANUAL value. Room
+ * entities never leak above this class — everything maps to domain models.
  */
 @Singleton
 class DayRepository @Inject constructor(
@@ -40,31 +41,7 @@ class DayRepository @Inject constructor(
 
     /** Editable view with row ids for the day editor UI. */
     fun observeEditable(date: LocalDate): Flow<EditableDay?> =
-        dayDao.observeDay(date.toString()).map { d ->
-            d?.let {
-                EditableDay(
-                    snapshot = it.toSnapshot(),
-                    activityRows = it.activities.sortedBy { a -> a.activity.sortOrder }.map { a ->
-                        ActivityRow(
-                            id = a.activity.id, categoryId = a.activity.categoryId,
-                            category = a.category.name, durationMin = a.activity.durationMin,
-                            projectId = a.activity.projectId, project = a.project?.name.orEmpty(),
-                            note = a.activity.note, result = a.activity.result,
-                            date = date, sortOrder = a.activity.sortOrder,
-                        )
-                    },
-                    fieldJobRows = it.fieldJobs.map { j ->
-                        FieldJobRow(
-                            id = j.id, title = j.title, locationText = j.locationText,
-                            startMin = j.startMin ?: j.suggestedStartMin,
-                            endMin = j.endMin ?: j.suggestedEndMin,
-                            isStartSuggested = j.startMin == null && j.suggestedStartMin != null,
-                            isEndSuggested = j.endMin == null && j.suggestedEndMin != null,
-                        )
-                    },
-                )
-            }
-        }
+        dayDao.observeDay(date.toString()).map { it?.toEditable() }
 
     suspend fun getDay(date: LocalDate): DaySnapshot? = dayDao.getDay(date.toString())?.toSnapshot()
 
@@ -76,98 +53,204 @@ class DayRepository @Inject constructor(
 
     fun observeVisibleCategories(): Flow<List<CategoryEntity>> = categoryDao.observeVisible()
 
+    // --- sessions -----------------------------------------------------------
+
+    /** Adds a session the user created by hand. */
+    suspend fun addSession(
+        date: LocalDate,
+        mode: WorkMode,
+        startMin: Int? = null,
+        endMin: Int? = null,
+        title: String = "",
+    ): Long = edit(date) { day ->
+        markEdited(day)
+        val order = (dayDao.sessionsOn(day.date).maxOfOrNull { it.sortOrder } ?: -1) + 1
+        dayDao.insertSession(
+            WorkSessionEntity(
+                date = day.date, mode = mode.name, startMin = startMin, endMin = endMin,
+                title = title.trim(), sortOrder = order,
+            ),
+        )
+    }
+
+    suspend fun updateSession(session: WorkSessionEntity) = writeLock.withLock {
+        dayDao.getDay(session.date)?.let { markEdited(it.day) }
+        dayDao.updateSession(session)
+    }
+
     /**
-     * Sets arrival. Returns false when rejected: GEOFENCE never overwrites MANUAL,
-     * and GEOFENCE prompts only apply when no arrival is set (spec §5.5).
+     * Edits one session by id, reading it fresh inside the lock. The UI holds
+     * entities from a previous state emission, so editing through a captured copy
+     * would silently undo whatever changed in between.
      */
-    suspend fun setArrival(date: LocalDate, minutes: Int, source: TimeSource): Boolean = edit(date) { existing ->
-        if (source == TimeSource.GEOFENCE && existing.arrivalMin != null) return@edit false
-        // Typing a time by hand settles it — the short-visit doubt does not survive.
-        val clearsDoubt = source == TimeSource.MANUAL
-        upsertEdited(
-            existing.copy(
-                arrivalMin = minutes,
-                arrivalSource = source.name,
-                arrivalUncertain = if (clearsDoubt) false else existing.arrivalUncertain,
+    suspend fun editSession(
+        date: LocalDate,
+        sessionId: Long,
+        block: (WorkSessionEntity) -> WorkSessionEntity,
+    ): Boolean = edit(date) { day ->
+        val current = dayDao.sessionsOn(day.date).firstOrNull { it.id == sessionId } ?: return@edit false
+        markEdited(day)
+        dayDao.updateSession(block(current))
+        true
+    }
+
+    suspend fun removeSession(session: WorkSessionEntity) = writeLock.withLock {
+        dayDao.getDay(session.date)?.let { markEdited(it.day) }
+        dayDao.deleteSession(session)
+    }
+
+    suspend fun removeSession(date: LocalDate, sessionId: Long) = writeLock.withLock {
+        val session = dayDao.sessionsOn(date.toString()).firstOrNull { it.id == sessionId } ?: return@withLock
+        dayDao.getDay(session.date)?.let { markEdited(it.day) }
+        dayDao.deleteSession(session)
+    }
+
+    suspend fun openSession(date: LocalDate, mode: WorkMode): WorkSessionEntity? =
+        dayDao.openSession(date.toString(), mode.name)
+
+    /**
+     * Starts a session of [mode] unless one is already running (v2.0 replacement
+     * for "set arrival"). Returns false when a session is already open, so a
+     * duplicate geofence delivery cannot open a second one.
+     */
+    suspend fun startSession(
+        date: LocalDate,
+        mode: WorkMode,
+        minutes: Int,
+        source: TimeSource,
+        title: String = "",
+        jobLocationId: Long? = null,
+    ): Boolean = edit(date) { day ->
+        if (dayDao.openSession(day.date, mode.name) != null) return@edit false
+        markEdited(day)
+        val order = (dayDao.sessionsOn(day.date).maxOfOrNull { it.sortOrder } ?: -1) + 1
+        dayDao.insertSession(
+            WorkSessionEntity(
+                date = day.date, mode = mode.name, startMin = minutes,
+                title = title.trim(), startSource = source.name,
+                jobLocationId = jobLocationId, sortOrder = order,
             ),
         )
         true
     }
 
-    /** Sets/updates departure. GEOFENCE may update a previous GEOFENCE value (last exit wins) but never MANUAL. */
-    suspend fun setDeparture(date: LocalDate, minutes: Int, source: TimeSource): Boolean = edit(date) { existing ->
-        if (source == TimeSource.GEOFENCE && existing.departureMin != null &&
-            existing.departureSource == TimeSource.MANUAL.name
-        ) return@edit false
-        upsertEdited(existing.copy(departureMin = minutes, departureSource = source.name))
+    /**
+     * Closes the running session of [mode]. This is also what keeps a GEOFENCE
+     * write off a value the user typed: a session the user already closed by
+     * hand is no longer open, so there is nothing here to overwrite.
+     */
+    suspend fun endSession(date: LocalDate, mode: WorkMode, minutes: Int, source: TimeSource): Boolean =
+        edit(date) { day ->
+            val open = dayDao.openSession(day.date, mode.name) ?: return@edit false
+            markEdited(day)
+            dayDao.updateSession(open.copy(endMin = minutes, endSource = source.name))
+            true
+        }
+
+    /**
+     * Records a leaving time for [mode]: it closes the session that is running,
+     * and when none is (the exit follows a visit we already closed) it moves the
+     * last visit's end — spec §5.5's "last exit wins". A hand-typed end is never
+     * moved by the geofence.
+     */
+    suspend fun recordDeparture(date: LocalDate, mode: WorkMode, minutes: Int, source: TimeSource): Boolean =
+        edit(date) { day ->
+            val target = dayDao.openSession(day.date, mode.name)
+                ?: dayDao.sessionsOn(day.date).lastOrNull { it.mode == mode.name }
+                ?: return@edit false
+            if (source == TimeSource.GEOFENCE && target.endSource == TimeSource.MANUAL.name &&
+                target.endMin != null
+            ) {
+                return@edit false
+            }
+            markEdited(day)
+            dayDao.updateSession(target.copy(endMin = minutes, endSource = source.name))
+            true
+        }
+
+    /**
+     * Amber "check this" on a session whose geofence visit was under an hour.
+     * A hand-typed start is never flagged — the user knows what they entered.
+     */
+    suspend fun setStartUncertain(sessionId: Long, date: LocalDate, uncertain: Boolean) = writeLock.withLock {
+        val session = dayDao.sessionsOn(date.toString()).firstOrNull { it.id == sessionId } ?: return@withLock
+        if (uncertain && session.startSource == TimeSource.MANUAL.name) return@withLock
+        if (session.startUncertain == uncertain) return@withLock
+        dayDao.updateSession(session.copy(startUncertain = uncertain))
+    }
+
+    suspend fun lastSessionOf(date: LocalDate, mode: WorkMode): WorkSessionEntity? =
+        dayDao.sessionsOn(date.toString()).lastOrNull { it.mode == mode.name }
+
+    suspend fun sessionsForJobLocation(date: LocalDate, jobLocationId: Long): List<WorkSessionEntity> =
+        dayDao.sessionsForJobLocation(date.toString(), jobLocationId)
+
+    suspend fun openJobSession(date: LocalDate, jobLocationId: Long): WorkSessionEntity? =
+        dayDao.openSessionForJobLocation(date.toString(), jobLocationId)
+
+    /**
+     * Opens a visit to a client site. Scoped to the location, not to FIELD as a
+     * whole: two sites on one day are two visits, and a duplicate ENTER for a
+     * site already being visited opens nothing.
+     */
+    suspend fun startJobSession(
+        date: LocalDate,
+        jobLocationId: Long,
+        title: String,
+        minutes: Int,
+    ): Boolean = edit(date) { day ->
+        if (dayDao.openSessionForJobLocation(day.date, jobLocationId) != null) return@edit false
+        markEdited(day)
+        val order = (dayDao.sessionsOn(day.date).maxOfOrNull { it.sortOrder } ?: -1) + 1
+        dayDao.insertSession(
+            WorkSessionEntity(
+                date = day.date, mode = WorkMode.FIELD.name, startMin = minutes,
+                title = title.trim(), startSource = TimeSource.GEOFENCE.name,
+                jobLocationId = jobLocationId, sortOrder = order,
+            ),
+        )
         true
     }
 
-    /**
-     * Back to unset (F1: a logged time must be erasable, not only editable).
-     * The source resets to MANUAL so a cleared value can be re-suggested by a
-     * later geofence event instead of staying locked by the old MANUAL source.
-     */
-    suspend fun clearArrival(date: LocalDate) = edit(date) {
-        upsertEdited(it.copy(arrivalMin = null, arrivalSource = TimeSource.MANUAL.name, arrivalUncertain = false))
+    /** Closes the running visit to a site; a visit the user closed by hand stays put. */
+    suspend fun endJobSession(date: LocalDate, jobLocationId: Long, minutes: Int): Boolean = edit(date) { day ->
+        val open = dayDao.openSessionForJobLocation(day.date, jobLocationId) ?: return@edit false
+        markEdited(day)
+        dayDao.updateSession(open.copy(endMin = minutes, endSource = TimeSource.GEOFENCE.name))
+        true
     }
 
-    /**
-     * Flags/unflags a geofence arrival whose visit was under [GeofenceRules.MIN_VISIT]
-     * — the UI paints it amber so the user can accept or correct it. Never applied
-     * to a MANUAL value, and it is not an "edit" for report purposes.
-     */
-    suspend fun setArrivalUncertain(date: LocalDate, uncertain: Boolean) = edit(date) { day ->
-        if (day.arrivalUncertain == uncertain) return@edit
-        dayDao.upsertDay(day.copy(arrivalUncertain = uncertain))
-    }
-
-    suspend fun clearDeparture(date: LocalDate) = edit(date) {
-        upsertEdited(it.copy(departureMin = null, departureSource = TimeSource.MANUAL.name))
-    }
+    // --- day-level ----------------------------------------------------------
 
     suspend fun setNotes(date: LocalDate, notes: String) = edit(date) { upsertEdited(it.copy(notes = notes)) }
 
     suspend fun setDayType(date: LocalDate, type: DayType) = edit(date) { upsertEdited(it.copy(dayType = type.name)) }
 
-    /** An activity always belongs to a project (v1.2) — the caller must supply one. */
-    suspend fun addActivity(date: LocalDate, categoryId: Long, projectId: Long): Long = edit(date) { day ->
-        markEdited(day)
-        val order = (dayDao.getDay(day.date)?.activities?.maxOfOrNull { it.activity.sortOrder } ?: -1) + 1
+    // --- activities ---------------------------------------------------------
+
+    /** An activity always belongs to a session and to a project. */
+    suspend fun addActivity(sessionId: Long, categoryId: Long, projectId: Long): Long = writeLock.withLock {
+        val order = (dayDao.allActivities().filter { it.sessionId == sessionId }.maxOfOrNull { it.sortOrder } ?: -1) + 1
         dayDao.insertActivity(
-            ActivityEntity(date = day.date, categoryId = categoryId, projectId = projectId, sortOrder = order),
+            ActivityEntity(sessionId = sessionId, categoryId = categoryId, projectId = projectId, sortOrder = order),
         )
     }
 
     suspend fun updateActivity(activity: ActivityEntity) = writeLock.withLock {
-        dayDao.getDay(activity.date)?.let { markEdited(it.day) }
         dayDao.updateActivity(activity)
     }
 
-    suspend fun removeActivity(date: LocalDate, id: Long) = writeLock.withLock {
-        dayDao.getDay(date.toString())?.let { markEdited(it.day) }
-        dayDao.deleteActivity(id)
+    /**
+     * Edits one activity by id, read fresh inside the lock — the same protection
+     * sessions get. Two quick taps on the duration stepper both start from the
+     * stored value instead of from one stale copy of the row.
+     */
+    suspend fun editActivity(id: Long, block: (ActivityEntity) -> ActivityEntity) = writeLock.withLock {
+        val current = dayDao.activityById(id) ?: return@withLock
+        dayDao.updateActivity(block(current))
     }
 
-    suspend fun addFieldJob(date: LocalDate, job: FieldJob): Long = edit(date) { day ->
-        markEdited(day)
-        dayDao.insertFieldJob(
-            FieldJobEntity(
-                date = day.date, title = job.title, locationText = job.locationText,
-                startMin = job.startMin, endMin = job.endMin,
-            ),
-        )
-    }
-
-    suspend fun updateFieldJob(job: FieldJobEntity) = writeLock.withLock {
-        dayDao.getDay(job.date)?.let { markEdited(it.day) }
-        dayDao.updateFieldJob(job)
-    }
-
-    suspend fun removeFieldJob(job: FieldJobEntity) = writeLock.withLock {
-        dayDao.getDay(job.date)?.let { markEdited(it.day) }
-        dayDao.deleteFieldJob(job)
-    }
+    suspend fun removeActivity(id: Long) = writeLock.withLock { dayDao.deleteActivity(id) }
 
     /** Marks the day reported now; re-sending overwrites the timestamp and clears the edited flag (spec F9). */
     suspend fun markReported(date: LocalDate) = edit(date) { day ->
@@ -175,9 +258,9 @@ class DayRepository @Inject constructor(
     }
 
     /**
-     * Serializes read-modify-write on the day row. Without it two mutations issued
-     * back-to-back (tap הגעתי, then יצאתי) can both read the pre-write row and the
-     * second write silently drops the first. NOT reentrant — never call from inside.
+     * Serializes read-modify-write on the day row. Without it two mutations
+     * issued back-to-back can both read the pre-write row and the second write
+     * silently drops the first. NOT reentrant — never call from inside.
      */
     private suspend fun <T> edit(date: LocalDate, block: suspend (WorkDayEntity) -> T): T =
         writeLock.withLock { block(ensureDay(date)) }
@@ -199,65 +282,88 @@ class DayRepository @Inject constructor(
     }
 }
 
+/** UI row for one activity, carrying the ids needed to edit it. */
 data class ActivityRow(
     val id: Long,
+    val sessionId: Long,
     val categoryId: Long,
     val category: String,
-    /** Half-hour steps; null = not stated (spec F4). */
-    val durationMin: Int?,
     val projectId: Long,
     val project: String,
+    /** Half-hour steps; null = not stated. */
+    val durationMin: Int?,
     val note: String,
     val result: String,
-    val date: LocalDate,
     val sortOrder: Int,
 ) {
     fun toEntity() = ActivityEntity(
-        id = id, date = date.toString(), categoryId = categoryId, projectId = projectId,
+        id = id, sessionId = sessionId, categoryId = categoryId, projectId = projectId,
         durationMin = durationMin, note = note, result = result, sortOrder = sortOrder,
     )
 }
 
-data class FieldJobRow(
-    val id: Long,
-    val title: String,
-    val locationText: String?,
-    val startMin: Int?, // effective: manual if set, else suggested
-    val endMin: Int?,
-    val isStartSuggested: Boolean = false,
-    val isEndSuggested: Boolean = false,
+/** UI row for one session, with its editable entity and its activities. */
+data class SessionRow(
+    val entity: WorkSessionEntity,
+    val session: WorkSession,
+    val activityRows: List<ActivityRow>,
 )
 
 data class EditableDay(
     val snapshot: DaySnapshot,
-    val activityRows: List<ActivityRow>,
-    val fieldJobRows: List<FieldJobRow>,
+    val sessionRows: List<SessionRow>,
 )
 
 internal fun DayWithEntries.toSnapshot(): DaySnapshot = DaySnapshot(
     date = LocalDate.parse(day.date),
-    arrivalMin = day.arrivalMin,
-    departureMin = day.departureMin,
-    arrivalSource = TimeSource.valueOf(day.arrivalSource),
-    arrivalUncertain = day.arrivalUncertain,
-    departureSource = TimeSource.valueOf(day.departureSource),
+    sessions = sessions.sortedBy { it.session.sortOrder }.map { it.toDomain() },
     dayType = DayType.valueOf(day.dayType),
     notes = day.notes,
-    // Effective times: MANUAL wins, else geofence suggestion (spec §6.6b).
-    fieldJobs = fieldJobs.map {
-        FieldJob(it.title, it.locationText, it.startMin ?: it.suggestedStartMin, it.endMin ?: it.suggestedEndMin)
-    },
-    activities = activities
-        .sortedBy { it.activity.sortOrder }
-        .map {
-            ActivityEntry(
-                category = it.category.name,
-                project = it.project?.name.orEmpty(),
-                durationMin = it.activity.durationMin,
-                note = it.activity.note,
-                result = it.activity.result,
-            )
-        },
     reported = day.reportedAt != null,
     editedAfterReport = day.editedAfterReport,
+)
+
+internal fun com.vitalypr.daylog.data.db.SessionWithActivities.toDomain(): WorkSession = WorkSession(
+    id = session.id,
+    mode = WorkMode.valueOf(session.mode),
+    startMin = session.startMin,
+    endMin = session.endMin,
+    title = session.title,
+    locationText = session.locationText,
+    startSource = TimeSource.valueOf(session.startSource),
+    endSource = TimeSource.valueOf(session.endSource),
+    startUncertain = session.startUncertain,
+    activities = activities.sortedBy { it.activity.sortOrder }.map {
+        ActivityEntry(
+            project = it.project?.name.orEmpty(),
+            category = it.category?.name.orEmpty(),
+            durationMin = it.activity.durationMin,
+            note = it.activity.note,
+            result = it.activity.result,
+        )
+    },
+)
+
+internal fun DayWithEntries.toEditable(): EditableDay = EditableDay(
+    snapshot = toSnapshot(),
+    sessionRows = sessions.sortedBy { it.session.sortOrder }.map { s ->
+        SessionRow(
+            entity = s.session,
+            session = s.toDomain(),
+            activityRows = s.activities.sortedBy { it.activity.sortOrder }.map { a ->
+                ActivityRow(
+                    id = a.activity.id,
+                    sessionId = a.activity.sessionId,
+                    categoryId = a.activity.categoryId,
+                    category = a.category?.name.orEmpty(),
+                    projectId = a.activity.projectId,
+                    project = a.project?.name.orEmpty(),
+                    durationMin = a.activity.durationMin,
+                    note = a.activity.note,
+                    result = a.activity.result,
+                    sortOrder = a.activity.sortOrder,
+                )
+            },
+        )
+    },
 )

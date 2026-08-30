@@ -11,6 +11,7 @@ import com.vitalypr.daylog.data.db.DayLogDb
 import com.vitalypr.daylog.data.db.JobLocationEntity
 import com.vitalypr.daylog.data.db.ProjectEntity
 import com.vitalypr.daylog.data.db.WorkDayEntity
+import com.vitalypr.daylog.data.db.WorkSessionEntity
 import com.vitalypr.daylog.data.settings.Settings
 import com.vitalypr.daylog.data.settings.SettingsRepository
 import com.vitalypr.daylog.di.DatabaseModule
@@ -52,22 +53,27 @@ class BackupRoundTripTest {
     private suspend fun seedRealisticData() {
         db.dayDao().upsertDay(
             WorkDayEntity(
-                date = "2026-08-04", arrivalMin = 492, departureMin = 1055,
-                arrivalSource = "GEOFENCE", arrivalUncertain = true, notes = "הוזמן CT",
+                date = "2026-08-04", notes = "הוזמן CT",
                 reportedAt = 1_700_000_000_000, editedAfterReport = true,
             ),
         )
         db.dayDao().upsertDay(WorkDayEntity(date = "2026-08-05", dayType = "HOLIDAY"))
-        db.dayDao().insertFieldJob(
-            com.vitalypr.daylog.data.db.FieldJobEntity(
-                date = "2026-08-04", title = "אתר צפון", locationText = "חיפה",
-                startMin = 600, suggestedEndMin = 1020,
+        val baseId = db.dayDao().insertSession(
+            WorkSessionEntity(
+                date = "2026-08-04", mode = "BASE", startMin = 492, endMin = 1055,
+                startSource = "GEOFENCE", startUncertain = true, sortOrder = 0,
+            ),
+        )
+        db.dayDao().insertSession(
+            WorkSessionEntity(
+                date = "2026-08-04", mode = "FIELD", startMin = 600, endMin = 1020,
+                title = "אתר צפון", locationText = "חיפה", jobLocationId = 3, sortOrder = 1,
             ),
         )
         val projectId = db.projectDao().all().first { it.name == "רובוטיקה" }.id
         db.dayDao().insertActivity(
             ActivityEntity(
-                date = "2026-08-04", categoryId = 4, projectId = projectId,
+                sessionId = baseId, categoryId = 4, projectId = projectId,
                 durationMin = 90, note = "חיווט", result = "הושלם", sortOrder = 0,
             ),
         )
@@ -86,7 +92,7 @@ class BackupRoundTripTest {
 
         // Wipe everything, as a fresh install would look.
         db.dayDao().clearActivities()
-        db.dayDao().clearFieldJobs()
+        db.dayDao().clearSessions()
         db.dayDao().clearDays()
         db.projectDao().clear()
         db.categoryDao().clear()
@@ -97,7 +103,7 @@ class BackupRoundTripTest {
         val after = backup.export()
 
         assertEquals(before.days, after.days)
-        assertEquals(before.fieldJobs, after.fieldJobs)
+        assertEquals(before.sessions, after.sessions)
         assertEquals(before.activities, after.activities)
         assertEquals(before.categories, after.categories)
         assertEquals(before.projects, after.projects)
@@ -105,23 +111,27 @@ class BackupRoundTripTest {
         assertEquals(before.settings, after.settings)
     }
 
-    @Test fun `an activity still points at the same project after restore`() = runTest {
+    @Test fun `an activity still points at the same project and session after restore`() = runTest {
         seedRealisticData()
         val json = backup.exportJson()
         db.dayDao().clearActivities()
+        db.dayDao().clearSessions()
         db.projectDao().clear()
         backup.restoreJson(json)
 
         val activity = db.dayDao().allActivities().single()
         val project = db.projectDao().all().first { it.id == activity.projectId }
         assertEquals("רובוטיקה", project.name)
+        val session = db.dayDao().allSessions().first { it.id == activity.sessionId }
+        assertEquals("BASE", session.mode)
+        assertEquals(492, session.startMin)
     }
 
     @Test fun `restore replaces rather than merges`() = runTest {
         seedRealisticData()
         val json = backup.exportJson()
         // A day that is not in the backup must be gone afterwards.
-        db.dayDao().upsertDay(WorkDayEntity(date = "2026-09-01", arrivalMin = 500))
+        db.dayDao().upsertDay(WorkDayEntity(date = "2026-09-01", notes = "יום נוסף"))
         backup.restoreJson(json)
         assertTrue(db.dayDao().allDays().none { it.date == "2026-09-01" })
     }

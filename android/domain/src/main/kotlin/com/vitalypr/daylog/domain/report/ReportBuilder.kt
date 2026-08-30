@@ -1,12 +1,12 @@
 package com.vitalypr.daylog.domain.report
 
 import com.vitalypr.daylog.domain.model.DaySnapshot
+import com.vitalypr.daylog.domain.model.WorkMode
 import com.vitalypr.daylog.domain.stats.PeriodSummary
 import com.vitalypr.daylog.domain.stats.StatsCalculator
 import com.vitalypr.daylog.domain.time.formatActivityDuration
 import com.vitalypr.daylog.domain.time.formatDate
 import com.vitalypr.daylog.domain.time.formatDuration
-import com.vitalypr.daylog.domain.time.formatMinutes
 import com.vitalypr.daylog.domain.time.formatRange
 import com.vitalypr.daylog.domain.time.hebrewDayName
 
@@ -24,34 +24,31 @@ object ReportBuilder {
         val lines = mutableListOf<String>()
         lines += "📋 דוח יומי — ${hebrewDayName(day.date)} ${formatDate(day.date)}"
 
-        if (day.arrivalMin != null) {
-            var t = "🕗 כניסה: ${formatMinutes(day.arrivalMin)}"
-            if (day.departureMin != null) {
-                t += " | יציאה: ${formatMinutes(day.departureMin)}"
-                // Day total = office span + field time OUTSIDE it (partial overlap
-                // adds only the outside part) — same rule as Statistics (§2.5).
-                val total = StatsCalculator.dayMinutes(day).total
-                if (total > 0) t += " | סה״כ ${formatDuration(total)}"
-            }
-            lines += t
+        // Header: the day's total, then what it is made of (v2.0 — a day can mix
+        // time at the base, from home and on a site).
+        val minutes = StatsCalculator.dayMinutes(day)
+        if (minutes.total > 0) {
+            val parts = WorkMode.entries
+                .filter { (minutes.byMode[it] ?: 0) > 0 }
+                .joinToString(" · ") { "${modeName(it)} ${formatDuration(minutes.byMode.getValue(it))}" }
+            lines += "🕗 סה״כ ${formatDuration(minutes.total)} — $parts"
         }
 
-        for (job in day.fieldJobs) {
-            var r = "🚗 שטח: ${job.title}"
-            r += if (job.startMin != null) " (${formatRange(job.startMin, job.endMin)})" else ""
-            lines += r
-        }
+        for (session in day.sessions) {
+            if (!session.hasData) continue
+            var header = "${modeIcon(session.mode)} ${modeName(session.mode)}"
+            if (session.title.isNotBlank()) header += ": ${session.title.trim()}"
+            if (session.startMin != null) header += " ${formatRange(session.startMin, session.endMin)}"
+            session.spanMin?.let { header += " (${formatDuration(it)})" }
+            lines += header
 
-        // Logged order — an activity is a duration, so there is nothing to sort by.
-        val acts = day.activities
-        if (acts.isNotEmpty()) {
-            lines += "✅ פעילויות:"
-            for (a in acts) {
-                var r = "• ${a.category}"
-                // The project the work went to — the point of tagging it (v1.2).
-                if (a.project.isNotBlank()) r += " · ${a.project}"
-                r += if (a.durationMin != null) " (${formatActivityDuration(a.durationMin)})" else ""
+            // Project first, then what was done, then the note, then how long
+            // (product-owner order, v2.0).
+            for (a in session.activities) {
+                var r = "• "
+                r += listOf(a.project, a.category).filter { it.isNotBlank() }.joinToString(" · ")
                 if (a.note.isNotBlank()) r += " — ${a.note.trim()}"
+                if (a.durationMin != null) r += " (${formatActivityDuration(a.durationMin)})"
                 if (a.result.isNotBlank()) r += " · תוצאה: ${a.result.trim()}"
                 lines += r
             }
@@ -62,11 +59,29 @@ object ReportBuilder {
         return lines.joinToString("\n") { RLM + it }
     }
 
+    fun modeName(mode: WorkMode): String = when (mode) {
+        WorkMode.BASE -> "בסיס"
+        WorkMode.HOME -> "בית"
+        WorkMode.FIELD -> "שטח"
+    }
+
+    private fun modeIcon(mode: WorkMode): String = when (mode) {
+        WorkMode.BASE -> "🏢"
+        WorkMode.HOME -> "🏠"
+        WorkMode.FIELD -> "🚗"
+    }
+
     fun period(s: PeriodSummary): String {
         val lines = mutableListOf<String>()
         lines += "📊 ${s.label}"
         lines += "ימי עבודה: ${s.workDays} | סה״כ שעות: ${formatDuration(s.totalMinutes)}" +
             if (s.workDays > 0) " | ממוצע ליום: ${formatDuration(s.totalMinutes / s.workDays)}" else ""
+        val modes = buildList {
+            if (s.baseMinutes > 0) add("בסיס ${formatDuration(s.baseMinutes)}")
+            if (s.homeMinutes > 0) add("בית ${formatDuration(s.homeMinutes)}")
+            if (s.fieldMinutes > 0) add("שטח ${formatDuration(s.fieldMinutes)}")
+        }
+        if (modes.isNotEmpty()) lines += "🕗 ${modes.joinToString(" · ")}"
         var special = "🚗 ימי שטח: ${s.fieldDays}"
         if (s.offDays > 0) special += " | חופש: ${s.offDays}"
         if (s.holidays > 0) special += " | חגים: ${s.holidays}"

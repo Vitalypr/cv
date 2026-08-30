@@ -6,7 +6,8 @@ android/
   gradle/libs.versions.toml        # ALL versions live here; never inline a version in a module
   domain/                          # pure Kotlin JVM
     src/main/kotlin/com/vitalypr/daylog/domain/
-      model/       Day.kt (DayType, TimeSource, DayStatus, DaySnapshot, ActivityEntry, FieldJob)
+      model/       Day.kt (DayType, TimeSource, WorkMode, WorkSession, DayStatus, DaySnapshot,
+                   ActivityEntry, TimeBudget)
       time/        Times.kt (formatMinutes, formatDuration, Hebrew day/date formatting)
       geo/         GeofenceRules.kt (day-attribution, staleness, MIN_VISIT, distance)
                    FenceMachine.kt (office state machine: states/events/actions)
@@ -17,7 +18,7 @@ android/
     src/main/kotlin/com/vitalypr/daylog/
       DayLogApp.kt  MainActivity.kt
       di/           Hilt modules
-      data/         db/ (entities, daos, DayLogDb, migrations), repo/, settings/
+      data/         db/ (entities, daos, DayLogDb), repo/, settings/, backup/, export/
       ui/           theme/ (Color.kt, Type.kt, Theme.kt — ALL design tokens)
                     components/ (shared: TimeSlot, CategoryChips, StatusBadge, cards)
                     today/  history/  stats/  settings/   # screen + ViewModel + UiState each
@@ -28,7 +29,8 @@ android/
       notifications/ Channels.kt, Notifier.kt
     src/main/res/   values/strings.xml is HEBREW (default locale); backup rules in xml/
     src/test/       Robolectric + Roborazzi tests, package-mirrored
-    schemas/        exported Room schemas — COMMIT these; migrations are tested against them
+    schemas/        exported Room schemas — COMMIT these; from v6 forward every bump ships a Migration + test
+                    (v1–v5 were removed with the v2.0 clean break)
 ```
 
 Rules of placement:

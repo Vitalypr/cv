@@ -8,8 +8,7 @@ import com.vitalypr.daylog.data.db.DayLogDb
 import com.vitalypr.daylog.data.repo.DayRepository
 import com.vitalypr.daylog.di.DatabaseModule
 import com.vitalypr.daylog.domain.model.DayType
-import com.vitalypr.daylog.domain.model.FieldJob
-import com.vitalypr.daylog.domain.model.TimeSource
+import com.vitalypr.daylog.domain.model.WorkMode
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -59,12 +58,11 @@ class StatsViewModelTest {
     private fun vm() = StatsViewModel(repo, fakePdf) { fixedNow }
 
     private suspend fun seedWeek() {
-        // Sunday: 9h office. Monday: 8h office + field 17:00–19:00 (2h outside).
-        repo.setArrival(LocalDate.of(2026, 8, 2), 8 * 60, TimeSource.MANUAL)
-        repo.setDeparture(LocalDate.of(2026, 8, 2), 17 * 60, TimeSource.MANUAL)
-        repo.setArrival(LocalDate.of(2026, 8, 3), 8 * 60, TimeSource.MANUAL)
-        repo.setDeparture(LocalDate.of(2026, 8, 3), 16 * 60, TimeSource.MANUAL)
-        repo.addFieldJob(LocalDate.of(2026, 8, 3), FieldJob("אתר", null, 17 * 60, 19 * 60))
+        // Sunday: 9 h at the base. Monday: 8 h at the base + 2 h on a site + 1 h from home.
+        repo.addSession(LocalDate.of(2026, 8, 2), WorkMode.BASE, 8 * 60, 17 * 60)
+        repo.addSession(LocalDate.of(2026, 8, 3), WorkMode.BASE, 8 * 60, 16 * 60)
+        repo.addSession(LocalDate.of(2026, 8, 3), WorkMode.FIELD, 17 * 60, 19 * 60, title = "אתר")
+        repo.addSession(LocalDate.of(2026, 8, 3), WorkMode.HOME, 20 * 60, 21 * 60)
         repo.setDayType(LocalDate.of(2026, 8, 4), DayType.OFF)
     }
 
@@ -72,13 +70,19 @@ class StatsViewModelTest {
         seedWeek()
         vm().uiState.test {
             val state = awaitUntil { it.summary != null && it.bars.size == 7 }
-            // Sunday first (rendered rightmost), 9h.
-            assertEquals(9 * 60, state.bars[0].officeMin)
+            // Sunday first (rendered rightmost), 9 h.
+            assertEquals(9 * 60, state.bars[0].baseMin)
+            assertEquals(8 * 60, state.bars[1].baseMin)
             assertEquals(2 * 60, state.bars[1].fieldMin)
+            assertEquals(60, state.bars[1].homeMin)
+            assertEquals(11 * 60, state.bars[1].totalMin)
             assertTrue(state.bars[2].isOff)
             val s = state.summary!!
             assertEquals(2, s.workDays)
-            assertEquals(9 * 60 + 8 * 60 + 2 * 60, s.totalMinutes)
+            assertEquals(9 * 60 + 8 * 60 + 2 * 60 + 60, s.totalMinutes)
+            assertEquals(17 * 60, s.baseMinutes)
+            assertEquals(60, s.homeMinutes)
+            assertEquals(2 * 60, s.fieldMinutes)
             assertEquals(1, s.fieldDays)
             assertEquals(1, s.offDays)
         }
@@ -90,8 +94,9 @@ class StatsViewModelTest {
         vm.setPeriod(StatsPeriod.YEAR)
         vm.uiState.test {
             val state = awaitUntil { it.period == StatsPeriod.YEAR && it.bars.size == 12 }
-            assertEquals(9 * 60 + 8 * 60, state.bars[7].officeMin) // August is index 7
+            assertEquals(9 * 60 + 8 * 60, state.bars[7].baseMin) // August is index 7
             assertEquals(2 * 60, state.bars[7].fieldMin)
+            assertEquals(60, state.bars[7].homeMin)
             assertEquals(0, state.bars[0].totalMin)
         }
     }
@@ -105,7 +110,8 @@ class StatsViewModelTest {
             val effect = awaitItem() as StatsEffect.LaunchShare
             assertTrue(effect.caption.contains("סיכום שבועי"))
             assertTrue(effect.caption.contains("ימי עבודה: 2"))
-            assertTrue(effect.caption.contains("סה״כ שעות: 19:00"))
+            assertTrue(effect.caption.contains("סה״כ שעות: 20:00"))
+            assertTrue(effect.caption.contains("בסיס 17:00"))
             assertTrue(effect.pdf.exists())
         }
     }

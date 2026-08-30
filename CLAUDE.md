@@ -29,7 +29,9 @@ gradle :app:lintDebug
 3. **Hebrew/RTL:** every report line starts with RLM (U+200F); golden-string tests are canonical — never "fix" a golden to match broken output (@docs/dev/ui-guidelines.md).
 4. **Network = map tiles only.** INTERNET exists solely for the OSM location picker (spec N3 rev v0.7); no analytics/backends ever. `ManifestGuardTest` documents this — any new network use is a conscious spec change.
 5. **Geofence invariants** (spec §6.6): confirmations write event time *and event day*; never overwrite MANUAL-source values; suggestions commit only on user confirmation. Transitions arrive late and out of order — decide from the event's own timestamp and from recorded occupancy, never from `now()`.
-6. **Time model:** minutes-from-midnight `Int`, may exceed 1440 (past midnight, renders "(למחרת)"). Never store `LocalTime` for arrival/departure. Activities are the exception — they carry a *duration* in 30-min steps (`ActivityDuration`), never clock times.
+6. **Time model:** minutes-from-midnight `Int`, may exceed 1440 (past midnight, renders "(למחרת)"). Never store `LocalTime` for a session's start/end. Activities are the exception — they carry a *duration* in 30-min steps (`ActivityDuration`), never clock times.
+7. **A day is a list of work sessions** (v2.0): each `WorkSession` has a mode (BASE/HOME/FIELD), its own hours and its own activities; the day total is their sum. Nothing hangs off the day directly any more — an activity belongs to a session, never to a date. Every activity also names a project (mandatory).
+8. **Edit by id, not by captured row.** `DayRepository.editSession`/`editActivity` re-read inside the write lock; passing a stale entity from an older UI state silently reverts whatever changed in between.
 
 ## Discipline guides
 

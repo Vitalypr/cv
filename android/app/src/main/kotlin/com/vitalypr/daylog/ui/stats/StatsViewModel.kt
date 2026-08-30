@@ -29,9 +29,15 @@ import kotlinx.coroutines.launch
 
 enum class StatsPeriod { WEEK, MONTH, YEAR }
 
-/** One chart bar: office + field minutes (field drawn stacked on top). */
-data class StatsBar(val label: String, val officeMin: Int, val fieldMin: Int, val isOff: Boolean = false) {
-    val totalMin: Int get() = officeMin + fieldMin
+/** One chart bar: the day's minutes split by work mode, drawn as a stack. */
+data class StatsBar(
+    val label: String,
+    val baseMin: Int = 0,
+    val homeMin: Int = 0,
+    val fieldMin: Int = 0,
+    val isOff: Boolean = false,
+) {
+    val totalMin: Int get() = baseMin + homeMin + fieldMin
 }
 
 data class StatsUiState(
@@ -118,8 +124,9 @@ class StatsViewModel @Inject constructor(
                     val m = snap?.let(StatsCalculator::dayMinutes)
                     StatsBar(
                         label = if (p == StatsPeriod.WEEK) hebrewDayLetter(d) else d.dayOfMonth.toString(),
-                        officeMin = m?.office ?: 0,
-                        fieldMin = m?.fieldOutside ?: 0,
+                        baseMin = m?.base ?: 0,
+                        homeMin = m?.home ?: 0,
+                        fieldMin = m?.field ?: 0,
                         isOff = snap?.dayType?.name in listOf("OFF", "HOLIDAY"),
                     )
                 }.toList()
@@ -128,8 +135,9 @@ class StatsViewModel @Inject constructor(
                 val sums = inMonth.map(StatsCalculator::dayMinutes)
                 StatsBar(
                     label = hebrewMonthName(month).take(3),
-                    officeMin = sums.sumOf { it.office },
-                    fieldMin = sums.sumOf { it.fieldOutside },
+                    baseMin = sums.sumOf { m -> m.base },
+                    homeMin = sums.sumOf { m -> m.home },
+                    fieldMin = sums.sumOf { m -> m.field },
                 )
             }
         }

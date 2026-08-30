@@ -51,6 +51,7 @@ import com.vitalypr.daylog.domain.time.formatMinutes
 import com.vitalypr.daylog.reporting.ReportShare
 import com.vitalypr.daylog.ui.components.SectionCard
 import com.vitalypr.daylog.ui.theme.ChartField
+import com.vitalypr.daylog.ui.theme.ChartHome
 import com.vitalypr.daylog.ui.theme.ChartOffice
 import com.vitalypr.daylog.ui.theme.InkMuted
 import com.vitalypr.daylog.ui.theme.InkSecondary
@@ -124,6 +125,19 @@ fun StatsContent(
                     (s.avgDepartureMin?.let(::formatMinutes) ?: "—") to stringResource(R.string.kpi_avg_departure),
                 ),
             )
+            // The mode split as text — the chart is never the only source (§5.3).
+            val modeParts = listOf(
+                stringResource(R.string.legend_office) to s.baseMinutes,
+                stringResource(R.string.legend_home) to s.homeMinutes,
+                stringResource(R.string.legend_field) to s.fieldMinutes,
+            ).filter { it.second > 0 }
+            if (modeParts.isNotEmpty()) {
+                Text(
+                    modeParts.joinToString(" · ") { "${it.first} ${formatDuration(it.second)}" },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = InkSecondary,
+                )
+            }
             if (s.offDays > 0 || s.holidays > 0) {
                 Text(
                     buildString {
@@ -149,14 +163,16 @@ fun StatsContent(
             state.selectedBar?.let { i ->
                 state.bars.getOrNull(i)?.let { bar ->
                     val offLabel = stringResource(R.string.day_off)
-                    val officeLabel = stringResource(R.string.legend_office)
-                    val fieldLabel = stringResource(R.string.legend_field)
-                    val detail = if (bar.isOff) {
-                        "${bar.label}: $offLabel"
-                    } else {
-                        buildString {
-                            append("${bar.label}: $officeLabel ${formatDuration(bar.officeMin)}")
-                            if (bar.fieldMin > 0) append(" · $fieldLabel ${formatDuration(bar.fieldMin)}")
+                    val parts = listOf(
+                        stringResource(R.string.legend_office) to bar.baseMin,
+                        stringResource(R.string.legend_home) to bar.homeMin,
+                        stringResource(R.string.legend_field) to bar.fieldMin,
+                    ).filter { it.second > 0 }
+                    val detail = when {
+                        bar.isOff -> "${bar.label}: $offLabel"
+                        parts.isEmpty() -> "${bar.label}: —"
+                        else -> parts.joinToString(" · ", prefix = "${bar.label}: ") {
+                            "${it.first} ${formatDuration(it.second)}"
                         }
                     }
                     Text(
@@ -235,6 +251,7 @@ private fun KpiGrid(items: List<Pair<String, String>>) {
 private fun ChartLegend() {
     Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
         LegendDot(ChartOffice, stringResource(R.string.legend_office))
+        LegendDot(ChartHome, stringResource(R.string.legend_home))
         LegendDot(ChartField, stringResource(R.string.legend_field))
         Text("– – ${stringResource(R.string.legend_avg)}", style = MaterialTheme.typography.labelSmall, color = InkSecondary)
     }
@@ -250,7 +267,7 @@ private fun LegendDot(color: androidx.compose.ui.graphics.Color, label: String) 
 }
 
 /**
- * Stacked office/field bars, RTL time axis (first bar at the right), dashed
+ * Stacked base/home/field bars, RTL time axis (first bar at the right), dashed
  * average line, 2dp gaps between stacked segments (dataviz mark specs).
  */
 @Composable
@@ -296,24 +313,23 @@ fun HoursChart(
         bars.forEachIndexed { i, bar ->
             // RTL axis: bar i sits i slots from the RIGHT edge.
             val x = size.width - (i + 1) * slot + gap / 2
-            val officeH = plotH * bar.officeMin / maxTotal
-            val fieldH = plotH * bar.fieldMin / maxTotal
             val highlight = selected == null || selected == i
-            if (bar.officeMin > 0) {
+            // Stack bottom-up: base, then home, then field — one segment per mode.
+            var top = plotH
+            listOf(
+                ChartOffice to bar.baseMin,
+                ChartHome to bar.homeMin,
+                ChartField to bar.fieldMin,
+            ).forEach { (color, minutes) ->
+                if (minutes <= 0) return@forEach
+                val h = plotH * minutes / maxTotal
                 drawRoundRect(
-                    ChartOffice.copy(alpha = if (highlight) 1f else 0.35f),
-                    topLeft = Offset(x, plotH - officeH),
-                    size = Size(barW, officeH),
+                    color.copy(alpha = if (highlight) 1f else 0.35f),
+                    topLeft = Offset(x, top - h),
+                    size = Size(barW, h),
                     cornerRadius = CornerRadius(corner),
                 )
-            }
-            if (bar.fieldMin > 0) {
-                drawRoundRect(
-                    ChartField.copy(alpha = if (highlight) 1f else 0.35f),
-                    topLeft = Offset(x, plotH - officeH - segGap - fieldH),
-                    size = Size(barW, fieldH),
-                    cornerRadius = CornerRadius(corner),
-                )
+                top -= h + segGap
             }
             val showLabel = bars.size <= 12 || i % 5 == 0
             if (showLabel) {

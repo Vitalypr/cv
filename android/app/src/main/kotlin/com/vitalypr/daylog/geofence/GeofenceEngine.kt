@@ -15,6 +15,7 @@ import com.vitalypr.daylog.domain.geo.GeofenceRules
 import com.vitalypr.daylog.domain.geo.OfficeFenceMachine
 import com.vitalypr.daylog.domain.model.DayType
 import com.vitalypr.daylog.domain.model.TimeSource
+import com.vitalypr.daylog.domain.model.WorkMode
 import com.vitalypr.daylog.notifications.Notifier
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.time.Duration
@@ -102,20 +103,28 @@ class GeofenceEngine @Inject constructor(
             FenceEvent.DebounceElapsed -> {
                 val leaving = state as? FenceState.Leaving
                 val entryDay = leaving?.let { repository.getDay(it.since.toLocalDate()) }
-                val openArrival = entryDay?.arrivalMin != null && entryDay.departureMin == null
+                val openArrival = entryDay?.sessions?.any { it.mode == WorkMode.BASE && it.isOpen } == true
                 leaving?.let { GeofenceRules.exitDate(it.since, it.exitAt, openArrival) }
             }
         }
         val day = date?.let { repository.getDay(it) }
+        // The machine reasons about ONE visit to the base, so the context must
+        // describe the right one. Arriving asks about a visit in progress — a
+        // finished visit is not it, or a second visit the same day would be read
+        // as "already arrived" and silently swallowed (the reported bug). Leaving
+        // asks about the visit being closed: the running one, else the last.
+        val open = date?.let { repository.openSession(it, WorkMode.BASE) }
+        val last = date?.let { repository.lastSessionOf(it, WorkMode.BASE) }
+        val current = if (event is FenceEvent.Enter) open else open ?: last
         return DayContext(
             date = date,
             isWorkDay = date == null || date.dayOfWeek in settings.workDays,
             isSpecialDay = day != null && day.dayType != DayType.WORK,
-            arrivalSet = day?.arrivalMin != null,
-            arrivalFromGeofence = day?.arrivalSource == TimeSource.GEOFENCE,
-            arrivalUncertain = day?.arrivalUncertain == true,
-            departureSet = day?.departureMin != null,
-            departureFromGeofence = day?.departureSource == TimeSource.GEOFENCE,
+            arrivalSet = current?.startMin != null,
+            arrivalFromGeofence = current?.startSource == TimeSource.GEOFENCE.name,
+            arrivalUncertain = current?.startUncertain == true,
+            departureSet = current?.endMin != null,
+            departureFromGeofence = current?.endSource == TimeSource.GEOFENCE.name,
             silentMode = settings.silentGeofence,
         )
     }
@@ -124,38 +133,45 @@ class GeofenceEngine @Inject constructor(
         is FenceAction.SuggestArrival ->
             notifier.arrivalPrompt(action.date, action.minutes, shortVisit = action.shortVisit)
         is FenceAction.WriteArrival -> {
-            repository.setArrival(action.date, action.minutes, TimeSource.GEOFENCE)
+            repository.startSession(action.date, WorkMode.BASE, action.minutes, TimeSource.GEOFENCE)
             notifier.recorded(action.date, action.minutes, arrival = true)
             widgetRefresher.refresh()
         }
         is FenceAction.SuggestDeparture ->
             notifier.departurePrompt(action.date, action.minutes, action.isUpdate)
         is FenceAction.WriteDeparture -> {
-            repository.setDeparture(action.date, action.minutes, TimeSource.GEOFENCE)
+            repository.recordDeparture(action.date, WorkMode.BASE, action.minutes, TimeSource.GEOFENCE)
             notifier.recorded(action.date, action.minutes, arrival = false)
             widgetRefresher.refresh()
         }
         is FenceAction.SuggestLogDay -> notifier.logDayPrompt(action.minutes)
         is FenceAction.MarkArrivalUncertain -> {
-            repository.setArrivalUncertain(action.date, true)
+            markUncertain(action.date, true)
             widgetRefresher.refresh()
         }
-        is FenceAction.ClearArrivalUncertain -> repository.setArrivalUncertain(action.date, false)
+        is FenceAction.ClearArrivalUncertain -> markUncertain(action.date, false)
         is FenceAction.ArmDebounce -> armDebounce()
         FenceAction.CancelDebounce -> cancelPendingExit()
         FenceAction.CancelDeparturePrompt -> notifier.cancelDeparturePrompt()
         FenceAction.CancelArrivalPrompt -> notifier.cancelArrivalPrompt()
     }
 
+    private suspend fun markUncertain(date: LocalDate, uncertain: Boolean) {
+        val session = repository.openSession(date, WorkMode.BASE)
+            ?: repository.lastSessionOf(date, WorkMode.BASE)
+            ?: return
+        repository.setStartUncertain(session.id, date, uncertain)
+    }
+
     suspend fun confirmArrival(date: LocalDate, eventMinutes: Int) {
-        repository.setArrival(date, eventMinutes, TimeSource.GEOFENCE)
+        repository.startSession(date, WorkMode.BASE, eventMinutes, TimeSource.GEOFENCE)
         // Confirming is the user's own judgement — the doubt is settled.
-        repository.setArrivalUncertain(date, false)
+        markUncertain(date, false)
         widgetRefresher.refresh()
     }
 
     suspend fun confirmDeparture(date: LocalDate, eventMinutes: Int) {
-        repository.setDeparture(date, eventMinutes, TimeSource.GEOFENCE)
+        repository.recordDeparture(date, WorkMode.BASE, eventMinutes, TimeSource.GEOFENCE)
         widgetRefresher.refresh()
     }
 

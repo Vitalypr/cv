@@ -41,8 +41,8 @@ class JobLocationEngineTest {
             .addCallback(DatabaseModule.SeedCallback)
             .allowMainThreadQueries()
             .build()
-        val jobs = JobLocationRepository(db.jobLocationDao(), db.dayDao())
         days = DayRepository(db.dayDao(), db.categoryDao()) { Instant.now() }
+        val jobs = JobLocationRepository(db.jobLocationDao(), days)
         fenceState = InMemoryFenceStateStore()
         engine = JobLocationEngine(jobs, fenceState) { nowDt }
         locId = jobs.add("אתר צפון", 32.7, 35.0)
@@ -63,14 +63,15 @@ class JobLocationEngineTest {
         engine.onExit(locId, nowDt)
     }
 
-    @Test fun `a real visit is recorded first-enter to last-exit`() = runTest {
+    @Test fun `each stretch on site is its own session`() = runTest {
         enter(10, 0)
         exit(12, 30) // lunch, after 2.5 h on site
         enter(13, 15)
         exit(17, 0)
-        val job = days.getDay(date)!!.fieldJobs.single()
-        assertEquals(600, job.startMin)
-        assertEquals(1020, job.endMin)
+        assertEquals(
+            listOf(600 to 750, 795 to 1020),
+            visits().map { it.startMin to it.endMin },
+        )
     }
 
     @Test fun `an exit we never saw an entry for is ignored`() = runTest {
@@ -81,15 +82,15 @@ class JobLocationEngineTest {
     @Test fun `a duplicate enter does not move the suggested start`() = runTest {
         enter(10, 0)
         enter(10, 40) // re-delivered while still on site
-        assertEquals(600, days.getDay(date)!!.fieldJobs.single().startMin)
+        assertEquals(600, visits().single().startMin)
     }
 
     @Test fun `a visit left open across midnight is not closed the next day`() = runTest {
         enter(10, 0)
         exit(9, 0, date.plusDays(1)) // catch-up delivery the following morning
-        val job = days.getDay(date)!!.fieldJobs.single()
-        assertEquals(600, job.startMin)
-        assertNull(job.endMin) // never invented an end for a day we lost track of
+        val visit = visits().single()
+        assertEquals(600, visit.startMin)
+        assertNull(visit.endMin) // never invented an end for a day we lost track of
         assertNull(days.getDay(date.plusDays(1))) // and nothing written to today
     }
 
@@ -102,8 +103,12 @@ class JobLocationEngineTest {
     @Test fun `driving past the site suggests an arrival but never a leaving time`() = runTest {
         enter(10, 0)
         exit(10, 6)
-        val job = days.getDay(date)!!.fieldJobs.single()
-        assertEquals(600, job.startMin)
-        assertNull(job.endMin)
+        val visit = visits().single()
+        assertEquals(600, visit.startMin)
+        assertNull(visit.endMin)
+        assertTrue(visit.startUncertain) // amber "ביקור קצר"
     }
+
+    private suspend fun visits(): List<com.vitalypr.daylog.domain.model.WorkSession> =
+        days.getDay(date)?.sessions.orEmpty()
 }

@@ -7,8 +7,15 @@
 - Android 12+ notification trampoline ban: the notification's Send action must launch `SendReportActivity` (transparent) directly, which writes `reportedAt` then fires the share intent. No broadcast-then-startActivity.
 - The group cannot be pre-selected; `wa.me` links are individuals-only.
 
+## Work sessions (v2.0)
+- A day holds **many sessions**; nothing hangs off the day row any more. Code that asks "what time did he arrive?" must say *which visit* — `firstStartMin`/`lastEndMin` are the day's outer bounds, not "the arrival".
+- A geofence ENTER decides from **the visit in progress**, never from "does the day have an arrival". Getting that wrong is exactly what made a second visit vanish into the first.
+- `endSession` only closes a session that is open; `recordDeparture` also moves the last visit's end (last-exit-wins) and is what confirm/automatic writes use.
+- **Never write through a captured entity.** UI state is a snapshot; `editSession`/`editActivity` re-read by id inside the write lock. Two quick edits through one stale row silently undo each other (start-then-end, or repeated ±½ taps).
+- Schema v6 is a **clean break** — no migrations, `fallbackToDestructiveMigration`. Room does **not** call `onCreate` after a destructive rebuild, and `onDestructiveMigration` fires *before* the tables exist, so seeding lives in `onOpen` guarded by an emptiness check. Without it an upgraded install has no categories and no projects and cannot log anything.
+
 ## Time
-- Arrival/departure/activity/field times = minutes-from-midnight `Int`; **may exceed 1440** (overnight ⇒ "01:30 (למחרת)"). `LocalTime` cannot represent this — don't "simplify" back to it.
+- Session start/end times = minutes-from-midnight `Int`; **may exceed 1440** (overnight ⇒ "01:30 (למחרת)"). `LocalTime` cannot represent this — don't "simplify" back to it.
 - 00:00–04:00 departure offers attachment to yesterday's open day (spec §6.2).
 - All wall-clock in device-local zone at event time; re-arm alarm on `TIMEZONE_CHANGED`/`TIME_CHANGED`; only `reportedAt` is an `Instant`.
 - 2026-08-05 is a **Wednesday** (spec/mockup prose examples said Tuesday — do not propagate; day names must come from `LocalDate`, never hardcoded).
@@ -62,7 +69,7 @@
 - `ANDROID_HOME=/opt/android-sdk`; system Gradle 8.14.3 at `/opt/gradle/bin/gradle` (no wrapper download). JVM proxy/truststore comes from `JAVA_TOOL_OPTIONS` — don't unset it.
 - AGP is pinned to the 8.x line to match Gradle 8.14 (AGP 9 needs Gradle 9). Version bumps go through `libs.versions.toml` + a full test run.
 - Network = OSM map tiles only (N3 rev v0.7): `ManifestGuardTest` asserts INTERNET exists for the map picker and documents the exception — any other network use is a conscious spec change, not a dependency accident.
-- Room schema exports are committed under `app/schemas/`; every schema bump ships a Migration + MigrationTest.
+- Room schema exports are committed under `app/schemas/`; from v6 forward every schema bump ships a Migration + test (v1–v5 went with the v2.0 clean break).
 
 ## PDF / typography
 - **Never set letterSpacing on Hebrew text** — it breaks glyph shaping (renders as split words). Latin-caps convention only.

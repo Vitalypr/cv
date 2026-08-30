@@ -13,6 +13,7 @@ import android.widget.RemoteViews
 import com.vitalypr.daylog.R
 import com.vitalypr.daylog.domain.model.DaySnapshot
 import com.vitalypr.daylog.domain.model.DayType
+import com.vitalypr.daylog.domain.model.WorkMode
 import com.vitalypr.daylog.domain.time.formatMinutes
 
 /**
@@ -31,7 +32,14 @@ data class WidgetState(
         fun of(day: DaySnapshot?): WidgetState = when {
             day == null -> WidgetState()
             day.dayType != DayType.WORK -> WidgetState(specialDay = day.dayType)
-            else -> WidgetState(arrivalMin = day.arrivalMin, departureMin = day.departureMin)
+            else -> {
+                // The widget speaks for time at the base, not the whole day.
+                val base = day.sessions.filter { it.mode == WorkMode.BASE }
+                WidgetState(
+                    arrivalMin = base.mapNotNull { it.startMin }.minOrNull(),
+                    departureMin = base.mapNotNull { it.endMin }.maxOrNull(),
+                )
+            }
         }
     }
 }

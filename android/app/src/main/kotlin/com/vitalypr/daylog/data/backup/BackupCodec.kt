@@ -2,7 +2,7 @@ package com.vitalypr.daylog.data.backup
 
 import com.vitalypr.daylog.data.db.ActivityEntity
 import com.vitalypr.daylog.data.db.CategoryEntity
-import com.vitalypr.daylog.data.db.FieldJobEntity
+import com.vitalypr.daylog.data.db.WorkSessionEntity
 import com.vitalypr.daylog.data.db.JobLocationEntity
 import com.vitalypr.daylog.data.db.ProjectEntity
 import com.vitalypr.daylog.data.db.WorkDayEntity
@@ -20,7 +20,7 @@ import org.json.JSONObject
  */
 data class BackupDocument(
     val days: List<WorkDayEntity> = emptyList(),
-    val fieldJobs: List<FieldJobEntity> = emptyList(),
+    val sessions: List<WorkSessionEntity> = emptyList(),
     val activities: List<ActivityEntity> = emptyList(),
     val categories: List<CategoryEntity> = emptyList(),
     val projects: List<ProjectEntity> = emptyList(),
@@ -45,7 +45,7 @@ object BackupCodec {
         put("backupVersion", VERSION)
         put("exportedAt", java.time.Instant.now().toString())
         put("days", doc.days.toArray(::dayJson))
-        put("fieldJobs", doc.fieldJobs.toArray(::fieldJobJson))
+        put("sessions", doc.sessions.toArray(::sessionJson))
         put("activities", doc.activities.toArray(::activityJson))
         put("categories", doc.categories.toArray(::categoryJson))
         put("projects", doc.projects.toArray(::projectJson))
@@ -62,7 +62,7 @@ object BackupCodec {
 
         return BackupDocument(
             days = root.list("days") { day(it) },
-            fieldJobs = root.list("fieldJobs") { fieldJob(it) },
+            sessions = root.list("sessions") { session(it) },
             activities = root.list("activities") { activity(it) },
             categories = root.list("categories") { category(it) },
             projects = root.list("projects") { project(it) },
@@ -78,32 +78,30 @@ object BackupCodec {
 
     private fun dayJson(d: WorkDayEntity) = JSONObject().apply {
         put("date", d.date)
-        put("arrivalMin", d.arrivalMin ?: JSONObject.NULL)
-        put("departureMin", d.departureMin ?: JSONObject.NULL)
-        put("arrivalSource", d.arrivalSource)
-        put("departureSource", d.departureSource)
-        put("arrivalUncertain", d.arrivalUncertain)
         put("notes", d.notes)
         put("dayType", d.dayType)
         put("reportedAt", d.reportedAt ?: JSONObject.NULL)
         put("editedAfterReport", d.editedAfterReport)
     }
 
-    private fun fieldJobJson(j: FieldJobEntity) = JSONObject().apply {
-        put("id", j.id)
-        put("date", j.date)
-        put("title", j.title)
-        put("locationText", j.locationText ?: JSONObject.NULL)
-        put("startMin", j.startMin ?: JSONObject.NULL)
-        put("endMin", j.endMin ?: JSONObject.NULL)
-        put("jobLocationId", j.jobLocationId ?: JSONObject.NULL)
-        put("suggestedStartMin", j.suggestedStartMin ?: JSONObject.NULL)
-        put("suggestedEndMin", j.suggestedEndMin ?: JSONObject.NULL)
+    private fun sessionJson(s: WorkSessionEntity) = JSONObject().apply {
+        put("id", s.id)
+        put("date", s.date)
+        put("mode", s.mode)
+        put("startMin", s.startMin ?: JSONObject.NULL)
+        put("endMin", s.endMin ?: JSONObject.NULL)
+        put("title", s.title)
+        put("locationText", s.locationText ?: JSONObject.NULL)
+        put("startSource", s.startSource)
+        put("endSource", s.endSource)
+        put("startUncertain", s.startUncertain)
+        put("jobLocationId", s.jobLocationId ?: JSONObject.NULL)
+        put("sortOrder", s.sortOrder)
     }
 
     private fun activityJson(a: ActivityEntity) = JSONObject().apply {
         put("id", a.id)
-        put("date", a.date)
+        put("sessionId", a.sessionId)
         put("categoryId", a.categoryId)
         put("projectId", a.projectId)
         put("durationMin", a.durationMin ?: JSONObject.NULL)
@@ -160,32 +158,30 @@ object BackupCodec {
 
     private fun day(o: JSONObject) = WorkDayEntity(
         date = o.getString("date"),
-        arrivalMin = o.intOrNull("arrivalMin"),
-        departureMin = o.intOrNull("departureMin"),
-        arrivalSource = o.optString("arrivalSource", "MANUAL"),
-        departureSource = o.optString("departureSource", "MANUAL"),
-        arrivalUncertain = o.optBoolean("arrivalUncertain", false),
         notes = o.optString("notes", ""),
         dayType = o.optString("dayType", "WORK"),
         reportedAt = o.longOrNull("reportedAt"),
         editedAfterReport = o.optBoolean("editedAfterReport", false),
     )
 
-    private fun fieldJob(o: JSONObject) = FieldJobEntity(
+    private fun session(o: JSONObject) = WorkSessionEntity(
         id = o.optLong("id"),
         date = o.getString("date"),
-        title = o.optString("title", ""),
-        locationText = o.stringOrNull("locationText"),
+        mode = o.optString("mode", "BASE"),
         startMin = o.intOrNull("startMin"),
         endMin = o.intOrNull("endMin"),
+        title = o.optString("title", ""),
+        locationText = o.stringOrNull("locationText"),
+        startSource = o.optString("startSource", "MANUAL"),
+        endSource = o.optString("endSource", "MANUAL"),
+        startUncertain = o.optBoolean("startUncertain", false),
         jobLocationId = o.longOrNull("jobLocationId"),
-        suggestedStartMin = o.intOrNull("suggestedStartMin"),
-        suggestedEndMin = o.intOrNull("suggestedEndMin"),
+        sortOrder = o.optInt("sortOrder", 0),
     )
 
     private fun activity(o: JSONObject) = ActivityEntity(
         id = o.optLong("id"),
-        date = o.getString("date"),
+        sessionId = o.optLong("sessionId"),
         categoryId = o.optLong("categoryId"),
         projectId = o.optLong("projectId"),
         durationMin = o.intOrNull("durationMin"),

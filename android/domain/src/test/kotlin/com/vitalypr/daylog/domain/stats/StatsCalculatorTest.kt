@@ -3,96 +3,114 @@ package com.vitalypr.daylog.domain.stats
 import com.vitalypr.daylog.domain.model.ActivityEntry
 import com.vitalypr.daylog.domain.model.DaySnapshot
 import com.vitalypr.daylog.domain.model.DayType
-import com.vitalypr.daylog.domain.model.FieldJob
+import com.vitalypr.daylog.domain.model.WorkMode
+import com.vitalypr.daylog.domain.model.WorkSession
 import java.time.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
+/** The hours rule (spec §2.5 v2.0): a day is the sum of its sessions. */
 class StatsCalculatorTest {
 
-    private var d = 1
-    private fun day(
-        arr: Int? = null, dep: Int? = null,
-        jobs: List<FieldJob> = emptyList(),
-        type: DayType = DayType.WORK,
-        acts: List<ActivityEntry> = emptyList(),
-    ) = DaySnapshot(
-        date = LocalDate.of(2026, 7, d++),
-        arrivalMin = arr, departureMin = dep,
-        fieldJobs = jobs, dayType = type, activities = acts,
-    )
+    private val mon: LocalDate = LocalDate.of(2026, 8, 3)
 
-    // --- hours rule (spec §2.5) ---
+    private fun session(mode: WorkMode, start: Int, end: Int, vararg acts: ActivityEntry) =
+        WorkSession(mode = mode, startMin = start, endMin = end, activities = acts.toList())
 
-    @Test fun `office only`() {
-        val m = StatsCalculator.dayMinutes(day(arr = 480, dep = 1020))
-        assertEquals(540, m.office)
-        assertEquals(0, m.fieldOutside)
-    }
-
-    @Test fun `field inside office span not double counted`() {
-        val m = StatsCalculator.dayMinutes(
-            day(arr = 480, dep = 1020, jobs = listOf(FieldJob("x", startMin = 600, endMin = 810))),
+    @Test fun `a day adds up its sessions, whatever mode they are`() {
+        val day = DaySnapshot(
+            mon,
+            listOf(
+                session(WorkMode.BASE, 10 * 60, 14 * 60),
+                session(WorkMode.HOME, 18 * 60, 20 * 60),
+                session(WorkMode.FIELD, 6 * 60, 9 * 60),
+            ),
         )
-        assertEquals(540, m.total)
+        val m = StatsCalculator.dayMinutes(day)
+        assertEquals(4 * 60, m.base)
+        assertEquals(2 * 60, m.home)
+        assertEquals(3 * 60, m.field)
+        assertEquals(9 * 60, m.total)
     }
 
-    @Test fun `field partially outside adds only the outside part`() {
-        val m = StatsCalculator.dayMinutes(
-            day(arr = 480, dep = 1020, jobs = listOf(FieldJob("x", startMin = 960, endMin = 1140))),
+    @Test fun `two visits to the base on one day are both counted`() {
+        val day = DaySnapshot(
+            mon,
+            listOf(session(WorkMode.BASE, 8 * 60, 12 * 60), session(WorkMode.BASE, 14 * 60, 18 * 60)),
         )
-        assertEquals(540, m.office)
-        assertEquals(120, m.fieldOutside) // 17:00–19:00
+        assertEquals(8 * 60, StatsCalculator.dayMinutes(day).total)
     }
 
-    @Test fun `field-only day counts field spans`() {
-        val m = StatsCalculator.dayMinutes(day(jobs = listOf(FieldJob("x", startMin = 600, endMin = 780))))
-        assertEquals(0, m.office)
-        assertEquals(180, m.fieldOutside)
-    }
-
-    @Test fun `overlapping field jobs merged before counting`() {
-        val m = StatsCalculator.dayMinutes(
-            day(jobs = listOf(
-                FieldJob("a", startMin = 600, endMin = 720),
-                FieldJob("b", startMin = 660, endMin = 780),
-            )),
+    @Test fun `an open or malformed session contributes nothing`() {
+        val day = DaySnapshot(
+            mon,
+            listOf(
+                WorkSession(startMin = 10 * 60), // still open
+                WorkSession(startMin = 14 * 60, endMin = 12 * 60), // end before start
+            ),
         )
-        assertEquals(180, m.fieldOutside) // 10:00–13:00 merged, not 120+120
+        assertEquals(0, StatsCalculator.dayMinutes(day).total)
     }
 
-    @Test fun `overnight office span counts across midnight`() {
-        val m = StatsCalculator.dayMinutes(day(arr = 22 * 60, dep = 25 * 60 + 30))
-        assertEquals(210, m.office)
+    @Test fun `working past midnight counts the whole stretch`() {
+        val day = DaySnapshot(mon, listOf(session(WorkMode.BASE, 22 * 60, 25 * 60 + 30)))
+        assertEquals(210, StatsCalculator.dayMinutes(day).total)
     }
 
-    // --- summarize ---
-
-    @Test fun `summarize counts and averages`() {
+    @Test fun `a period sums days and breaks the hours down by mode`() {
         val days = listOf(
-            day(arr = 480, dep = 1020, acts = listOf(ActivityEntry("פיתוח"), ActivityEntry("דיון"))),
-            day(arr = 500, dep = 1040, jobs = listOf(FieldJob("x", startMin = 1050, endMin = 1110)),
-                acts = listOf(ActivityEntry("פיתוח"))),
-            day(type = DayType.OFF),
-            day(type = DayType.HOLIDAY),
-            day(), // empty work day — not counted as a work day
+            DaySnapshot(mon, listOf(session(WorkMode.BASE, 8 * 60, 16 * 60))),
+            DaySnapshot(
+                mon.plusDays(1),
+                listOf(session(WorkMode.HOME, 9 * 60, 12 * 60), session(WorkMode.FIELD, 13 * 60, 17 * 60)),
+            ),
+            DaySnapshot(mon.plusDays(2), dayType = DayType.OFF),
+            DaySnapshot(mon.plusDays(3), dayType = DayType.HOLIDAY),
         )
-        val s = StatsCalculator.summarize("סיכום", days)
+        val s = StatsCalculator.summarize("שבוע", days)
         assertEquals(2, s.workDays)
-        assertEquals(540 + 540 + 60, s.totalMinutes)
+        assertEquals(15 * 60, s.totalMinutes)
+        assertEquals(8 * 60, s.baseMinutes)
+        assertEquals(3 * 60, s.homeMinutes)
+        assertEquals(4 * 60, s.fieldMinutes)
         assertEquals(1, s.fieldDays)
         assertEquals(1, s.offDays)
         assertEquals(1, s.holidays)
-        assertEquals(490, s.avgArrivalMin)
-        assertEquals(1030, s.avgDepartureMin)
-        assertEquals(listOf("פיתוח" to 2, "דיון" to 1), s.categoryCounts)
     }
 
-    @Test fun `no timed days yields null averages and zero work days`() {
-        val s = StatsCalculator.summarize("ריק", listOf(day(type = DayType.OFF)))
+    @Test fun `averages use the day's first start and last end`() {
+        val days = listOf(
+            DaySnapshot(
+                mon,
+                listOf(session(WorkMode.FIELD, 6 * 60, 9 * 60), session(WorkMode.BASE, 10 * 60, 18 * 60)),
+            ),
+        )
+        val s = StatsCalculator.summarize("שבוע", days)
+        assertEquals(6 * 60, s.avgArrivalMin)
+        assertEquals(18 * 60, s.avgDepartureMin)
+    }
+
+    @Test fun `a period with no worked time has no averages`() {
+        val s = StatsCalculator.summarize("שבוע", listOf(DaySnapshot(mon)))
         assertEquals(0, s.workDays)
         assertNull(s.avgArrivalMin)
-        assertNull(s.avgDepartureMin)
+    }
+
+    @Test fun `activities are tallied by category and by project`() {
+        val day = DaySnapshot(
+            mon,
+            listOf(
+                session(
+                    WorkMode.BASE, 8 * 60, 16 * 60,
+                    ActivityEntry("רובוטיקה", "פיתוח", 120),
+                    ActivityEntry("רובוטיקה", "דיון", 60),
+                    ActivityEntry("AI למחלקה", "פיתוח", 60),
+                ),
+            ),
+        )
+        val s = StatsCalculator.summarize("שבוע", listOf(day))
+        assertEquals(listOf("פיתוח" to 2, "דיון" to 1), s.categoryCounts)
+        assertEquals(listOf("רובוטיקה" to 2, "AI למחלקה" to 1), s.projectCounts)
     }
 }

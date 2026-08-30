@@ -6,6 +6,7 @@ import com.vitalypr.daylog.data.repo.DayRepository
 import com.vitalypr.daylog.di.Now
 import com.vitalypr.daylog.domain.model.DaySnapshot
 import com.vitalypr.daylog.domain.model.DayStatus
+import com.vitalypr.daylog.domain.model.WorkMode
 import com.vitalypr.daylog.domain.model.status
 import com.vitalypr.daylog.domain.stats.StatsCalculator
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -60,7 +61,8 @@ class HistoryViewModel @Inject constructor(
         val cats = activities.map { it.category }.distinct().take(3)
         val hint = buildList {
             addAll(cats)
-            if (fieldJobs.isNotEmpty()) add("שטח")
+            if (sessions.any { it.mode == WorkMode.FIELD }) add("שטח")
+            if (sessions.any { it.mode == WorkMode.HOME }) add("בית")
         }.joinToString(" · ")
         return HistoryDayCard(
             date = date,

@@ -24,10 +24,11 @@ class PeriodPdfTest {
         val summary = PeriodSummary(
             label = "סיכום חודשי — אוגוסט 2026",
             workDays = 21, totalMinutes = 186 * 60 + 30,
-            officeMinutes = 170 * 60, fieldMinutes = 16 * 60 + 30,
+            baseMinutes = 150 * 60, homeMinutes = 20 * 60, fieldMinutes = 16 * 60 + 30,
             fieldDays = 6, offDays = 1, holidays = 2,
             avgArrivalMin = 8 * 60 + 24, avgDepartureMin = 17 * 60 + 38,
             categoryCounts = listOf("פיתוח" to 14, "התקנה" to 9, "דיון" to 7),
+            projectCounts = listOf("רובוטיקה" to 18, "AI למחלקה" to 12),
         )
         val bitmap = Bitmap.createBitmap(595, 842, Bitmap.Config.ARGB_8888)
         bitmap.eraseColor(Color.WHITE)

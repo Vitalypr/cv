@@ -1,38 +1,16 @@
 {
   "formatVersion": 1,
   "database": {
-    "version": 3,
-    "identityHash": "f6b76ba859909c404eb70ba60da53925",
+    "version": 6,
+    "identityHash": "30c1f851ec17b90e9dca204a9629141d",
     "entities": [
       {
         "tableName": "work_day",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`date` TEXT NOT NULL, `arrivalMin` INTEGER, `departureMin` INTEGER, `arrivalSource` TEXT NOT NULL, `departureSource` TEXT NOT NULL, `notes` TEXT NOT NULL, `dayType` TEXT NOT NULL, `reportedAt` INTEGER, `editedAfterReport` INTEGER NOT NULL, PRIMARY KEY(`date`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`date` TEXT NOT NULL, `notes` TEXT NOT NULL, `dayType` TEXT NOT NULL, `reportedAt` INTEGER, `editedAfterReport` INTEGER NOT NULL, PRIMARY KEY(`date`))",
         "fields": [
           {
             "fieldPath": "date",
             "columnName": "date",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "arrivalMin",
-            "columnName": "arrivalMin",
-            "affinity": "INTEGER"
-          },
-          {
-            "fieldPath": "departureMin",
-            "columnName": "departureMin",
-            "affinity": "INTEGER"
-          },
-          {
-            "fieldPath": "arrivalSource",
-            "columnName": "arrivalSource",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "departureSource",
-            "columnName": "departureSource",
             "affinity": "TEXT",
             "notNull": true
           },
@@ -68,8 +46,8 @@
         }
       },
       {
-        "tableName": "field_job",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `date` TEXT NOT NULL, `title` TEXT NOT NULL, `locationText` TEXT, `startMin` INTEGER, `endMin` INTEGER, `jobLocationId` INTEGER, `suggestedStartMin` INTEGER, `suggestedEndMin` INTEGER, FOREIGN KEY(`date`) REFERENCES `work_day`(`date`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "tableName": "work_session",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `date` TEXT NOT NULL, `mode` TEXT NOT NULL, `startMin` INTEGER, `endMin` INTEGER, `title` TEXT NOT NULL, `locationText` TEXT, `startSource` TEXT NOT NULL, `endSource` TEXT NOT NULL, `startUncertain` INTEGER NOT NULL, `jobLocationId` INTEGER, `sortOrder` INTEGER NOT NULL, FOREIGN KEY(`date`) REFERENCES `work_day`(`date`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "id",
@@ -84,15 +62,10 @@
             "notNull": true
           },
           {
-            "fieldPath": "title",
-            "columnName": "title",
+            "fieldPath": "mode",
+            "columnName": "mode",
             "affinity": "TEXT",
             "notNull": true
-          },
-          {
-            "fieldPath": "locationText",
-            "columnName": "locationText",
-            "affinity": "TEXT"
           },
           {
             "fieldPath": "startMin",
@@ -105,19 +78,44 @@
             "affinity": "INTEGER"
           },
           {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "locationText",
+            "columnName": "locationText",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "startSource",
+            "columnName": "startSource",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "endSource",
+            "columnName": "endSource",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "startUncertain",
+            "columnName": "startUncertain",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
             "fieldPath": "jobLocationId",
             "columnName": "jobLocationId",
             "affinity": "INTEGER"
           },
           {
-            "fieldPath": "suggestedStartMin",
-            "columnName": "suggestedStartMin",
-            "affinity": "INTEGER"
-          },
-          {
-            "fieldPath": "suggestedEndMin",
-            "columnName": "suggestedEndMin",
-            "affinity": "INTEGER"
+            "fieldPath": "sortOrder",
+            "columnName": "sortOrder",
+            "affinity": "INTEGER",
+            "notNull": true
           }
         ],
         "primaryKey": {
@@ -128,13 +126,13 @@
         },
         "indices": [
           {
-            "name": "index_field_job_date",
+            "name": "index_work_session_date",
             "unique": false,
             "columnNames": [
               "date"
             ],
             "orders": [],
-            "createSql": "CREATE INDEX IF NOT EXISTS `index_field_job_date` ON `${TABLE_NAME}` (`date`)"
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_work_session_date` ON `${TABLE_NAME}` (`date`)"
           }
         ],
         "foreignKeys": [
@@ -153,7 +151,7 @@
       },
       {
         "tableName": "activity",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `date` TEXT NOT NULL, `categoryId` INTEGER NOT NULL, `durationMin` INTEGER, `note` TEXT NOT NULL, `result` TEXT NOT NULL, `sortOrder` INTEGER NOT NULL, FOREIGN KEY(`date`) REFERENCES `work_day`(`date`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`categoryId`) REFERENCES `category`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `sessionId` INTEGER NOT NULL, `categoryId` INTEGER NOT NULL, `projectId` INTEGER NOT NULL, `durationMin` INTEGER, `note` TEXT NOT NULL, `result` TEXT NOT NULL, `sortOrder` INTEGER NOT NULL, FOREIGN KEY(`sessionId`) REFERENCES `work_session`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`categoryId`) REFERENCES `category`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
         "fields": [
           {
             "fieldPath": "id",
@@ -162,14 +160,20 @@
             "notNull": true
           },
           {
-            "fieldPath": "date",
-            "columnName": "date",
-            "affinity": "TEXT",
+            "fieldPath": "sessionId",
+            "columnName": "sessionId",
+            "affinity": "INTEGER",
             "notNull": true
           },
           {
             "fieldPath": "categoryId",
             "columnName": "categoryId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "projectId",
+            "columnName": "projectId",
             "affinity": "INTEGER",
             "notNull": true
           },
@@ -205,13 +209,13 @@
         },
         "indices": [
           {
-            "name": "index_activity_date",
+            "name": "index_activity_sessionId",
             "unique": false,
             "columnNames": [
-              "date"
+              "sessionId"
             ],
             "orders": [],
-            "createSql": "CREATE INDEX IF NOT EXISTS `index_activity_date` ON `${TABLE_NAME}` (`date`)"
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_activity_sessionId` ON `${TABLE_NAME}` (`sessionId`)"
           },
           {
             "name": "index_activity_categoryId",
@@ -221,18 +225,27 @@
             ],
             "orders": [],
             "createSql": "CREATE INDEX IF NOT EXISTS `index_activity_categoryId` ON `${TABLE_NAME}` (`categoryId`)"
+          },
+          {
+            "name": "index_activity_projectId",
+            "unique": false,
+            "columnNames": [
+              "projectId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_activity_projectId` ON `${TABLE_NAME}` (`projectId`)"
           }
         ],
         "foreignKeys": [
           {
-            "table": "work_day",
+            "table": "work_session",
             "onDelete": "CASCADE",
             "onUpdate": "NO ACTION",
             "columns": [
-              "date"
+              "sessionId"
             ],
             "referencedColumns": [
-              "date"
+              "id"
             ]
           },
           {
@@ -336,11 +349,47 @@
             "id"
           ]
         }
+      },
+      {
+        "tableName": "project",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `isArchived` INTEGER NOT NULL, `sortOrder` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isArchived",
+            "columnName": "isArchived",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sortOrder",
+            "columnName": "sortOrder",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        }
       }
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'f6b76ba859909c404eb70ba60da53925')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '30c1f851ec17b90e9dca204a9629141d')"
     ]
   }
 }

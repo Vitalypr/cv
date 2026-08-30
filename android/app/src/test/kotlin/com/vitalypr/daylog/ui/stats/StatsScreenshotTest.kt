@@ -28,21 +28,23 @@ class StatsScreenshotTest {
     val composeRule = createAndroidComposeRule<ComponentActivity>()
 
     private val weekBars = listOf(
-        StatsBar("א", 540, 0),
-        StatsBar("ב", 480, 120),
-        StatsBar("ג", 0, 0, isOff = true),
-        StatsBar("ד", 522, 0),
-        StatsBar("ה", 474, 72),
-        StatsBar("ו", 0, 0),
-        StatsBar("ש", 0, 0),
+        StatsBar("א", baseMin = 540),
+        StatsBar("ב", baseMin = 480, fieldMin = 120),
+        StatsBar("ג", isOff = true),
+        StatsBar("ד", baseMin = 402, homeMin = 120),
+        StatsBar("ה", baseMin = 474, homeMin = 60, fieldMin = 72),
+        StatsBar("ו"),
+        StatsBar("ש"),
     )
 
     private val summary = PeriodSummary(
         label = "סיכום שבועי (02.08.2026–08.08.2026)",
-        workDays = 4, totalMinutes = 2208, officeMinutes = 2016, fieldMinutes = 192,
+        workDays = 4, totalMinutes = 2268,
+        baseMinutes = 1896, homeMinutes = 180, fieldMinutes = 192,
         fieldDays = 2, offDays = 1, holidays = 0,
         avgArrivalMin = 8 * 60 + 19, avgDepartureMin = 17 * 60 + 41,
         categoryCounts = listOf("פיתוח" to 6, "דיון" to 4, "התקנה" to 3, "בדיקות" to 2),
+        projectCounts = listOf("רובוטיקה" to 8, "AI למחלקה" to 5, "הנדסת מערכת למחלקה" to 2),
     )
 
     @Test fun statsWeek() {

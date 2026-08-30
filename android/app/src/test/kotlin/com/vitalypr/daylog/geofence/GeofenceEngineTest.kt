@@ -10,6 +10,8 @@ import com.vitalypr.daylog.data.db.DayLogDb
 import com.vitalypr.daylog.data.repo.DayRepository
 import com.vitalypr.daylog.di.DatabaseModule
 import com.vitalypr.daylog.domain.model.TimeSource
+import com.vitalypr.daylog.domain.model.WorkMode
+import com.vitalypr.daylog.domain.model.WorkSession
 import com.vitalypr.daylog.notifications.Channels
 import com.vitalypr.daylog.notifications.Notifier
 import java.time.Instant
@@ -78,6 +80,22 @@ class GeofenceEngineTest {
         engine.onEnter(nowDt)
     }
 
+    /** The base visits of a day, in order — v2.0 stores worked time as sessions. */
+    private suspend fun visits(on: LocalDate = today): List<WorkSession> =
+        repo.getDay(on)?.sessions?.filter { it.mode == WorkMode.BASE }.orEmpty()
+
+    private suspend fun arrival(on: LocalDate = today): Int? = visits(on).firstOrNull()?.startMin
+    private suspend fun departure(on: LocalDate = today): Int? = visits(on).lastOrNull()?.endMin
+    private suspend fun uncertain(on: LocalDate = today): Boolean =
+        visits(on).lastOrNull()?.startUncertain == true
+
+    /** Pre-existing hours, as if typed in the app. */
+    private suspend fun typedArrival(minutes: Int, on: LocalDate = today) =
+        repo.startSession(on, WorkMode.BASE, minutes, TimeSource.MANUAL)
+
+    private suspend fun typedDeparture(minutes: Int, on: LocalDate = today) =
+        repo.recordDeparture(on, WorkMode.BASE, minutes, TimeSource.MANUAL)
+
     /** The real sequence: an exit is detected, then the debounce elapses. */
     private suspend fun exitDebounce(hour: Int, minute: Int, date: LocalDate = today) {
         nowDt = at(hour, minute, date)
@@ -110,26 +128,26 @@ class GeofenceEngineTest {
         nm.cancelAll()
         exitDebounce(8, 40)
         assertTrue(titles().isEmpty(), "no departure for a 28-minute visit")
-        assertTrue(repo.getDay(today)!!.arrivalUncertain, "arrival should be flagged amber")
+        assertTrue(uncertain(), "arrival should be flagged amber")
     }
 
     @Test fun `a real stay later in the day clears the short-visit flag`() = runTest {
         enter(8, 12)
         engine.confirmArrival(today, 492)
         exitDebounce(8, 40)
-        assertTrue(repo.getDay(today)!!.arrivalUncertain)
+        assertTrue(uncertain())
 
         enter(9, 30)
         exitDebounce(17, 35)
-        assertFalse(repo.getDay(today)!!.arrivalUncertain)
+        assertFalse(uncertain())
         assertTrue(titles().any { it.startsWith("יציאה") })
     }
 
     @Test fun `a hand-typed arrival is never flagged by a short visit`() = runTest {
-        repo.setArrival(today, 480, TimeSource.MANUAL)
+        typedArrival(480)
         enter(8, 12)
         exitDebounce(8, 40)
-        assertFalse(repo.getDay(today)!!.arrivalUncertain)
+        assertFalse(uncertain())
     }
 
     @Test fun `a full day with no arrival logged still offers to log it on the way out`() = runTest {
@@ -140,7 +158,7 @@ class GeofenceEngineTest {
     }
 
     @Test fun `exactly one hour counts as a real visit`() = runTest {
-        repo.setArrival(today, 492, TimeSource.MANUAL)
+        typedArrival(492)
         enter(8, 12)
         exitDebounce(9, 12)
         assertEquals(listOf("יציאה 09:12?"), titles())
@@ -148,12 +166,12 @@ class GeofenceEngineTest {
 
     @Test fun `yesterday's visit delivered this morning is dropped, not written to today`() = runTest {
         enter(8, 12, today.minusDays(1))
-        repo.setArrival(today.minusDays(1), 492, TimeSource.GEOFENCE)
+        repo.startSession(today.minusDays(1), WorkMode.BASE, 492, TimeSource.GEOFENCE)
         nm.cancelAll()
 
         exitDebounce(8, 30, today) // catch-up delivery the next morning
         assertTrue(titles().isEmpty())
-        assertNull(repo.getDay(today)?.departureMin)
+        assertNull(departure())
     }
 
     // --- dwell --------------------------------------------------------------
@@ -162,7 +180,7 @@ class GeofenceEngineTest {
         enter(9, 0)
         exitDebounce(9, 3) // three minutes inside — never actually stopped
         assertTrue(titles().none { it.startsWith("יציאה") || it == "לרשום את היום?" })
-        assertNull(repo.getDay(today)?.departureMin)
+        assertNull(departure())
     }
 
     // --- decision table -----------------------------------------------------
@@ -170,7 +188,7 @@ class GeofenceEngineTest {
     @Test fun `enter on workday with no arrival prompts with event time`() = runTest {
         enter(8, 12)
         assertEquals(listOf("הגעת למשרד?"), titles())
-        assertNull(repo.getDay(today)?.arrivalMin) // nothing written without confirmation
+        assertNull(arrival()) // nothing written without confirmation
     }
 
     @Test fun `duplicate enter while already inside does not re-prompt`() = runTest {
@@ -181,7 +199,7 @@ class GeofenceEngineTest {
     }
 
     @Test fun `enter when arrival already set is silent`() = runTest {
-        repo.setArrival(today, 480, TimeSource.MANUAL)
+        typedArrival(480)
         enter(8, 12)
         assertTrue(titles().isEmpty())
     }
@@ -193,16 +211,17 @@ class GeofenceEngineTest {
 
     @Test fun `confirm arrival writes event time with geofence source`() = runTest {
         engine.confirmArrival(today, 492)
-        val day = repo.getDay(today)!!
-        assertEquals(492, day.arrivalMin)
-        assertEquals(TimeSource.GEOFENCE, day.arrivalSource)
+        val visit = visits().single()
+        assertEquals(492, visit.startMin)
+        assertEquals(TimeSource.GEOFENCE, visit.startSource)
     }
 
     @Test fun `confirm writes to the event's day, not the day of the tap`() = runTest {
         val yesterday = today.minusDays(1)
+        repo.startSession(yesterday, WorkMode.BASE, 492, TimeSource.GEOFENCE)
         engine.confirmDeparture(yesterday, 1055) // tapped after midnight
-        assertEquals(1055, repo.getDay(yesterday)?.departureMin)
-        assertNull(repo.getDay(today)?.departureMin)
+        assertEquals(1055, departure(yesterday))
+        assertNull(repo.getDay(today))
     }
 
     // --- automatic recording (the v1.1 default) -----------------------------
@@ -210,7 +229,7 @@ class GeofenceEngineTest {
     @Test fun `automatic mode records the arrival as it happens`() = runTest {
         settings.update { it.copy(silentGeofence = true) }
         enter(8, 12)
-        assertEquals(492, repo.getDay(today)?.arrivalMin)
+        assertEquals(492, arrival())
         assertEquals(listOf("נרשמה כניסה 08:12"), titles()) // informational, correctable
     }
 
@@ -218,16 +237,18 @@ class GeofenceEngineTest {
      * The reported failure: two visits in a day recorded only one of them, because
      * nothing was written unless a notification was tapped.
      */
-    @Test fun `two visits in a day keep the first arrival and the last departure`() = runTest {
+    @Test fun `two visits in a day are two sessions, both kept in full`() = runTest {
         settings.update { it.copy(silentGeofence = true) }
         enter(8, 0)
         exitDebounce(11, 0)
         enter(14, 0)
         exitDebounce(18, 0)
 
-        val day = repo.getDay(today)!!
-        assertEquals(8 * 60, day.arrivalMin)
-        assertEquals(18 * 60, day.departureMin)
+        assertEquals(
+            listOf(8 * 60 to 11 * 60, 14 * 60 to 18 * 60),
+            visits().map { it.startMin to it.endMin },
+        )
+        assertEquals(7 * 60, com.vitalypr.daylog.domain.stats.StatsCalculator.dayMinutes(repo.getDay(today)!!).base)
     }
 
     /**
@@ -237,16 +258,15 @@ class GeofenceEngineTest {
     @Test fun `a missed exit does not silence the next day`() = runTest {
         settings.update { it.copy(silentGeofence = true) }
         enter(8, 0)
-        assertEquals(480, repo.getDay(today)?.arrivalMin)
+        assertEquals(480, arrival())
         // …no exit ever arrives…
 
         val tomorrow = today.plusDays(1)
         enter(8, 30, tomorrow)
         exitDebounce(17, 0, tomorrow)
 
-        val day = repo.getDay(tomorrow)!!
-        assertEquals(8 * 60 + 30, day.arrivalMin)
-        assertEquals(17 * 60, day.departureMin)
+        assertEquals(8 * 60 + 30, arrival(tomorrow))
+        assertEquals(17 * 60, departure(tomorrow))
     }
 
     /** The debounce alarm never fired (Doze); coming back next day must still work. */
@@ -259,8 +279,8 @@ class GeofenceEngineTest {
         val tomorrow = today.plusDays(1)
         enter(8, 30, tomorrow)
 
-        assertEquals(17 * 60, repo.getDay(today)?.departureMin, "yesterday closes")
-        assertEquals(8 * 60 + 30, repo.getDay(tomorrow)?.arrivalMin, "today opens")
+        assertEquals(17 * 60, departure(), "yesterday closes")
+        assertEquals(8 * 60 + 30, arrival(tomorrow), "today opens")
     }
 
     @Test fun `exit debounce - no arrival set offers to log the day`() = runTest {
@@ -271,30 +291,42 @@ class GeofenceEngineTest {
     }
 
     @Test fun `exit debounce - departure unset prompts with event time`() = runTest {
-        repo.setArrival(today, 492, TimeSource.MANUAL)
+        typedArrival(492)
         enter(8, 12)
         exitDebounce(17, 35)
         assertEquals(listOf("יציאה 17:35?"), titles())
     }
 
-    @Test fun `exit debounce - geofence departure offers update, last exit wins`() = runTest {
-        repo.setArrival(today, 492, TimeSource.MANUAL)
-        repo.setDeparture(today, 1000, TimeSource.GEOFENCE)
+    /**
+     * Lunch used to be an overwrite ("only the last visit is recorded"). Now the
+     * afternoon return opens its own visit and both survive with their own hours.
+     */
+    @Test fun `returning after a confirmed departure opens a second visit`() = runTest {
+        typedArrival(492)
         enter(8, 12)
-        exitDebounce(19, 5)
-        assertEquals(listOf("לעדכן יציאה ל־19:05?"), titles())
-        engine.confirmDeparture(today, 1145)
-        assertEquals(1145, repo.getDay(today)?.departureMin)
+        exitDebounce(12, 30)
+        engine.confirmDeparture(today, 12 * 60 + 30)
+        nm.cancelAll()
+
+        enter(13, 15)
+        assertEquals(listOf("הגעת למשרד?"), titles())
+        engine.confirmArrival(today, 13 * 60 + 15)
+        exitDebounce(17, 35)
+        engine.confirmDeparture(today, 17 * 60 + 35)
+
+        assertEquals(
+            listOf(492 to 12 * 60 + 30, 13 * 60 + 15 to 17 * 60 + 35),
+            visits().map { it.startMin to it.endMin },
+        )
     }
 
-    @Test fun `exit debounce - MANUAL departure is never touched`() = runTest {
-        repo.setArrival(today, 492, TimeSource.MANUAL)
-        repo.setDeparture(today, 1000, TimeSource.MANUAL)
+    @Test fun `a hand-typed leaving time is never touched by the geofence`() = runTest {
+        typedArrival(492)
         enter(8, 12)
+        typedDeparture(1000) // the user closes the day by hand while still inside
         exitDebounce(19, 5)
-        assertTrue(titles().isEmpty())
         engine.confirmDeparture(today, 1145) // even a stray confirm must not overwrite
-        assertEquals(1000, repo.getDay(today)?.departureMin)
+        assertEquals(1000, departure())
     }
 
     @Test fun `enter on a day marked off is silent`() = runTest {
@@ -311,7 +343,7 @@ class GeofenceEngineTest {
     }
 
     @Test fun `enter cancels a pending departure suggestion notification`() = runTest {
-        repo.setArrival(today, 492, TimeSource.MANUAL)
+        typedArrival(492)
         enter(8, 12)
         exitDebounce(12, 30) // lunch exit prompt
         assertEquals(1, titles().size)
@@ -321,7 +353,7 @@ class GeofenceEngineTest {
 
     @Test fun `overnight shift attributes the exit to the day that is still open`() = runTest {
         val yesterday = today.minusDays(1)
-        repo.setArrival(yesterday, 22 * 60, TimeSource.MANUAL)
+        typedArrival(22 * 60, yesterday)
         enter(22, 0, yesterday)
         exitDebounce(1, 30, today)
         // Stored as 25:30 on the day that is still open, rendered per §6.2.

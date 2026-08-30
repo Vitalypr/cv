@@ -10,6 +10,7 @@ import com.vitalypr.daylog.FakeSettingsSource
 import com.vitalypr.daylog.di.DatabaseModule
 import com.vitalypr.daylog.domain.model.DayType
 import com.vitalypr.daylog.domain.model.TimeSource
+import com.vitalypr.daylog.domain.model.WorkMode
 import com.vitalypr.daylog.notifications.Channels
 import com.vitalypr.daylog.notifications.Notifier
 import java.time.Instant
@@ -56,16 +57,23 @@ class ReminderEngineTest {
         shadowOf(nm).allNotifications.map { shadowOf(it).contentTitle.toString() }
 
     @Test fun `arrival and departure set - report-ready with send action`() = runTest {
-        repo.setArrival(today, 492, TimeSource.MANUAL)
-        repo.setDeparture(today, 1055, TimeSource.MANUAL)
+        workedDay()
         engine.onReminderFired(isRepeat = false)
         assertEquals(listOf("הדוח היומי מוכן"), postedTitles())
         val actions = shadowOf(nm).allNotifications.single().actions.map { it.title.toString() }
         assertTrue("שליחה לוואטסאפ" in actions)
     }
 
-    @Test fun `arrival only - still at office variant`() = runTest {
-        repo.setArrival(today, 492, TimeSource.MANUAL)
+    @Test fun `a session still running - still at work variant`() = runTest {
+        repo.startSession(today, WorkMode.BASE, 492, TimeSource.MANUAL)
+        engine.onReminderFired(isRepeat = false)
+        assertEquals(listOf("עדיין במשרד?"), postedTitles())
+    }
+
+    /** An open evening session from home nags exactly like an open day at the base. */
+    @Test fun `an open session in another mode still nags`() = runTest {
+        workedDay()
+        repo.startSession(today, WorkMode.HOME, 1080, TimeSource.MANUAL)
         engine.onReminderFired(isRepeat = false)
         assertEquals(listOf("עדיין במשרד?"), postedTitles())
     }
@@ -88,19 +96,22 @@ class ReminderEngineTest {
     }
 
     @Test fun `already reported posts nothing`() = runTest {
-        repo.setArrival(today, 492, TimeSource.MANUAL)
-        repo.setDeparture(today, 1055, TimeSource.MANUAL)
+        workedDay()
         repo.markReported(today)
         engine.onReminderFired(isRepeat = false)
         assertTrue(postedTitles().isEmpty())
     }
 
     @Test fun `reported but edited afterwards nags again`() = runTest {
-        repo.setArrival(today, 492, TimeSource.MANUAL)
-        repo.setDeparture(today, 1055, TimeSource.MANUAL)
+        workedDay()
         repo.markReported(today)
         repo.setNotes(today, "עוד משהו")
         engine.onReminderFired(isRepeat = false)
         assertEquals(listOf("הדוח היומי מוכן"), postedTitles())
+    }
+
+    private suspend fun workedDay() {
+        repo.startSession(today, WorkMode.BASE, 492, TimeSource.MANUAL)
+        repo.endSession(today, WorkMode.BASE, 1055, TimeSource.MANUAL)
     }
 }

@@ -11,20 +11,22 @@ import androidx.room.Update
 import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
 
-data class ActivityWithCategory(
+data class ActivityWithRefs(
     @Embedded val activity: ActivityEntity,
-    @Relation(parentColumn = "categoryId", entityColumn = "id")
-    val category: CategoryEntity,
-    @Relation(parentColumn = "projectId", entityColumn = "id")
-    val project: ProjectEntity?,
+    @Relation(parentColumn = "categoryId", entityColumn = "id") val category: CategoryEntity?,
+    @Relation(parentColumn = "projectId", entityColumn = "id") val project: ProjectEntity?,
+)
+
+data class SessionWithActivities(
+    @Embedded val session: WorkSessionEntity,
+    @Relation(entity = ActivityEntity::class, parentColumn = "id", entityColumn = "sessionId")
+    val activities: List<ActivityWithRefs>,
 )
 
 data class DayWithEntries(
     @Embedded val day: WorkDayEntity,
-    @Relation(parentColumn = "date", entityColumn = "date")
-    val fieldJobs: List<FieldJobEntity>,
-    @Relation(entity = ActivityEntity::class, parentColumn = "date", entityColumn = "date")
-    val activities: List<ActivityWithCategory>,
+    @Relation(entity = WorkSessionEntity::class, parentColumn = "date", entityColumn = "date")
+    val sessions: List<SessionWithActivities>,
 )
 
 @Dao
@@ -49,13 +51,61 @@ interface DayDao {
     @Upsert
     suspend fun upsertDay(day: WorkDayEntity)
 
+    @Query("SELECT EXISTS(SELECT 1 FROM work_day WHERE date = :date)")
+    suspend fun dayExists(date: String): Boolean
+
+    // --- sessions -----------------------------------------------------------
+
+    @Insert
+    suspend fun insertSession(session: WorkSessionEntity): Long
+
+    @Update
+    suspend fun updateSession(session: WorkSessionEntity)
+
+    @Delete
+    suspend fun deleteSession(session: WorkSessionEntity)
+
+    @Query("SELECT * FROM work_session WHERE date = :date ORDER BY sortOrder, id")
+    suspend fun sessionsOn(date: String): List<WorkSessionEntity>
+
+    /** The session of [mode] still running on [date], if any. */
+    @Query(
+        "SELECT * FROM work_session WHERE date = :date AND mode = :mode " +
+            "AND startMin IS NOT NULL AND endMin IS NULL ORDER BY startMin DESC LIMIT 1",
+    )
+    suspend fun openSession(date: String, mode: String): WorkSessionEntity?
+
+    @Query("SELECT * FROM work_session WHERE date = :date AND jobLocationId = :jobLocationId ORDER BY sortOrder, id")
+    suspend fun sessionsForJobLocation(date: String, jobLocationId: Long): List<WorkSessionEntity>
+
+    /** The visit to [jobLocationId] still running on [date], if any. */
+    @Query(
+        "SELECT * FROM work_session WHERE date = :date AND jobLocationId = :jobLocationId " +
+            "AND startMin IS NOT NULL AND endMin IS NULL ORDER BY startMin DESC LIMIT 1",
+    )
+    suspend fun openSessionForJobLocation(date: String, jobLocationId: Long): WorkSessionEntity?
+
+    // --- activities ---------------------------------------------------------
+
+    @Insert
+    suspend fun insertActivity(activity: ActivityEntity): Long
+
+    @Update
+    suspend fun updateActivity(activity: ActivityEntity)
+
+    @Query("SELECT * FROM activity WHERE id = :id")
+    suspend fun activityById(id: Long): ActivityEntity?
+
+    @Query("DELETE FROM activity WHERE id = :id")
+    suspend fun deleteActivity(id: Long)
+
     // --- backup/restore: whole-table read and replace -----------------------
 
     @Query("SELECT * FROM work_day ORDER BY date")
     suspend fun allDays(): List<WorkDayEntity>
 
-    @Query("SELECT * FROM field_job ORDER BY id")
-    suspend fun allFieldJobs(): List<FieldJobEntity>
+    @Query("SELECT * FROM work_session ORDER BY id")
+    suspend fun allSessions(): List<WorkSessionEntity>
 
     @Query("SELECT * FROM activity ORDER BY id")
     suspend fun allActivities(): List<ActivityEntity>
@@ -64,7 +114,7 @@ interface DayDao {
     suspend fun insertDays(days: List<WorkDayEntity>)
 
     @Insert
-    suspend fun insertFieldJobs(jobs: List<FieldJobEntity>)
+    suspend fun insertSessions(sessions: List<WorkSessionEntity>)
 
     @Insert
     suspend fun insertActivities(activities: List<ActivityEntity>)
@@ -72,35 +122,11 @@ interface DayDao {
     @Query("DELETE FROM activity")
     suspend fun clearActivities()
 
-    @Query("DELETE FROM field_job")
-    suspend fun clearFieldJobs()
+    @Query("DELETE FROM work_session")
+    suspend fun clearSessions()
 
     @Query("DELETE FROM work_day")
     suspend fun clearDays()
-
-    @Query("SELECT EXISTS(SELECT 1 FROM work_day WHERE date = :date)")
-    suspend fun dayExists(date: String): Boolean
-
-    @Insert
-    suspend fun insertFieldJob(job: FieldJobEntity): Long
-
-    @Query("SELECT * FROM field_job WHERE date = :date AND jobLocationId = :jobLocationId LIMIT 1")
-    suspend fun fieldJobForLocation(date: String, jobLocationId: Long): FieldJobEntity?
-
-    @Update
-    suspend fun updateFieldJob(job: FieldJobEntity)
-
-    @Delete
-    suspend fun deleteFieldJob(job: FieldJobEntity)
-
-    @Insert
-    suspend fun insertActivity(activity: ActivityEntity): Long
-
-    @Update
-    suspend fun updateActivity(activity: ActivityEntity)
-
-    @Query("DELETE FROM activity WHERE id = :id")
-    suspend fun deleteActivity(id: Long)
 }
 
 @Dao
@@ -115,14 +141,14 @@ interface CategoryDao {
     @Query("SELECT COUNT(*) FROM category")
     suspend fun count(): Int
 
+    @Query("SELECT * FROM category ORDER BY sortOrder")
+    suspend fun all(): List<CategoryEntity>
+
     @Insert
     suspend fun insertAll(categories: List<CategoryEntity>)
 
     @Update
     suspend fun update(category: CategoryEntity)
-
-    @Query("SELECT * FROM category ORDER BY sortOrder")
-    suspend fun all(): List<CategoryEntity>
 
     @Query("DELETE FROM category")
     suspend fun clear()

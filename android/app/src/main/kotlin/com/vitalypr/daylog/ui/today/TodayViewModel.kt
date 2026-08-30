@@ -3,18 +3,23 @@ package com.vitalypr.daylog.ui.today
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vitalypr.daylog.data.db.CategoryEntity
-import com.vitalypr.daylog.data.repo.ActivityRow
+import com.vitalypr.daylog.data.db.ProjectEntity
 import com.vitalypr.daylog.data.repo.DayRepository
 import com.vitalypr.daylog.data.repo.EditableDay
-import com.vitalypr.daylog.data.repo.FieldJobRow
+import com.vitalypr.daylog.data.repo.ProjectRepository
+import com.vitalypr.daylog.data.repo.SessionRow
 import com.vitalypr.daylog.di.Now
+import com.vitalypr.daylog.domain.model.ActivityDuration
 import com.vitalypr.daylog.domain.model.DaySnapshot
 import com.vitalypr.daylog.domain.model.DayStatus
 import com.vitalypr.daylog.domain.model.DayType
-import com.vitalypr.daylog.domain.model.FieldJob
+import com.vitalypr.daylog.domain.model.TimeBudget
 import com.vitalypr.daylog.domain.model.TimeSource
+import com.vitalypr.daylog.domain.model.WorkMode
 import com.vitalypr.daylog.domain.model.status
 import com.vitalypr.daylog.domain.report.ReportBuilder
+import com.vitalypr.daylog.domain.stats.StatsCalculator
+import com.vitalypr.daylog.reporting.DailyPdfRenderer
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -30,14 +35,19 @@ import kotlinx.coroutines.launch
 data class TodayUiState(
     val date: LocalDate,
     val day: DaySnapshot,
-    val activityRows: List<ActivityRow> = emptyList(),
-    val fieldJobRows: List<FieldJobRow> = emptyList(),
+    val sessionRows: List<SessionRow> = emptyList(),
     val categories: List<CategoryEntity> = emptyList(),
-    val projects: List<com.vitalypr.daylog.data.db.ProjectEntity> = emptyList(),
+    val projects: List<ProjectEntity> = emptyList(),
     val reportText: String = "",
     val status: DayStatus = DayStatus.EMPTY,
 ) {
     val isSpecialDay: Boolean get() = day.dayType != DayType.WORK
+
+    /** Worked vs. described, for the whole day — the screen's "how much is left to fill". */
+    val budget: TimeBudget get() = day.budget()
+
+    /** Worked minutes per mode; drives the "בסיס 4:00 · בית 2:00" line. */
+    val modeTotals: Map<WorkMode, Int> get() = StatsCalculator.dayMinutes(day).byMode
 }
 
 sealed interface TodayEffect {
@@ -48,8 +58,8 @@ sealed interface TodayEffect {
 @HiltViewModel
 class TodayViewModel @Inject constructor(
     private val repository: DayRepository,
-    private val projectRepository: com.vitalypr.daylog.data.repo.ProjectRepository,
-    private val reportPdf: com.vitalypr.daylog.reporting.DailyPdfRenderer,
+    private val projectRepository: ProjectRepository,
+    private val reportPdf: DailyPdfRenderer,
     @Now private val now: () -> LocalDateTime,
     savedStateHandle: androidx.lifecycle.SavedStateHandle,
 ) : ViewModel() {
@@ -69,8 +79,7 @@ class TodayViewModel @Inject constructor(
         TodayUiState(
             date = date,
             day = snapshot,
-            activityRows = editable?.activityRows.orEmpty(),
-            fieldJobRows = editable?.fieldJobRows.orEmpty(),
+            sessionRows = editable?.sessionRows.orEmpty(),
             categories = categories,
             projects = projects,
             reportText = if (snapshot.dayType == DayType.WORK) ReportBuilder.daily(snapshot) else "",
@@ -80,32 +89,89 @@ class TodayViewModel @Inject constructor(
 
     private fun nowMinutes(): Int = now().toLocalTime().toSecondOfDay() / 60
 
-    fun arriveNow() = viewModelScope.launch { repository.setArrival(date, nowMinutes(), TimeSource.MANUAL) }
-    fun leaveNow() = viewModelScope.launch { repository.setDeparture(date, nowMinutes(), TimeSource.MANUAL) }
-    fun setArrival(minutes: Int) = viewModelScope.launch { repository.setArrival(date, minutes, TimeSource.MANUAL) }
-    fun setDeparture(minutes: Int) = viewModelScope.launch { repository.setDeparture(date, minutes, TimeSource.MANUAL) }
+    // --- sessions -----------------------------------------------------------
 
-    /** Back to "—:—" — a mis-tapped הגעתי/יצאתי must be undoable, not only editable. */
-    fun clearArrival() = viewModelScope.launch { repository.clearArrival(date) }
-    fun clearDeparture() = viewModelScope.launch { repository.clearDeparture(date) }
+    /**
+     * Adds a stretch of work in [mode]. On today it starts now — that is the
+     * one-tap path ("I've just started working from home"); on a past day it
+     * opens empty, because "now" would be a lie there.
+     */
+    fun addSession(mode: WorkMode) = viewModelScope.launch {
+        val startNow = date == now().toLocalDate()
+        repository.addSession(date, mode, startMin = if (startNow) nowMinutes() else null)
+    }
+
+    fun removeSession(sessionId: Long) = viewModelScope.launch { repository.removeSession(date, sessionId) }
+
+    /**
+     * Manual edits always carry MANUAL source and clear the amber short-visit
+     * doubt. Everything is addressed by id and re-read inside the repository, so
+     * two quick edits (start then end) can never write through a stale row.
+     */
+    fun setSessionStart(sessionId: Long, minutes: Int?) = viewModelScope.launch {
+        repository.editSession(date, sessionId) {
+            it.copy(startMin = minutes, startSource = TimeSource.MANUAL.name, startUncertain = false)
+        }
+    }
+
+    fun setSessionEnd(sessionId: Long, minutes: Int?) = viewModelScope.launch {
+        repository.editSession(date, sessionId) {
+            it.copy(endMin = minutes, endSource = TimeSource.MANUAL.name)
+        }
+    }
+
+    fun startNow(sessionId: Long) = setSessionStart(sessionId, nowMinutes())
+    fun endNow(sessionId: Long) = setSessionEnd(sessionId, nowMinutes())
+
+    fun setSessionTitle(sessionId: Long, title: String) = viewModelScope.launch {
+        repository.editSession(date, sessionId) { it.copy(title = title) }
+    }
+
+    // --- day-level ----------------------------------------------------------
 
     fun toggleDayType(type: DayType) = viewModelScope.launch {
         val current = uiState.value.day.dayType
         repository.setDayType(date, if (current == type) DayType.WORK else type)
     }
 
-    /** An activity cannot exist without a project (v1.2) — the screen picks one first. */
-    fun addActivity(categoryId: Long, projectId: Long) = viewModelScope.launch {
-        repository.addActivity(date, categoryId, projectId)
-    }
-    fun updateActivity(row: ActivityRow) = viewModelScope.launch { repository.updateActivity(row.toEntity()) }
-    fun removeActivity(id: Long) = viewModelScope.launch { repository.removeActivity(date, id) }
-
-    fun addFieldJob(title: String, location: String?, startMin: Int?, endMin: Int?) = viewModelScope.launch {
-        if (title.isNotBlank()) repository.addFieldJob(date, FieldJob(title.trim(), location?.trim()?.ifBlank { null }, startMin, endMin))
-    }
-
     fun setNotes(notes: String) = viewModelScope.launch { repository.setNotes(date, notes) }
+
+    // --- activities ---------------------------------------------------------
+
+    /**
+     * An activity cannot exist without a project (v1.2) or outside a session
+     * (v2.0) — the screen supplies both before this is called.
+     */
+    fun addActivity(sessionId: Long, categoryId: Long, projectId: Long) = viewModelScope.launch {
+        repository.addActivity(sessionId, categoryId, projectId)
+    }
+
+    fun setActivityNote(id: Long, note: String) = viewModelScope.launch {
+        repository.editActivity(id) { it.copy(note = note) }
+    }
+
+    fun setActivityResult(id: Long, result: String) = viewModelScope.launch {
+        repository.editActivity(id) { it.copy(result = result) }
+    }
+
+    fun setActivityProject(id: Long, projectId: Long) = viewModelScope.launch {
+        repository.editActivity(id) { it.copy(projectId = projectId) }
+    }
+
+    /** Half-hour steps (spec F4 v0.9); the stored value is the one stepped. */
+    fun stepActivityDuration(id: Long, up: Boolean) = viewModelScope.launch {
+        repository.editActivity(id) {
+            it.copy(
+                durationMin = if (up) {
+                    ActivityDuration.increase(it.durationMin)
+                } else {
+                    ActivityDuration.decrease(it.durationMin)
+                },
+            )
+        }
+    }
+
+    fun removeActivity(id: Long) = viewModelScope.launch { repository.removeActivity(id) }
 
     /** Spec §6.4/§2.4 v0.5: styled PDF + text caption; mark reported on launch. */
     fun share() = viewModelScope.launch {

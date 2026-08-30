@@ -79,7 +79,7 @@ class PeriodPdf @Inject constructor(
             }
         }
 
-        LedgerPdf.footer(canvas, "שעות משרד ${formatDuration(s.officeMinutes)} · שטח ${formatDuration(s.fieldMinutes)}")
+        LedgerPdf.footer(canvas, "שעות משרד ${formatDuration(s.baseMinutes)} · שטח ${formatDuration(s.fieldMinutes)}")
     }
 
     /** Hairline row: text at the right, optional green count at the left. */

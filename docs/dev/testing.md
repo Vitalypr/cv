@@ -15,12 +15,17 @@ TDD is the workflow, not a phase: failing test → implementation → green → 
 | Spec | Tests |
 |---|---|
 | §2.4 report template, RLM, omit-empty, activity fragments | `domain` `ReportBuilderTest` (golden strings) |
-| F4 activity durations (30-min steps, unset, migration of legacy times) | `ActivityDurationTest`, `TimesTest`, `MigrationTest` |
+| F4 activity durations (30-min steps, unset) | `ActivityDurationTest`, `TimesTest` |
+| F4a projects (mandatory, archived when used) | `ProjectRepositoryTest`, `TodayViewModelTest` |
+| F12a full backup round trip (every table + setting) | `BackupRoundTripTest` |
 | §2.5 period summaries, hours rule | `StatsCalculatorTest`, `ReportBuilderPeriodTest` |
 | §6.2 time model >24h, day boundary | `TimesTest`, `ReportBuilderOvernightTest` |
-| §6.3 schema, DayWithEntries, status derivation | `app` `DayDaoTest`, `DayRepositoryTest`, domain `DayStatusTest` |
+| §6.3 schema, DayWithEntries, status derivation | `app` `DayRepositoryTest`, domain `DayStatusTest` |
+| §6.3 v2.0 clean break (older DB rebuilt + re-seeded, never a crash) | `app` `SchemaResetTest` |
+| F1 v2.0 work sessions (several a day, per mode; second visit ≠ overwrite) | `DayRepositoryTest`, domain `StatsCalculatorTest`, `GeofenceEngineTest` |
+| §5.1 time budget (worked vs. allocated vs. left, over-allocation) | domain `TimeBudgetTest`, `TodayViewModelTest`, `TodayScreenshotTest` (`today_over_allocated`) |
 | §5.5 notification variants table | `ReminderVariantsTest` — one test per table row |
-| §6.6 geofence decision table + invariants | `GeofenceEngineTest` — one test per row, incl. never-overwrite-MANUAL |
+| §6.6 geofence decision table + invariants | `GeofenceEngineTest` — one test per row, incl. never-overwrite-MANUAL and second-visit-opens-a-second-session |
 | §6.6 recovery from dropped transitions (missed exit, stranded debounce, two visits) | domain `FenceRecoveryTest`; `GeofenceEngineTest` automatic-mode rows; `EventTimeTest` (fix clamping) |
 | §6.6 office decision table as a state machine (all states x events, sequences) | domain `FenceMachineTest` (~35 cases incl. replayed days) |
 | §6.6 ordering invariants (occupancy, event day, staleness, dwell) | domain `GeofenceRulesTest`; `GeofenceEngineTest` (phantom exit, drift, overnight, drive-past), `JobLocationEngineTest` |
@@ -35,7 +40,7 @@ TDD is the workflow, not a phase: failing test → implementation → green → 
 
 1. **S23 Ultra**: Robolectric qualifiers `w384dp-h832dp-xxxhdpi` + `RuntimeEnvironment` locale `he-IL`, `LayoutDirection.Rtl` (S23U: 1440×3088 @ ~500dpi ⇒ ~412dp width class — matches standard phone width class, which is why w384–412dp is the right proxy).
 2. **Small phone**: `w320dp-h640dp-xhdpi` — layout must not clip.
-Screens are snapshotted per state (empty day / full day / off day / reported).
+Screens are snapshotted per state (empty day / full day with base+home+field / short visit / over-allocated / off day / reported).
 
 ## Device checklist — Galaxy S23 Ultra (Phase 8, manual)
 

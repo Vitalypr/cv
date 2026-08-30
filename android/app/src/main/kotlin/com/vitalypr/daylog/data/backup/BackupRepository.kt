@@ -31,7 +31,7 @@ class BackupRepository @Inject constructor(
 
     suspend fun export(): BackupDocument = BackupDocument(
         days = dayDao.allDays(),
-        fieldJobs = dayDao.allFieldJobs(),
+        sessions = dayDao.allSessions(),
         activities = dayDao.allActivities(),
         categories = categoryDao.all(),
         projects = projectDao.all(),
@@ -48,7 +48,7 @@ class BackupRepository @Inject constructor(
     suspend fun restore(doc: BackupDocument) {
         db.withTransaction {
             dayDao.clearActivities()
-            dayDao.clearFieldJobs()
+            dayDao.clearSessions()
             dayDao.clearDays()
             projectDao.clear()
             categoryDao.clear()
@@ -58,7 +58,7 @@ class BackupRepository @Inject constructor(
             projectDao.insertAll(doc.projects)
             jobLocationDao.insertAll(doc.jobLocations)
             dayDao.insertDays(doc.days)
-            dayDao.insertFieldJobs(doc.fieldJobs)
+            dayDao.insertSessions(doc.sessions)
             dayDao.insertActivities(doc.activities)
         }
         // Outside the DB transaction: DataStore has its own consistency.

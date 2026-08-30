@@ -11,7 +11,8 @@ The approved look is `docs/daylog-mockup.html` — Material 3, light, clean. UI 
 | `Amber` | `#A9770F` / tint `#FBF3DF` | "logged, not sent" status |
 | `Ink` | `#1B2733`, secondary `#5A6B77`, muted `#8A99A4` | text — text never wears series/status colors |
 | Surfaces | ground `#F7F9FA`, card `#FFFFFF`, line `#E2E9EC` | |
-| Chart series | office `#00897B`, field `#9E6410` | CVD-validated pair — do not change one without re-validating both (dataviz validator) |
+| Chart series | base `#00897B`, home `#4054B2`, field `#9E6410` | CVD-validated trio, one hue per work mode — separable by hue AND lightness; do not change one without re-validating all three |
+| `Warn` | `#B3261E` / tint `#FCEDEC` | a real contradiction the user must fix — today only the over-allocated time budget. Distinct from Amber, which means "unconfirmed", not "wrong" |
 | Shape | cards 18dp, chips/full-round, sheets 24dp top | |
 | Type | Rubik (display: titles, big numbers) + Heebo (all UI text); `FontFeature tnum`/tabular for every time value | bundle as font resources |
 

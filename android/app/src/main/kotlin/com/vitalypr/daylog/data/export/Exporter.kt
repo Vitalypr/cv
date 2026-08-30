@@ -2,8 +2,10 @@ package com.vitalypr.daylog.data.export
 
 import com.vitalypr.daylog.data.repo.DayRepository
 import com.vitalypr.daylog.domain.model.DaySnapshot
+import com.vitalypr.daylog.domain.report.ReportBuilder
 import com.vitalypr.daylog.domain.stats.StatsCalculator
 import com.vitalypr.daylog.domain.time.formatDuration
+import com.vitalypr.daylog.domain.time.formatMinutes
 import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -11,8 +13,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * Data export per spec §6.7: JSON (full fidelity, versioned schema, future
- * re-import) and hand-rolled CSV (one row per day for spreadsheet analysis).
+ * Human-facing exports (spec F12). The full-fidelity backup lives in
+ * `data/backup` — this is the readable slice a person opens in a spreadsheet.
  */
 @Singleton
 class Exporter @Inject constructor(
@@ -22,76 +24,81 @@ class Exporter @Inject constructor(
     suspend fun exportJson(from: LocalDate, to: LocalDate): String {
         val days = repository.getRange(from, to)
         val root = JSONObject()
-            // v2: activities carry durationMin instead of startMin/endMin.
-            .put("schemaVersion", 2)
+            // v3: worked time is a list of sessions.
+            .put("schemaVersion", 3)
             .put("app", "DayLog")
             .put("from", from.toString())
             .put("to", to.toString())
         val arr = JSONArray()
-        days.forEach { d -> arr.put(d.toJson()) }
+        days.forEach { arr.put(it.toJson()) }
         root.put("days", arr)
         return root.toString(2)
     }
 
-    suspend fun exportCsv(from: LocalDate, to: LocalDate): String {
-        val days = repository.getRange(from, to)
-        val header = "date,day_type,arrival,departure,total_hours,field_jobs,activities,notes"
-        val rows = days.map { d ->
-            val m = StatsCalculator.dayMinutes(d)
-            listOf(
-                d.date.toString(),
-                d.dayType.name,
-                d.arrivalMin?.toString() ?: "",
-                d.departureMin?.toString() ?: "",
-                if (m.total > 0) formatDuration(m.total) else "",
-                d.fieldJobs.joinToString(";") { it.title },
-                d.activities.joinToString(";") { it.category },
-                d.notes,
-            ).joinToString(",") { csvEscape(it) }
+    private fun DaySnapshot.toJson(): JSONObject = JSONObject().apply {
+        put("date", date.toString())
+        put("dayType", dayType.name)
+        put("notes", notes)
+        put("totalMinutes", StatsCalculator.dayMinutes(this@toJson).total)
+        val sessionsArr = JSONArray()
+        sessions.forEach { s ->
+            sessionsArr.put(
+                JSONObject()
+                    .put("mode", s.mode.name)
+                    .put("title", s.title)
+                    .put("startMin", s.startMin ?: JSONObject.NULL)
+                    .put("endMin", s.endMin ?: JSONObject.NULL)
+                    .put("minutes", s.spanMin ?: JSONObject.NULL)
+                    .put(
+                        "activities",
+                        JSONArray().also { acts ->
+                            s.activities.forEach { a ->
+                                acts.put(
+                                    JSONObject()
+                                        .put("project", a.project)
+                                        .put("category", a.category)
+                                        .put("durationMin", a.durationMin ?: JSONObject.NULL)
+                                        .put("note", a.note)
+                                        .put("result", a.result),
+                                )
+                            }
+                        },
+                    ),
+            )
         }
-        return (listOf(header) + rows).joinToString("\n")
+        put("sessions", sessionsArr)
     }
 
-    private fun DaySnapshot.toJson(): JSONObject = JSONObject()
-        .put("date", date.toString())
-        .put("dayType", dayType.name)
-        .put("arrivalMin", arrivalMin ?: JSONObject.NULL)
-        .put("departureMin", departureMin ?: JSONObject.NULL)
-        .put("arrivalSource", arrivalSource.name)
-        .put("departureSource", departureSource.name)
-        .put("notes", notes)
-        .put("reported", reported)
-        .put(
-            "fieldJobs",
-            JSONArray().also { a ->
-                fieldJobs.forEach { j ->
-                    a.put(
-                        JSONObject()
-                            .put("title", j.title)
-                            .put("location", j.locationText ?: JSONObject.NULL)
-                            .put("startMin", j.startMin ?: JSONObject.NULL)
-                            .put("endMin", j.endMin ?: JSONObject.NULL),
-                    )
-                }
-            },
-        )
-        .put(
-            "activities",
-            JSONArray().also { a ->
-                activities.forEach { act ->
-                    a.put(
-                        JSONObject()
-                            .put("category", act.category)
-                            .put("durationMin", act.durationMin ?: JSONObject.NULL)
-                            .put("note", act.note)
-                            .put("result", act.result),
-                    )
-                }
-            },
-        )
+    /** One row per work session, so a spreadsheet can pivot by mode or project. */
+    suspend fun exportCsv(from: LocalDate, to: LocalDate): String {
+        val days = repository.getRange(from, to)
+        val sb = StringBuilder("date,mode,title,start,end,minutes,projects,categories,dayType,notes\n")
+        days.forEach { day ->
+            if (day.sessions.isEmpty()) {
+                sb.append(csvRow(day.date.toString(), "", "", "", "", "", "", "", day.dayType.name, day.notes))
+            }
+            day.sessions.forEach { s ->
+                sb.append(
+                    csvRow(
+                        day.date.toString(),
+                        ReportBuilder.modeName(s.mode),
+                        s.title,
+                        s.startMin?.let(::formatMinutes).orEmpty(),
+                        s.endMin?.let(::formatMinutes).orEmpty(),
+                        s.spanMin?.let(::formatDuration).orEmpty(),
+                        s.activities.map { it.project }.filter { it.isNotBlank() }.distinct().joinToString(";"),
+                        s.activities.map { it.category }.filter { it.isNotBlank() }.joinToString(";"),
+                        day.dayType.name,
+                        day.notes,
+                    ),
+                )
+            }
+        }
+        return sb.toString()
+    }
 
-    private fun csvEscape(value: String): String =
-        if (value.contains(',') || value.contains('"') || value.contains('\n')) {
-            "\"${value.replace("\"", "\"\"")}\""
-        } else value
+    private fun csvRow(vararg cells: String) =
+        cells.joinToString(",") { cell ->
+            if (cell.any { it == ',' || it == '"' || it == '\n' }) "\"" + cell.replace("\"", "\"\"") + "\"" else cell
+        } + "\n"
 }

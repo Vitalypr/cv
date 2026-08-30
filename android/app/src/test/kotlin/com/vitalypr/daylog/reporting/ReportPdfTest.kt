@@ -7,7 +7,8 @@ import android.graphics.Color
 import androidx.test.core.app.ApplicationProvider
 import com.vitalypr.daylog.domain.model.ActivityEntry
 import com.vitalypr.daylog.domain.model.DaySnapshot
-import com.vitalypr.daylog.domain.model.FieldJob
+import com.vitalypr.daylog.domain.model.WorkMode
+import com.vitalypr.daylog.domain.model.WorkSession
 import java.time.LocalDate
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -37,9 +38,14 @@ class ReportPdfTest {
     @Test fun `full day draws ledger layout`() {
         val day = DaySnapshot(
             date = LocalDate.of(2026, 8, 4),
-            arrivalMin = 492, departureMin = 1055,
-            fieldJobs = listOf(FieldJob("תחנת משנה אקמה", null, 600, 810)),
-            activities = listOf(ActivityEntry("התקנה", "רובוטיקה", 150, "חיווט לוח", "הושלם")),
+            sessions = listOf(
+                WorkSession(
+                    mode = WorkMode.BASE, startMin = 492, endMin = 1055,
+                    activities = listOf(ActivityEntry("רובוטיקה", "התקנה", 150, "חיווט לוח", "הושלם")),
+                ),
+                WorkSession(mode = WorkMode.FIELD, startMin = 600, endMin = 810, title = "תחנת משנה אקמה"),
+                WorkSession(mode = WorkMode.HOME, startMin = 1140, endMin = 1260),
+            ),
             notes = "הערה",
         )
         val bitmap = draw(day)

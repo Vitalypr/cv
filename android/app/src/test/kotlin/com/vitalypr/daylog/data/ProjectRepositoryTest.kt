@@ -6,6 +6,7 @@ import androidx.test.core.app.ApplicationProvider
 import com.vitalypr.daylog.data.db.ActivityEntity
 import com.vitalypr.daylog.data.db.DayLogDb
 import com.vitalypr.daylog.data.db.WorkDayEntity
+import com.vitalypr.daylog.data.db.WorkSessionEntity
 import com.vitalypr.daylog.data.repo.ProjectRepository
 import com.vitalypr.daylog.di.DatabaseModule
 import kotlinx.coroutines.flow.first
@@ -67,10 +68,7 @@ class ProjectRepositoryTest {
     /** Deleting a project that history references would break past days. */
     @Test fun `a project with logged work is archived, not deleted`() = runTest {
         val project = repo.all().first()
-        db.dayDao().upsertDay(WorkDayEntity(date = "2026-08-04"))
-        db.dayDao().insertActivity(
-            ActivityEntity(date = "2026-08-04", categoryId = 1, projectId = project.id),
-        )
+        logWorkOn(project.id)
 
         assertFalse(repo.remove(project))
         val stored = repo.all().first { it.id == project.id }
@@ -80,13 +78,23 @@ class ProjectRepositoryTest {
 
     @Test fun `re-adding an archived name revives it instead of duplicating`() = runTest {
         val project = repo.all().first()
-        db.dayDao().upsertDay(WorkDayEntity(date = "2026-08-04"))
-        db.dayDao().insertActivity(ActivityEntity(date = "2026-08-04", categoryId = 1, projectId = project.id))
+        logWorkOn(project.id)
         repo.remove(project)
 
         val revivedId = repo.add(project.name)
         assertEquals(project.id, revivedId)
         assertFalse(repo.all().first { it.id == project.id }.isArchived)
         assertEquals(1, repo.all().count { it.name == project.name })
+    }
+
+    /** An activity always hangs off a session, which hangs off a day. */
+    private suspend fun logWorkOn(projectId: Long) {
+        db.dayDao().upsertDay(WorkDayEntity(date = "2026-08-04"))
+        val sessionId = db.dayDao().insertSession(
+            WorkSessionEntity(date = "2026-08-04", mode = "BASE", startMin = 600, endMin = 840),
+        )
+        db.dayDao().insertActivity(
+            ActivityEntity(sessionId = sessionId, categoryId = 1, projectId = projectId),
+        )
     }
 }

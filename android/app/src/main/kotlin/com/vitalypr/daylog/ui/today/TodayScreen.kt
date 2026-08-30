@@ -1,9 +1,11 @@
 package com.vitalypr.daylog.ui.today
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -12,21 +14,19 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.background
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -35,22 +35,22 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.vitalypr.daylog.R
+import com.vitalypr.daylog.data.db.ProjectEntity
 import com.vitalypr.daylog.data.repo.ActivityRow
-import com.vitalypr.daylog.domain.model.ActivityDuration
+import com.vitalypr.daylog.data.repo.SessionRow
 import com.vitalypr.daylog.domain.model.DayType
+import com.vitalypr.daylog.domain.model.TimeBudget
 import com.vitalypr.daylog.domain.model.TimeSource
+import com.vitalypr.daylog.domain.model.WorkMode
+import com.vitalypr.daylog.domain.model.budget
 import com.vitalypr.daylog.domain.time.formatActivityDuration
 import com.vitalypr.daylog.domain.time.formatDate
 import com.vitalypr.daylog.domain.time.formatDuration
@@ -60,9 +60,13 @@ import com.vitalypr.daylog.reporting.ReportShare
 import com.vitalypr.daylog.ui.components.SectionCard
 import com.vitalypr.daylog.ui.components.StatusBadge
 import com.vitalypr.daylog.ui.components.TimePickerDialog
+import com.vitalypr.daylog.ui.theme.Amber
+import com.vitalypr.daylog.ui.theme.AmberTint
 import com.vitalypr.daylog.ui.theme.InkMuted
 import com.vitalypr.daylog.ui.theme.InkSecondary
 import com.vitalypr.daylog.ui.theme.SendGreen
+import com.vitalypr.daylog.ui.theme.Warn
+import com.vitalypr.daylog.ui.theme.WarnTint
 
 @Composable
 fun TodayScreen(viewModel: TodayViewModel = hiltViewModel()) {
@@ -79,17 +83,20 @@ fun TodayScreen(viewModel: TodayViewModel = hiltViewModel()) {
     TodayContent(
         state = state,
         callbacks = TodayCallbacks(
-            onArriveNow = viewModel::arriveNow,
-            onLeaveNow = viewModel::leaveNow,
-            onSetArrival = viewModel::setArrival,
-            onSetDeparture = viewModel::setDeparture,
-            onClearArrival = viewModel::clearArrival,
-            onClearDeparture = viewModel::clearDeparture,
+            onAddSession = viewModel::addSession,
+            onRemoveSession = viewModel::removeSession,
+            onSetSessionStart = viewModel::setSessionStart,
+            onSetSessionEnd = viewModel::setSessionEnd,
+            onStartNow = viewModel::startNow,
+            onEndNow = viewModel::endNow,
+            onSetSessionTitle = viewModel::setSessionTitle,
             onToggleDayType = viewModel::toggleDayType,
             onAddActivity = viewModel::addActivity,
-            onUpdateActivity = viewModel::updateActivity,
+            onSetActivityNote = viewModel::setActivityNote,
+            onSetActivityResult = viewModel::setActivityResult,
+            onSetActivityProject = viewModel::setActivityProject,
+            onStepActivityDuration = viewModel::stepActivityDuration,
             onRemoveActivity = viewModel::removeActivity,
-            onAddFieldJob = viewModel::addFieldJob,
             onSetNotes = viewModel::setNotes,
             onShare = viewModel::share,
         ),
@@ -98,17 +105,20 @@ fun TodayScreen(viewModel: TodayViewModel = hiltViewModel()) {
 
 /** All screen callbacks in one bundle so TodayContent stays snapshot-testable. */
 data class TodayCallbacks(
-    val onArriveNow: () -> Unit = {},
-    val onLeaveNow: () -> Unit = {},
-    val onSetArrival: (Int) -> Unit = {},
-    val onSetDeparture: (Int) -> Unit = {},
-    val onClearArrival: () -> Unit = {},
-    val onClearDeparture: () -> Unit = {},
+    val onAddSession: (WorkMode) -> Unit = {},
+    val onRemoveSession: (Long) -> Unit = {},
+    val onSetSessionStart: (Long, Int?) -> Unit = { _, _ -> },
+    val onSetSessionEnd: (Long, Int?) -> Unit = { _, _ -> },
+    val onStartNow: (Long) -> Unit = {},
+    val onEndNow: (Long) -> Unit = {},
+    val onSetSessionTitle: (Long, String) -> Unit = { _, _ -> },
     val onToggleDayType: (DayType) -> Unit = {},
-    val onAddActivity: (Long, Long) -> Unit = { _, _ -> },
-    val onUpdateActivity: (ActivityRow) -> Unit = {},
+    val onAddActivity: (Long, Long, Long) -> Unit = { _, _, _ -> },
+    val onSetActivityNote: (Long, String) -> Unit = { _, _ -> },
+    val onSetActivityResult: (Long, String) -> Unit = { _, _ -> },
+    val onSetActivityProject: (Long, Long) -> Unit = { _, _ -> },
+    val onStepActivityDuration: (Long, Boolean) -> Unit = { _, _ -> },
     val onRemoveActivity: (Long) -> Unit = {},
-    val onAddFieldJob: (String, String?, Int?, Int?) -> Unit = { _, _, _, _ -> },
     val onSetNotes: (String) -> Unit = {},
     val onShare: () -> Unit = {},
 )
@@ -135,12 +145,14 @@ fun TodayContent(state: TodayUiState, callbacks: TodayCallbacks) {
             StatusBadge(state.status)
         }
 
-        TimeCard(state, callbacks)
+        DayCard(state, callbacks)
         // חופש/חג: no hours and no tasks can be entered — only the chips and the
         // "no report" card remain (product-owner rule; spec S4).
         if (!state.isSpecialDay) {
-            FieldJobsCard(state, callbacks)
-            ActivitiesCard(state, callbacks)
+            state.sessionRows.forEach { row ->
+                androidx.compose.runtime.key(row.entity.id) { SessionCard(row, state, callbacks) }
+            }
+            AddSessionRow(state, callbacks)
             NotesCard(state, callbacks)
         }
         ReportCard(state, callbacks)
@@ -148,48 +160,28 @@ fun TodayContent(state: TodayUiState, callbacks: TodayCallbacks) {
     }
 }
 
+/** The day at a glance: how long was worked, split by mode, and how much of it is described. */
 @Composable
-private fun TimeCard(state: TodayUiState, cb: TodayCallbacks) {
-    var pickArrival by remember { mutableStateOf(false) }
-    var pickDeparture by remember { mutableStateOf(false) }
-
+private fun DayCard(state: TodayUiState, cb: TodayCallbacks) {
     SectionCard {
-        if (!state.isSpecialDay) Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            TimeSlot(
-                label = stringResource(R.string.arrival),
-                minutes = state.day.arrivalMin,
-                source = state.day.arrivalSource,
-                uncertain = state.day.arrivalUncertain,
-                actionLabel = stringResource(R.string.arrived_now),
-                onAction = cb.onArriveNow,
-                onEdit = { pickArrival = true },
-                onClear = cb.onClearArrival,
-                onNudge = { delta -> state.day.arrivalMin?.let { cb.onSetArrival((it + delta).coerceAtLeast(0)) } },
-                modifier = Modifier.weight(1f),
-            )
-            TimeSlot(
-                label = stringResource(R.string.departure),
-                minutes = state.day.departureMin,
-                source = state.day.departureSource,
-                actionLabel = stringResource(R.string.left_now),
-                onAction = cb.onLeaveNow,
-                onEdit = { pickDeparture = true },
-                onClear = cb.onClearDeparture,
-                onNudge = { delta -> state.day.departureMin?.let { cb.onSetDeparture((it + delta).coerceAtLeast(0)) } },
-                modifier = Modifier.weight(1f),
-            )
-        }
-        if (!state.isSpecialDay) HorizontalDivider(Modifier.padding(vertical = 6.dp))
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            val totalMin = com.vitalypr.daylog.domain.stats.StatsCalculator.dayMinutes(state.day).total
+            val totals = state.modeTotals
+            val total = totals.values.sum()
+            // joinToString isn't inline, so the labels are resolved first.
+            val labels = WorkMode.entries.associateWith { modeLabel(it) }
+            val parts = WorkMode.entries
+                .filter { (totals[it] ?: 0) > 0 }
+                .joinToString(" · ") { "${labels.getValue(it)} ${formatDuration(totals.getValue(it))}" }
             Text(
-                if (totalMin > 0 && !state.isSpecialDay) {
-                    stringResource(R.string.total_at_office, formatDuration(totalMin))
-                } else {
-                    stringResource(R.string.special_day)
+                when {
+                    state.isSpecialDay -> stringResource(R.string.special_day)
+                    total == 0 -> stringResource(R.string.total_at_office, formatDuration(0))
+                    totals.count { it.value > 0 } > 1 ->
+                        stringResource(R.string.day_total_modes, formatDuration(total), parts)
+                    else -> stringResource(R.string.total_at_office, formatDuration(total))
                 },
-                style = MaterialTheme.typography.bodySmall,
-                color = InkSecondary,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.weight(1f),
             )
             FilterChip(
@@ -203,22 +195,204 @@ private fun TimeCard(state: TodayUiState, cb: TodayCallbacks) {
                 label = { Text(stringResource(R.string.holiday), style = MaterialTheme.typography.labelMedium) },
             )
         }
+        // How much of the worked time the activities account for — the whole point
+        // of the screen is to leave the day fully described (and to say so loudly
+        // when the activities claim more time than was actually worked).
+        // With one session its own card already says this; the day line earns its
+        // place only when several sessions add up.
+        if (!state.isSpecialDay && state.day.sessions.size > 1) {
+            BudgetLine(state.budget, Modifier.padding(top = 6.dp))
+        }
+    }
+}
+
+/** One stretch of work: its mode, its hours, its own time budget and its activities. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun SessionCard(row: SessionRow, state: TodayUiState, cb: TodayCallbacks) {
+    val id = row.entity.id
+    var pickStart by remember { mutableStateOf(false) }
+    var pickEnd by remember { mutableStateOf(false) }
+    // An activity always belongs to a project, so the category tap asks which one
+    // before anything is created (v1.2).
+    var pendingCategory by remember { mutableStateOf<Long?>(null) }
+
+    SectionCard {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("${modeIcon(row.session.mode)} ${modeLabel(row.session.mode)}", style = MaterialTheme.typography.titleSmall)
+            Spacer(Modifier.width(8.dp))
+            NoteField(
+                value = row.entity.title,
+                hint = stringResource(
+                    // Only a field session is at someone's site; the others are a
+                    // free description of what that stretch of work was.
+                    if (row.session.mode == WorkMode.FIELD) {
+                        R.string.session_site_hint
+                    } else {
+                        R.string.session_title_hint
+                    },
+                ),
+                onChange = { cb.onSetSessionTitle(id, it) },
+                modifier = Modifier.weight(1f),
+            )
+            IconButton(onClick = { cb.onRemoveSession(id) }, modifier = Modifier.size(28.dp)) {
+                Icon(
+                    Icons.Default.Close,
+                    contentDescription = stringResource(R.string.remove_session),
+                    tint = InkMuted,
+                    modifier = Modifier.size(16.dp),
+                )
+            }
+        }
+
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(top = 4.dp)) {
+            TimeSlot(
+                label = stringResource(R.string.arrival),
+                minutes = row.session.startMin,
+                source = row.session.startSource,
+                uncertain = row.session.startUncertain,
+                actionLabel = stringResource(R.string.arrived_now),
+                onAction = { cb.onStartNow(id) },
+                onEdit = { pickStart = true },
+                onClear = { cb.onSetSessionStart(id, null) },
+                onNudge = { delta ->
+                    row.session.startMin?.let { cb.onSetSessionStart(id, (it + delta).coerceAtLeast(0)) }
+                },
+                modifier = Modifier.weight(1f),
+            )
+            TimeSlot(
+                label = stringResource(R.string.departure),
+                minutes = row.session.endMin,
+                source = row.session.endSource,
+                actionLabel = stringResource(R.string.left_now),
+                onAction = { cb.onEndNow(id) },
+                onEdit = { pickEnd = true },
+                onClear = { cb.onSetSessionEnd(id, null) },
+                onNudge = { delta ->
+                    row.session.endMin?.let { cb.onSetSessionEnd(id, (it + delta).coerceAtLeast(0)) }
+                },
+                modifier = Modifier.weight(1f),
+            )
+        }
+
+        BudgetLine(row.session.budget(), Modifier.padding(top = 4.dp))
+
+        HorizontalDivider(Modifier.padding(vertical = 6.dp))
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            state.categories.forEach { cat ->
+                FilterChip(
+                    selected = row.activityRows.any { it.categoryId == cat.id },
+                    onClick = {
+                        // One project: no question worth asking. Several: pick.
+                        val only = state.projects.singleOrNull()
+                        if (only != null) cb.onAddActivity(id, cat.id, only.id) else pendingCategory = cat.id
+                    },
+                    label = { Text(cat.name) },
+                )
+            }
+        }
+        if (state.projects.isEmpty()) {
+            Text(
+                stringResource(R.string.no_projects_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = Amber,
+                modifier = Modifier.padding(top = 6.dp),
+            )
+        }
+        row.activityRows.forEach { activity ->
+            androidx.compose.runtime.key(activity.id) { ActivityEditor(activity, state.projects, cb) }
+        }
     }
 
-    if (pickArrival) {
+    if (pickStart) {
         TimePickerDialog(
-            initialMinutes = state.day.arrivalMin ?: (8 * 60),
-            onConfirm = { cb.onSetArrival(it); pickArrival = false },
-            onDismiss = { pickArrival = false },
+            initialMinutes = row.session.startMin ?: defaultStartMinutes(row.session.mode),
+            onConfirm = { cb.onSetSessionStart(id, it); pickStart = false },
+            onDismiss = { pickStart = false },
         )
     }
-    if (pickDeparture) {
+    if (pickEnd) {
         TimePickerDialog(
-            initialMinutes = state.day.departureMin ?: (17 * 60),
-            onConfirm = { cb.onSetDeparture(it); pickDeparture = false },
-            onDismiss = { pickDeparture = false },
+            initialMinutes = row.session.endMin ?: (row.session.startMin?.plus(60) ?: (17 * 60)),
+            onConfirm = { cb.onSetSessionEnd(id, it); pickEnd = false },
+            onDismiss = { pickEnd = false },
         )
     }
+    pendingCategory?.let { categoryId ->
+        ProjectPickerDialog(
+            projects = state.projects,
+            onPick = { projectId ->
+                cb.onAddActivity(id, categoryId, projectId)
+                pendingCategory = null
+            },
+            onDismiss = { pendingCategory = null },
+        )
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun AddSessionRow(state: TodayUiState, cb: TodayCallbacks) {
+    SectionCard {
+        if (state.sessionRows.isEmpty()) {
+            Text(
+                stringResource(R.string.no_sessions_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = InkSecondary,
+                modifier = Modifier.padding(bottom = 6.dp),
+            )
+        }
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            WorkMode.entries.forEach { mode ->
+                OutlinedButton(
+                    onClick = { cb.onAddSession(mode) },
+                    contentPadding = PaddingValues(horizontal = 12.dp),
+                    modifier = Modifier.height(34.dp),
+                ) {
+                    Text(
+                        stringResource(R.string.add_session, "${modeIcon(mode)} ${modeLabel(mode)}"),
+                        style = MaterialTheme.typography.labelMedium,
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * "How much of this time is described?" — worked vs. allocated vs. left, and a
+ * red line when the activities add up to more than the hours actually worked.
+ */
+@Composable
+private fun BudgetLine(budget: TimeBudget, modifier: Modifier = Modifier) {
+    val allocated = formatDuration(budget.allocatedMin)
+    val span = budget.spanMin
+    val remaining = budget.remainingMin
+    val problem = budget.overAllocated
+    val text = when {
+        span == null -> stringResource(R.string.budget_no_span, allocated)
+        problem -> stringResource(R.string.budget_over, allocated, formatDuration(span), formatDuration(-remaining!!))
+        remaining == 0 -> stringResource(R.string.budget_complete, allocated, formatDuration(span))
+        else -> stringResource(R.string.budget_line, allocated, formatDuration(span), formatDuration(remaining!!))
+    }
+    val color = when {
+        problem -> Warn
+        span != null && remaining == 0 -> SendGreen
+        else -> InkSecondary
+    }
+    Text(
+        text,
+        style = MaterialTheme.typography.bodySmall,
+        color = color,
+        modifier = if (problem) {
+            modifier
+                .fillMaxWidth()
+                .background(WarnTint, RoundedCornerShape(8.dp))
+                .padding(horizontal = 8.dp, vertical = 4.dp)
+        } else {
+            modifier
+        },
+    )
 }
 
 @Composable
@@ -242,9 +416,9 @@ private fun TimeSlot(
                 Text(
                     stringResource(R.string.short_visit_tag),
                     style = MaterialTheme.typography.labelSmall,
-                    color = com.vitalypr.daylog.ui.theme.Amber,
+                    color = Amber,
                     modifier = Modifier
-                        .background(com.vitalypr.daylog.ui.theme.AmberTint, RoundedCornerShape(99.dp))
+                        .background(AmberTint, RoundedCornerShape(99.dp))
                         .padding(horizontal = 6.dp, vertical = 1.dp),
                 )
             } else if (minutes != null && source == TimeSource.GEOFENCE) {
@@ -265,7 +439,7 @@ private fun TimeSlot(
         TextButton(
             onClick = onEdit,
             enabled = minutes != null,
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp),
+            contentPadding = PaddingValues(horizontal = 8.dp),
             modifier = Modifier.height(34.dp),
         ) {
             Text(
@@ -273,7 +447,7 @@ private fun TimeSlot(
                 style = MaterialTheme.typography.headlineSmall,
                 color = when {
                     minutes == null -> InkMuted
-                    uncertain -> com.vitalypr.daylog.ui.theme.Amber
+                    uncertain -> Amber
                     else -> MaterialTheme.colorScheme.onSurface
                 },
             )
@@ -281,7 +455,7 @@ private fun TimeSlot(
         if (minutes == null) {
             Button(
                 onClick = onAction,
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
+                contentPadding = PaddingValues(0.dp),
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(34.dp),
@@ -299,151 +473,18 @@ private fun TimeSlot(
 private fun CompactOutlined(label: String, onClick: () -> Unit) {
     OutlinedButton(
         onClick = onClick,
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
+        contentPadding = PaddingValues(0.dp),
         modifier = Modifier
             .height(28.dp)
             .width(46.dp),
     ) { Text(label, style = MaterialTheme.typography.labelMedium) }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun FieldJobsCard(state: TodayUiState, cb: TodayCallbacks) {
-    var showSheet by rememberSaveable { mutableStateOf(false) }
-    SectionCard(title = stringResource(R.string.field_jobs)) {
-        state.fieldJobRows.forEach { job ->
-            Row(Modifier.padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("🚗", Modifier.padding(end = 8.dp))
-                Text(job.title, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-                val suggested = job.isStartSuggested || job.isEndSuggested
-                if (suggested) {
-                    Text(
-                        stringResource(R.string.suggested_tag),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = com.vitalypr.daylog.ui.theme.Amber,
-                        modifier = Modifier
-                            .padding(end = 6.dp)
-                            .background(com.vitalypr.daylog.ui.theme.AmberTint, RoundedCornerShape(99.dp))
-                            .padding(horizontal = 6.dp, vertical = 1.dp),
-                    )
-                }
-                val range = job.startMin?.let { com.vitalypr.daylog.domain.time.formatRange(it, job.endMin) }
-                    ?: job.endMin?.let { "…‎–‎" + formatMinutes(it) } ?: ""
-                Text(
-                    range,
-                    style = MaterialTheme.typography.bodySmall,
-                    // Geofence-suggested times wear amber until confirmed/edited (spec §6.6b).
-                    color = if (suggested) com.vitalypr.daylog.ui.theme.Amber else InkSecondary,
-                )
-            }
-        }
-        OutlinedButton(
-            onClick = { showSheet = true },
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(32.dp),
-        ) { Text(stringResource(R.string.add_field_job), style = MaterialTheme.typography.labelMedium) }
-    }
-    if (showSheet) {
-        FieldJobSheet(
-            onSave = { t, l, s, e -> cb.onAddFieldJob(t, l, s, e); showSheet = false },
-            onDismiss = { showSheet = false },
-        )
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun FieldJobSheet(onSave: (String, String?, Int?, Int?) -> Unit, onDismiss: () -> Unit) {
-    var title by remember { mutableStateOf("") }
-    var location by remember { mutableStateOf("") }
-    var start by remember { mutableStateOf<Int?>(null) }
-    var end by remember { mutableStateOf<Int?>(null) }
-    var picking by remember { mutableStateOf<String?>(null) }
-
-    ModalBottomSheet(onDismissRequest = onDismiss) {
-        Column(Modifier.padding(horizontal = 20.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            OutlinedTextField(title, { title = it }, label = { Text(stringResource(R.string.field_job_title)) }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(location, { location = it }, label = { Text(stringResource(R.string.field_job_location)) }, modifier = Modifier.fillMaxWidth())
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                OutlinedButton(onClick = { picking = "start" }, Modifier.weight(1f)) {
-                    Text(start?.let(::formatMinutes) ?: stringResource(R.string.start_time))
-                }
-                OutlinedButton(onClick = { picking = "end" }, Modifier.weight(1f)) {
-                    Text(end?.let(::formatMinutes) ?: stringResource(R.string.end_time))
-                }
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 20.dp)) {
-                Button(
-                    onClick = { onSave(title, location.ifBlank { null }, start, end) },
-                    enabled = title.isNotBlank(),
-                    modifier = Modifier.weight(1f),
-                ) { Text(stringResource(R.string.save)) }
-                TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
-            }
-        }
-    }
-    picking?.let { which ->
-        TimePickerDialog(
-            initialMinutes = if (which == "start") start ?: 600 else end ?: 780,
-            onConfirm = { if (which == "start") start = it else end = it; picking = null },
-            onDismiss = { picking = null },
-        )
-    }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun ActivitiesCard(state: TodayUiState, cb: TodayCallbacks) {
-    // An activity always belongs to a project, so the category tap asks which one
-    // before anything is created (v1.2).
-    var pendingCategory by remember { mutableStateOf<Long?>(null) }
-
-    SectionCard(title = stringResource(R.string.activities)) {
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            state.categories.forEach { cat ->
-                FilterChip(
-                    selected = state.activityRows.any { it.categoryId == cat.id },
-                    onClick = {
-                        // One project: no question worth asking. Several: pick.
-                        val only = state.projects.singleOrNull()
-                        if (only != null) cb.onAddActivity(cat.id, only.id) else pendingCategory = cat.id
-                    },
-                    label = { Text(cat.name) },
-                )
-            }
-        }
-        if (state.projects.isEmpty()) {
-            Text(
-                stringResource(R.string.no_projects_hint),
-                style = MaterialTheme.typography.bodySmall,
-                color = com.vitalypr.daylog.ui.theme.Amber,
-                modifier = Modifier.padding(top = 6.dp),
-            )
-        }
-        state.activityRows.forEach { row ->
-            androidx.compose.runtime.key(row.id) { ActivityEditor(row, state.projects, cb) }
-        }
-    }
-
-    pendingCategory?.let { categoryId ->
-        ProjectPickerDialog(
-            projects = state.projects,
-            onPick = { projectId ->
-                cb.onAddActivity(categoryId, projectId)
-                pendingCategory = null
-            },
-            onDismiss = { pendingCategory = null },
-        )
-    }
-}
-
 /** Which project does this work belong to? Asked once, at creation. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ProjectPickerDialog(
-    projects: List<com.vitalypr.daylog.data.db.ProjectEntity>,
+    projects: List<ProjectEntity>,
     onPick: (Long) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -468,39 +509,40 @@ private fun ProjectPickerDialog(
 }
 
 @Composable
-private fun ActivityEditor(
-    row: ActivityRow,
-    projects: List<com.vitalypr.daylog.data.db.ProjectEntity>,
-    cb: TodayCallbacks,
-) {
+private fun ActivityEditor(row: ActivityRow, projects: List<ProjectEntity>, cb: TodayCallbacks) {
     var reassigning by remember { mutableStateOf(false) }
     HorizontalDivider(Modifier.padding(vertical = 5.dp))
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(
-            row.category,
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.primary,
-        )
-        // The project is part of the entry's identity — tap to move the work.
+        // Project first, then what was done — the same order the report uses.
         TextButton(
             onClick = { reassigning = true },
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp),
+            contentPadding = PaddingValues(horizontal = 4.dp),
             modifier = Modifier.height(24.dp),
         ) {
             Text(
                 row.project.ifBlank { stringResource(R.string.pick_project) },
-                style = MaterialTheme.typography.labelSmall,
-                color = InkSecondary,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
             )
         }
+        Text(
+            "· ${row.category}",
+            style = MaterialTheme.typography.labelSmall,
+            color = InkSecondary,
+        )
         Spacer(Modifier.width(4.dp))
         NoteField(
             value = row.note,
             hint = stringResource(R.string.activity_note_hint),
-            onChange = { cb.onUpdateActivity(row.copy(note = it)) },
+            onChange = { cb.onSetActivityNote(row.id, it) },
             modifier = Modifier.weight(1f),
         )
-        IconButton(onClick = { cb.onRemoveActivity(row.id) }, modifier = Modifier.height(28.dp).width(32.dp)) {
+        IconButton(
+            onClick = { cb.onRemoveActivity(row.id) },
+            modifier = Modifier
+                .height(28.dp)
+                .width(32.dp),
+        ) {
             Icon(Icons.Default.Close, contentDescription = stringResource(R.string.remove), tint = InkMuted)
         }
     }
@@ -508,7 +550,7 @@ private fun ActivityEditor(
         ProjectPickerDialog(
             projects = projects,
             onPick = { projectId ->
-                cb.onUpdateActivity(row.copy(projectId = projectId))
+                cb.onSetActivityProject(row.id, projectId)
                 reassigning = false
             },
             onDismiss = { reassigning = false },
@@ -516,9 +558,7 @@ private fun ActivityEditor(
     }
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         // Duration in half-hour steps — no clock times on activities (spec F4 v0.9).
-        CompactOutlined(stringResource(R.string.minus_step)) {
-            cb.onUpdateActivity(row.copy(durationMin = ActivityDuration.decrease(row.durationMin)))
-        }
+        CompactOutlined(stringResource(R.string.minus_step)) { cb.onStepActivityDuration(row.id, false) }
         Text(
             row.durationMin?.let(::formatActivityDuration) ?: stringResource(R.string.duration_unset),
             style = MaterialTheme.typography.labelLarge,
@@ -526,29 +566,13 @@ private fun ActivityEditor(
             modifier = Modifier.width(64.dp),
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
         )
-        CompactOutlined(stringResource(R.string.plus_step)) {
-            cb.onUpdateActivity(row.copy(durationMin = ActivityDuration.increase(row.durationMin)))
-        }
+        CompactOutlined(stringResource(R.string.plus_step)) { cb.onStepActivityDuration(row.id, true) }
         Spacer(Modifier.width(6.dp))
         NoteField(
             value = row.result,
             hint = stringResource(R.string.activity_result_hint),
-            onChange = { cb.onUpdateActivity(row.copy(result = it)) },
+            onChange = { cb.onSetActivityResult(row.id, it) },
             modifier = Modifier.weight(1f),
-        )
-    }
-}
-
-@Composable
-private fun CompactTimeButton(minutes: Int?, onClick: () -> Unit) {
-    TextButton(
-        onClick = onClick,
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp),
-        modifier = Modifier.height(28.dp),
-    ) {
-        Text(
-            minutes?.let(::formatMinutes) ?: stringResource(R.string.time_unset),
-            style = MaterialTheme.typography.labelMedium,
         )
     }
 }
@@ -596,7 +620,11 @@ private fun NotesCard(state: TodayUiState, cb: TodayCallbacks) {
 private fun ReportCard(state: TodayUiState, cb: TodayCallbacks) {
     SectionCard(title = stringResource(R.string.report_preview)) {
         if (state.isSpecialDay) {
-            val label = if (state.day.dayType == DayType.OFF) stringResource(R.string.day_off) else stringResource(R.string.holiday)
+            val label = if (state.day.dayType == DayType.OFF) {
+                stringResource(R.string.day_off)
+            } else {
+                stringResource(R.string.holiday)
+            }
             Text(stringResource(R.string.no_report_special_day, label), color = InkSecondary)
         } else {
             Text(
@@ -612,16 +640,42 @@ private fun ReportCard(state: TodayUiState, cb: TodayCallbacks) {
                 enabled = state.day.hasData,
                 colors = ButtonDefaults.buttonColors(containerColor = SendGreen),
                 shape = RoundedCornerShape(12.dp),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
+                contentPadding = PaddingValues(0.dp),
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(40.dp),
             ) {
                 Text(
-                    if (state.day.reported) stringResource(R.string.resend_whatsapp) else stringResource(R.string.send_whatsapp),
+                    if (state.day.reported) {
+                        stringResource(R.string.resend_whatsapp)
+                    } else {
+                        stringResource(R.string.send_whatsapp)
+                    },
                     style = MaterialTheme.typography.titleSmall,
                 )
             }
         }
     }
+}
+
+@Composable
+private fun modeLabel(mode: WorkMode): String = stringResource(
+    when (mode) {
+        WorkMode.BASE -> R.string.mode_base
+        WorkMode.HOME -> R.string.mode_home
+        WorkMode.FIELD -> R.string.mode_field
+    },
+)
+
+private fun modeIcon(mode: WorkMode): String = when (mode) {
+    WorkMode.BASE -> "🏢"
+    WorkMode.HOME -> "🏠"
+    WorkMode.FIELD -> "🚗"
+}
+
+/** A sensible starting point for the picker when nothing is set yet. */
+private fun defaultStartMinutes(mode: WorkMode): Int = when (mode) {
+    WorkMode.BASE -> 8 * 60
+    WorkMode.HOME -> 18 * 60
+    WorkMode.FIELD -> 10 * 60
 }

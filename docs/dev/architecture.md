@@ -6,7 +6,7 @@ Google's official app-architecture guidance, kept minimal: **UI → ViewModel �
 
 | Layer | Module | Contains | Must not |
 |---|---|---|---|
-| Domain | `:domain` | immutable models (`DaySnapshot`, `ActivityEntry`, `FieldJob`), `ReportBuilder`, `StatsCalculator`, time/format utils, status derivation | import anything Android; do I/O |
+| Domain | `:domain` | immutable models (`DaySnapshot`, `WorkSession`, `ActivityEntry`, `TimeBudget`), `ReportBuilder`, `StatsCalculator`, time/format utils, status derivation | import anything Android; do I/O |
 | Data | `:app` `data/` | Room entities+DAOs+`DayLogDb`, `DayRepository` (maps entities ↔ domain models), `SettingsRepository` (DataStore) | leak Room entities above the repository |
 | UI | `:app` `ui/` | one ViewModel + one `UiState` data class per screen; stateless composables | touch repositories directly from composables; hold Android `Context` in ViewModels beyond injected app context |
 | System | `:app` `reminder/`, `geofence/`, `reporting/`, `notifications/` | AlarmManager scheduling, geofence receiver decision table, share-intent construction, notification channels/variants | contain business rules — they call into `:domain`/repositories |
