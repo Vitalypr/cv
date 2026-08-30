@@ -65,7 +65,8 @@
 - Restore replaces inside one `withTransaction`, children cleared first and parents inserted first; ids are preserved so activity→project links survive.
 
 ## Bidi / Hebrew
-- Lines starting with emoji/digits flip in WhatsApp without leading RLM (`‏`). ReportBuilder owns RLM; nothing else appends it.
+- Lines starting with a digit flip in WhatsApp without a leading RLM (`‏`). ReportBuilder owns RLM; nothing else appends it. (The reports carry no emoji since v2.1 — don't re-add "just one".)
+- In a Kotlin template, `"$rlmבסיס"` parses as ONE identifier: Hebrew letters are valid in identifiers. Golden strings need `"${rlm}בסיס"`.
 - Mixed Hebrew + Latin (client names) inside a line is fine once the line has RLM; ranges like `10:00–13:30` must be en-dash between complete LTR runs.
 
 ## Build / environment (this container)

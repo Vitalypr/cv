@@ -75,23 +75,27 @@ Consultant opens the **Statistics** tab and switches between **שבוע / חוד
 Plain text in Hebrew (WhatsApp-friendly, no markdown dependency), rendered from a template:
 
 ```
-‏📋 דוח יומי — יום ד׳ 05.08.2026
-‏🕗 סה״כ 9:00 — בסיס 4:00 · בית 2:00 · שטח 3:00
-‏🏢 בסיס 10:00–14:00 (4:00)
+‏דוח יומי — יום ד׳ 05.08.2026
+‏סה״כ 9:00 — בסיס 4:00 · בית 2:00 · שטח 3:00
+‏בסיס 10:00–14:00 (4:00)
 ‏• רובוטיקה · התקנה — חיווט לוח, תא 4 (2:30 שע׳) · תוצאה: הושלם
 ‏• רובוטיקה · דיון — סקירת ליקויים
-‏🚗 שטח: תחנת משנה אקמה 06:00–09:00 (3:00)
+‏שטח: תחנת משנה אקמה 06:00–09:00 (3:00)
 ‏• AI למחלקה · בדיקות (2 שע׳)
-‏🏠 בית 18:00–20:00 (2:00)
-‏📝 הערות: הוזמן CT רזרבי, צפי הגעה יום חמישי
+‏בית 18:00–20:00 (2:00)
+‏הערות: הוזמן CT רזרבי, צפי הגעה יום חמישי
 ```
+
+**No emoji (v2.1, product-owner decision).** The report is a record someone
+reads; the icons added nothing the Hebrew label does not already say. Mode names
+(בסיס / בית / שטח) carry the structure, and `•` marks an activity line.
 
 Template rules:
 - One block per work session, in the order the sessions were logged: an icon + mode header (with the site/client after a colon for a field session), the time range, and the span in parentheses; then that session's activities.
 - Sections with no content are omitted entirely. Missing fragments are omitted too: an open session renders without an end and without a span; the total line appears only once some session has both times.
 - **Activity lines read `פרויקט · קטגוריה — הערה (משך) · תוצאה: …`** — project first, then what was done, then the description, then how long (product-owner order, v2.0). The note, duration and result are each optional and each fragment is omitted when empty (a project and category always render). Durations are half-hour steps rendered with a unit — `30 דק׳`, `1 שע׳`, `2:30 שע׳` — so they never read as a clock time. Activities render in the order they were logged.
 - Header date always present → safe to send late. Dates dd.MM.yyyy, Hebrew day names (יום א׳–ש׳), Western numerals, 24-hour times.
-- **RTL correctness in WhatsApp:** every line begins with an invisible RLM (U+200F) so lines that start with emoji or digits still render right-to-left; times and number ranges are wrapped so `10:00–13:30` doesn't flip. `ReportBuilder` owns this and it is unit-tested against golden strings.
+- **RTL correctness in WhatsApp:** every line begins with an invisible RLM (U+200F) so lines that start with a digit still render right-to-left; times and number ranges are wrapped so `10:00–13:30` doesn't flip. `ReportBuilder` owns this and it is unit-tested against golden strings.
 - Fixed labels are string resources (Hebrew is the app's default locale); adding another language later is trivial.
 
 ### 2.5 Period summaries (shareable on demand)
@@ -99,11 +103,11 @@ Template rules:
 Generated in the Statistics tab for the selected week, month, or year and — like the daily report (v0.7) — sent as a **styled Ledger-design PDF with the plain text as the WhatsApp caption** (monthly example):
 
 ```
-‏📊 סיכום חודשי — אוגוסט 2026
+‏סיכום חודשי — אוגוסט 2026
 ‏ימי עבודה: 21 | סה״כ שעות: 186:30 | ממוצע ליום: 8:52
-‏🕗 בסיס 150:00 · בית 20:00 · שטח 16:30
-‏🚗 ימי שטח: 6
-‏✅ פעילויות: פיתוח 14 · התקנה 9 · דיון 7 · בדיקות 5
+‏בסיס 150:00 · בית 20:00 · שטח 16:30
+‏ימי שטח: 6
+‏פעילויות: פיתוח 14 · התקנה 9 · דיון 7 · בדיקות 5
 ```
 
 **Hours rule (v2.0):** a day's total is the **sum of its work sessions** — four hours at the base plus two from home plus three on a client site is a nine-hour day, broken down by mode. Sessions are distinct stretches of time and are not expected to overlap, so they are simply added. This single rule feeds every daily total: the daily report's סה״כ line, the PDF summary cell, the Today screen, and Statistics.
@@ -159,7 +163,7 @@ Four-tab bottom navigation (היום / היסטוריה / סטטיסטיקה / �
 - **Time budget (screen only, v2.0; graphical v2.1):** each session — and the day, when it has several — shows how much of the worked hours the logged activities account for, as a **full-width bar with three figures above it: עבדת / מולא / נותר**. The bar is petrol while filling, green when it balances, and red across its whole width when the activities claim **more** time than was worked — the third figure then reads **עודף** and names the excess. Exact values always sit beside the bar as text, so the colour is never the only source. This is a filling aid for the person logging; it never appears in the report or the PDF.
 - **Special days:** marking **חופש / חג** suppresses the reminder and geofence prompts for the day, hides the sessions entirely (special days accept no hours) and replaces the report preview with a "no report today" state (S4).
 - **Notes card:** single free-text field.
-- **Report preview card:** the live-rendered report text itself + **שליחה לוואטסאפ** button + status badge.
+- **Report card:** the **שליחה לוואטסאפ** button + status badge. No in-app preview of the text (v2.1): the report is one tap away and the day is already on the screen above it. The report-time notification still shows the rendered report (§5.5), which is where seeing it before sending actually helps.
 - **Only the base is automated.** The office fence records hours at the base and nowhere else; work from home is always entered by hand, and a field session is created automatically only for a job location the user saved themselves (§6.6b). Everything the fence writes stays correctable by hand and by the widget.
 - On a non-workday the screen shows a "יום חופש" state with a **רישום יום בכל זאת** action (S4).
 

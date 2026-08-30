@@ -24,7 +24,7 @@ Dynamic color (Material You) may *tint* neutrals but the semantic trio (petrol/s
 
 - `android:supportsRtl="true"`; default `values/` strings are Hebrew; layout via `start/end` only — never `left/right`.
 - Compose gets direction from locale; snapshot tests pin `he-IL` + RTL so regressions are caught visually.
-- **Reports:** every line starts with RLM `‏` (ReportBuilder owns this). Time ranges `10:00–13:30` use en-dash between LTR runs. Golden tests are canonical.
+- **Reports:** plain Hebrew text, no emoji (v2.1). Every line starts with RLM `‏` (ReportBuilder owns this). Time ranges `10:00–13:30` use en-dash between LTR runs. Golden tests are canonical.
 - Numerals: Western digits, 24h times, `dd.MM.yyyy`, week starts Sunday (א׳).
 
 ## The time-budget bar (`ui/components/TimeBudgetBar`)

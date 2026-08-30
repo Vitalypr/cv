@@ -72,11 +72,11 @@ class ReportShareTest {
 
         // Install WhatsApp → targeted intent with stream + caption.
         installFakeHandlerPdf(ReportShare.WHATSAPP)
-        val share = ReportShare.pdfIntent(context, pdfFile(), "‏📋 דוח יומי")
+        val share = ReportShare.pdfIntent(context, pdfFile(), "‏דוח יומי")
         assertEquals(ReportShare.WHATSAPP, share.`package`)
         assertEquals("application/pdf", share.type)
         assertTrue(share.getParcelableExtra<android.net.Uri>(Intent.EXTRA_STREAM) != null)
-        assertEquals("‏📋 דוח יומי", share.getStringExtra(Intent.EXTRA_TEXT))
+        assertEquals("‏דוח יומי", share.getStringExtra(Intent.EXTRA_TEXT))
         assertTrue(share.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION != 0)
     }
 

@@ -37,15 +37,15 @@ class ReportBuilderTest {
             notes = "הוזמן CT רזרבי",
         )
         val expected = listOf(
-            "📋 דוח יומי — יום ג׳ 04.08.2026",
-            "🕗 סה״כ 9:00 — בסיס 4:00 · בית 2:00 · שטח 3:00",
-            "🏢 בסיס 10:00‎–‎14:00 (4:00)",
+            "דוח יומי — יום ג׳ 04.08.2026",
+            "סה״כ 9:00 — בסיס 4:00 · בית 2:00 · שטח 3:00",
+            "בסיס 10:00‎–‎14:00 (4:00)",
             "• רובוטיקה · התקנה — חיווט לוח, תא 4 (2:30 שע׳) · תוצאה: הושלם",
             "• רובוטיקה · דיון — סקירת ליקויים",
-            "🚗 שטח: תחנת משנה אקמה 06:00‎–‎09:00 (3:00)",
+            "שטח: תחנת משנה אקמה 06:00‎–‎09:00 (3:00)",
             "• AI למחלקה · בדיקות (2 שע׳)",
-            "🏠 בית 18:00‎–‎20:00 (2:00)",
-            "📝 הערות: הוזמן CT רזרבי",
+            "בית 18:00‎–‎20:00 (2:00)",
+            "הערות: הוזמן CT רזרבי",
         ).joinToString("\n") { rlm + it }
         assertEquals(expected, ReportBuilder.daily(day))
     }
@@ -58,12 +58,12 @@ class ReportBuilderTest {
     @Test fun `an open session renders without an end or a span`() {
         val day = DaySnapshot(tue, listOf(WorkSession(startMin = 10 * 60)))
         val lines = ReportBuilder.daily(day).lines()
-        assertEquals("$rlm🏢 בסיס 10:00‎–‎…", lines[1])
+        assertEquals("${rlm}בסיס 10:00‎–‎…", lines[1])
         assertFalse(ReportBuilder.daily(day).contains("סה״כ"))
     }
 
     @Test fun `an empty day is just its header`() {
-        assertEquals("$rlm📋 דוח יומי — יום ג׳ 04.08.2026", ReportBuilder.daily(DaySnapshot(tue)))
+        assertEquals("${rlm}דוח יומי — יום ג׳ 04.08.2026", ReportBuilder.daily(DaySnapshot(tue)))
     }
 
     @Test fun `the activity line reads project, work, note, then how long`() {

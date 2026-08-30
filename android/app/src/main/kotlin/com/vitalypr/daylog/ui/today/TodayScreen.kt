@@ -584,18 +584,6 @@ private fun ReportCard(state: TodayUiState, cb: TodayCallbacks) {
             }
             Text(stringResource(R.string.no_report_special_day, label), color = InkSecondary)
         } else {
-            // The report itself is the preview — the user checks what will be
-            // sent, not a description of it.
-            if (state.reportText.isNotBlank()) {
-                Text(
-                    state.reportText,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = InkSecondary,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 10.dp),
-                )
-            }
             Button(
                 onClick = cb.onShare,
                 enabled = state.day.hasData,

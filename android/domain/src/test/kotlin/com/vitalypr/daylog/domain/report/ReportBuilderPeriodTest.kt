@@ -27,18 +27,18 @@ class ReportBuilderPeriodTest {
 
     @Test fun `monthly summary golden string per spec 2_5`() {
         val expected = listOf(
-            "📊 סיכום חודשי — אוגוסט 2026",
+            "סיכום חודשי — אוגוסט 2026",
             "ימי עבודה: 21 | סה״כ שעות: 186:30 | ממוצע ליום: 8:52",
-            "🕗 בסיס 150:00 · בית 20:00 · שטח 16:30",
-            "🚗 ימי שטח: 6",
-            "✅ פעילויות: פיתוח 14 · התקנה 9 · דיון 7",
+            "בסיס 150:00 · בית 20:00 · שטח 16:30",
+            "ימי שטח: 6",
+            "פעילויות: פיתוח 14 · התקנה 9 · דיון 7",
         ).joinToString("\n") { rlm + it }
         assertEquals(expected, ReportBuilder.period(summary()))
     }
 
     @Test fun `off days and holidays appear only when nonzero`() {
         val withSpecial = ReportBuilder.period(summary(off = 2, hol = 1))
-        assertEquals("$rlm🚗 ימי שטח: 6 | חופש: 2 | חגים: 1", withSpecial.lines()[3])
+        assertEquals("${rlm}ימי שטח: 6 | חופש: 2 | חגים: 1", withSpecial.lines()[3])
         assertFalse(ReportBuilder.period(summary()).contains("חופש"))
     }
 }
