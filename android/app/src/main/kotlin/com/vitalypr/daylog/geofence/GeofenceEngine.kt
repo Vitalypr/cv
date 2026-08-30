@@ -16,6 +16,7 @@ import com.vitalypr.daylog.domain.geo.OfficeFenceMachine
 import com.vitalypr.daylog.domain.model.DayType
 import com.vitalypr.daylog.domain.model.TimeSource
 import com.vitalypr.daylog.domain.model.WorkMode
+import com.vitalypr.daylog.domain.time.WorkTimeStep
 import com.vitalypr.daylog.notifications.Notifier
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.time.Duration
@@ -129,22 +130,29 @@ class GeofenceEngine @Inject constructor(
         )
     }
 
+    // Worked time is booked in quarter hours, so a prompt must offer — and a
+    // confirmation must carry — the value that will actually be stored.
+    private fun arrivalMinutes(raw: Int) = WorkTimeStep.roundStart(raw)
+    private fun departureMinutes(raw: Int) = WorkTimeStep.roundEnd(raw)
+
     private suspend fun perform(action: FenceAction) = when (action) {
         is FenceAction.SuggestArrival ->
-            notifier.arrivalPrompt(action.date, action.minutes, shortVisit = action.shortVisit)
+            notifier.arrivalPrompt(action.date, arrivalMinutes(action.minutes), shortVisit = action.shortVisit)
         is FenceAction.WriteArrival -> {
-            repository.startSession(action.date, WorkMode.BASE, action.minutes, TimeSource.GEOFENCE)
-            notifier.recorded(action.date, action.minutes, arrival = true)
+            val minutes = arrivalMinutes(action.minutes)
+            repository.startSession(action.date, WorkMode.BASE, minutes, TimeSource.GEOFENCE)
+            notifier.recorded(action.date, minutes, arrival = true)
             widgetRefresher.refresh()
         }
         is FenceAction.SuggestDeparture ->
-            notifier.departurePrompt(action.date, action.minutes, action.isUpdate)
+            notifier.departurePrompt(action.date, departureMinutes(action.minutes), action.isUpdate)
         is FenceAction.WriteDeparture -> {
-            repository.recordDeparture(action.date, WorkMode.BASE, action.minutes, TimeSource.GEOFENCE)
-            notifier.recorded(action.date, action.minutes, arrival = false)
+            val minutes = departureMinutes(action.minutes)
+            repository.recordDeparture(action.date, WorkMode.BASE, minutes, TimeSource.GEOFENCE)
+            notifier.recorded(action.date, minutes, arrival = false)
             widgetRefresher.refresh()
         }
-        is FenceAction.SuggestLogDay -> notifier.logDayPrompt(action.minutes)
+        is FenceAction.SuggestLogDay -> notifier.logDayPrompt(departureMinutes(action.minutes))
         is FenceAction.MarkArrivalUncertain -> {
             markUncertain(action.date, true)
             widgetRefresher.refresh()

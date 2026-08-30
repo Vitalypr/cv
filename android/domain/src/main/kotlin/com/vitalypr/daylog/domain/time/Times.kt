@@ -3,6 +3,30 @@ package com.vitalypr.daylog.domain.time
 import java.time.DayOfWeek
 import java.time.LocalDate
 
+/**
+ * Worked time is booked in quarter hours (product-owner rule): a session's start
+ * rounds **down** to the quarter and its end rounds **up**, so an arrival at
+ * 08:12 is booked 08:00 and a departure at 17:35 is booked 17:45 — the stretch
+ * of work is never shortened by the rounding.
+ *
+ * Applied to every session time the app writes, whatever wrote it: the office
+ * fence, the widget, the הגעתי/יצאתי buttons and the time picker. Rounding is
+ * idempotent, so a value that is already on a quarter passes through untouched.
+ */
+object WorkTimeStep {
+
+    const val STEP_MIN: Int = 15
+
+    /** An arrival: down to the quarter (08:12 → 08:00). */
+    fun roundStart(minutes: Int): Int = minutes - Math.floorMod(minutes, STEP_MIN)
+
+    /** A leaving time: up to the quarter (17:35 → 17:45). */
+    fun roundEnd(minutes: Int): Int {
+        val over = Math.floorMod(minutes, STEP_MIN)
+        return if (over == 0) minutes else minutes + (STEP_MIN - over)
+    }
+}
+
 /** Formats minutes-from-midnight. Values >= 1440 belong to the next calendar day. */
 fun formatMinutes(min: Int): String {
     require(min >= 0) { "negative time: $min" }

@@ -113,7 +113,7 @@ class TodayScreenshotTest {
         snap(
             listOf(
                 session(
-                    1, WorkMode.BASE, startMin = 492,
+                    1, WorkMode.BASE, startMin = 480,
                     startSource = TimeSource.GEOFENCE, startUncertain = true,
                 ),
             ),
@@ -126,14 +126,14 @@ class TodayScreenshotTest {
         snap(
             listOf(
                 session(
-                    1, WorkMode.BASE, startMin = 492, endMin = 840,
+                    1, WorkMode.BASE, startMin = 480, endMin = 840,
                     activities = listOf(
                         ActivityEntry("רובוטיקה", "התקנה", 150, "חיווט לוח, תא 4", "הושלם"),
                         ActivityEntry("רובוטיקה", "דיון", 60, "סקירת ליקויים"),
                     ),
                 ),
                 session(
-                    2, WorkMode.FIELD, startMin = 900, endMin = 1055, title = "תחנת משנה אקמה",
+                    2, WorkMode.FIELD, startMin = 900, endMin = 1065, title = "תחנת משנה אקמה",
                     activities = listOf(ActivityEntry("AI למחלקה", "בדיקות", 120, "בדיקות קבלה")),
                 ),
                 session(
@@ -165,6 +165,6 @@ class TodayScreenshotTest {
 
     @Test fun reportedDay() = capture(
         "today_reported",
-        snap(listOf(session(1, WorkMode.BASE, startMin = 492, endMin = 1055)), reported = true),
+        snap(listOf(session(1, WorkMode.BASE, startMin = 480, endMin = 1065)), reported = true),
     )
 }

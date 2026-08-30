@@ -60,12 +60,13 @@ class TodayViewModelTest {
         db.close()
     }
 
-    @Test fun `adding a session on today starts it at the current clock time`() = runTest(dispatcher) {
+    /** 08:12 on the clock is booked 08:00 — worked time is kept in quarter hours. */
+    @Test fun `adding a session on today starts it at the current quarter`() = runTest(dispatcher) {
         vm.uiState.test {
             assertEquals(DayStatus.EMPTY, awaitItem().status)
             vm.addSession(WorkMode.BASE)
             val state = expectMostRecentItemAfter { it.sessionRows.isNotEmpty() }
-            assertEquals(8 * 60 + 12, state.sessionRows.single().session.startMin)
+            assertEquals(8 * 60, state.sessionRows.single().session.startMin)
             assertEquals(DayStatus.LOGGED, state.status)
             assertTrue(state.reportText.contains("בסיס"))
             assertTrue(state.reportText.contains("יום ג׳ 04.08.2026"))
@@ -81,7 +82,7 @@ class TodayViewModelTest {
 
             vm.setSessionEnd(id, 17 * 60 + 35)
             val closed = expectMostRecentItemAfter { it.sessionRows.single().session.endMin != null }
-            assertEquals(17 * 60 + 35, closed.sessionRows.single().session.endMin)
+            assertEquals(17 * 60 + 45, closed.sessionRows.single().session.endMin) // booked up
 
             vm.setSessionStart(id, null)
             val cleared = expectMostRecentItemAfter { it.sessionRows.single().session.startMin == null }

@@ -19,6 +19,7 @@ TDD is the workflow, not a phase: failing test → implementation → green → 
 | F4a projects (mandatory, archived when used) | `ProjectRepositoryTest`, `TodayViewModelTest` |
 | F12a full backup round trip (every table + setting) | `BackupRoundTripTest` |
 | §2.5 period summaries, hours rule | `StatsCalculatorTest`, `ReportBuilderPeriodTest` |
+| §6.2 quarter-hour booking (start down, end up, idempotent, past midnight) | domain `WorkTimeStepTest`; `DayRepositoryTest`, `WorkdayFlowTest`, `WidgetActionsTest` |
 | §6.2 time model >24h, day boundary | `TimesTest`, `ReportBuilderOvernightTest` |
 | §6.3 schema, DayWithEntries, status derivation | `app` `DayRepositoryTest`, domain `DayStatusTest` |
 | §6.3 v2.0 clean break (older DB rebuilt + re-seeded, never a crash) | `app` `SchemaResetTest` |

@@ -41,7 +41,7 @@ class ExporterTest {
     @After fun teardown() = db.close()
 
     @Test fun `json export is versioned and carries every session`() = runTest {
-        repo.addSession(date, WorkMode.BASE, 492, 1055)
+        repo.addSession(date, WorkMode.BASE, 480, 1065)
         repo.addSession(date, WorkMode.FIELD, 600, 810, title = "אתר, עם פסיק")
         repo.setNotes(date, "הערה")
 
@@ -49,7 +49,7 @@ class ExporterTest {
         assertEquals(3, json.getInt("schemaVersion")) // v3: worked time is a list of sessions
         val day = json.getJSONArray("days").getJSONObject(0)
         assertEquals("2026-08-04", day.getString("date"))
-        assertEquals((1055 - 492) + (810 - 600), day.getInt("totalMinutes"))
+        assertEquals((1065 - 480) + (810 - 600), day.getInt("totalMinutes"))
         val sessions = day.getJSONArray("sessions")
         assertEquals(2, sessions.length())
         assertEquals("BASE", sessions.getJSONObject(0).getString("mode"))

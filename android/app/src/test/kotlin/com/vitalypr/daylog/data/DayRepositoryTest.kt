@@ -50,26 +50,26 @@ class DayRepositoryTest {
 
     @Test fun `day is created lazily on first fact`() = runTest {
         assertNull(repo.getDay(date))
-        repo.startSession(date, WorkMode.BASE, 492, TimeSource.MANUAL)
-        assertEquals(492, repo.getDay(date)!!.sessions.single().startMin)
+        repo.startSession(date, WorkMode.BASE, 480, TimeSource.MANUAL)
+        assertEquals(480, repo.getDay(date)!!.sessions.single().startMin)
     }
 
     @Test fun `default categories seeded once in spec order`() = runTest {
-        repo.startSession(date, WorkMode.BASE, 1, TimeSource.MANUAL) // force db open
+        repo.startSession(date, WorkMode.BASE, 15, TimeSource.MANUAL) // force db open
         assertEquals(8, db.categoryDao().count())
         assertEquals(DayLogDb.DEFAULT_CATEGORIES, db.categoryDao().all().map { it.name })
     }
 
     @Test fun `default projects seeded`() = runTest {
-        repo.startSession(date, WorkMode.BASE, 1, TimeSource.MANUAL)
+        repo.startSession(date, WorkMode.BASE, 15, TimeSource.MANUAL)
         assertEquals(DayLogDb.DEFAULT_PROJECTS, db.projectDao().all().map { it.name })
     }
 
     @Test fun `a second start while one session is running opens nothing`() = runTest {
-        assertTrue(repo.startSession(date, WorkMode.BASE, 492, TimeSource.GEOFENCE))
+        assertTrue(repo.startSession(date, WorkMode.BASE, 480, TimeSource.GEOFENCE))
         assertFalse(repo.startSession(date, WorkMode.BASE, 500, TimeSource.GEOFENCE))
         assertEquals(1, repo.getDay(date)!!.sessions.size)
-        assertEquals(492, repo.getDay(date)!!.sessions.single().startMin)
+        assertEquals(480, repo.getDay(date)!!.sessions.single().startMin)
     }
 
     /** The twice-a-day bug: a second visit must not overwrite the first one's hours. */
@@ -87,30 +87,30 @@ class DayRepositoryTest {
 
     /** A session the user closed by hand is not open, so a geofence exit can't move it. */
     @Test fun `geofence exit never overwrites a manual end`() = runTest {
-        val id = repo.addSession(date, WorkMode.BASE, startMin = 492, endMin = 1000)
-        assertFalse(repo.endSession(date, WorkMode.BASE, 1055, TimeSource.GEOFENCE))
-        assertEquals(1000, repo.getDay(date)!!.sessions.single().endMin)
+        val id = repo.addSession(date, WorkMode.BASE, startMin = 480, endMin = 1005)
+        assertFalse(repo.endSession(date, WorkMode.BASE, 1065, TimeSource.GEOFENCE))
+        assertEquals(1005, repo.getDay(date)!!.sessions.single().endMin)
         assertNotNull(id)
     }
 
     @Test fun `a manual edit of a session always wins`() = runTest {
-        repo.startSession(date, WorkMode.BASE, 492, TimeSource.GEOFENCE)
+        repo.startSession(date, WorkMode.BASE, 480, TimeSource.GEOFENCE)
         val open = repo.openSession(date, WorkMode.BASE)!!
-        repo.updateSession(open.copy(startMin = 480, startSource = TimeSource.MANUAL.name))
-        assertEquals(480, repo.getDay(date)!!.sessions.single().startMin)
+        repo.updateSession(open.copy(startMin = 465, startSource = TimeSource.MANUAL.name))
+        assertEquals(465, repo.getDay(date)!!.sessions.single().startMin)
         // and the geofence may not re-open one over it
-        assertFalse(repo.startSession(date, WorkMode.BASE, 500, TimeSource.GEOFENCE))
+        assertFalse(repo.startSession(date, WorkMode.BASE, 495, TimeSource.GEOFENCE))
     }
 
     @Test fun `a hand-typed start is never flagged as a short visit`() = runTest {
-        repo.startSession(date, WorkMode.BASE, 492, TimeSource.MANUAL)
+        repo.startSession(date, WorkMode.BASE, 480, TimeSource.MANUAL)
         val session = repo.openSession(date, WorkMode.BASE)!!
         repo.setStartUncertain(session.id, date, true)
         assertFalse(repo.getDay(date)!!.sessions.single().startUncertain)
     }
 
     @Test fun `a geofence start can be flagged and un-flagged`() = runTest {
-        repo.startSession(date, WorkMode.BASE, 492, TimeSource.GEOFENCE)
+        repo.startSession(date, WorkMode.BASE, 480, TimeSource.GEOFENCE)
         val session = repo.openSession(date, WorkMode.BASE)!!
         repo.setStartUncertain(session.id, date, true)
         assertTrue(repo.getDay(date)!!.sessions.single().startUncertain)
@@ -121,7 +121,7 @@ class DayRepositoryTest {
     /** Two mutations issued back-to-back must not read the same row and clobber each other. */
     @Test fun `concurrent session writes both survive`() = runTest {
         kotlinx.coroutines.coroutineScope {
-            val a = async { repo.startSession(date, WorkMode.BASE, 492, TimeSource.MANUAL) }
+            val a = async { repo.startSession(date, WorkMode.BASE, 480, TimeSource.MANUAL) }
             val b = async { repo.startSession(date, WorkMode.HOME, 1080, TimeSource.MANUAL) }
             a.await(); b.await()
         }
@@ -131,14 +131,14 @@ class DayRepositoryTest {
     }
 
     @Test fun `clearing a session start empties it back to unset`() = runTest {
-        repo.startSession(date, WorkMode.BASE, 492, TimeSource.MANUAL)
+        repo.startSession(date, WorkMode.BASE, 480, TimeSource.MANUAL)
         val open = repo.openSession(date, WorkMode.BASE)!!
         repo.updateSession(open.copy(startMin = null))
         assertNull(repo.getDay(date)!!.sessions.single().startMin)
     }
 
     @Test fun `removing a session removes its activities`() = runTest {
-        val id = repo.addSession(date, WorkMode.BASE, startMin = 492, endMin = 1000)
+        val id = repo.addSession(date, WorkMode.BASE, startMin = 480, endMin = 1005)
         repo.addActivity(id, categoryId = 4, projectId = firstProjectId())
         assertEquals(1, db.dayDao().allActivities().size)
 
@@ -148,7 +148,7 @@ class DayRepositoryTest {
     }
 
     @Test fun `clearing a time after reporting marks the day edited`() = runTest {
-        repo.startSession(date, WorkMode.BASE, 492, TimeSource.MANUAL)
+        repo.startSession(date, WorkMode.BASE, 480, TimeSource.MANUAL)
         repo.markReported(date)
         val open = repo.openSession(date, WorkMode.BASE)!!
         repo.updateSession(open.copy(startMin = null))
@@ -156,7 +156,7 @@ class DayRepositoryTest {
     }
 
     @Test fun `activities carry project, category, duration, note, result`() = runTest {
-        val sessionId = repo.addSession(date, WorkMode.BASE, startMin = 492, endMin = 1000)
+        val sessionId = repo.addSession(date, WorkMode.BASE, startMin = 480, endMin = 1005)
         val projectId = firstProjectId()
         repo.addActivity(sessionId, categoryId = 4, projectId = projectId) // פיתוח is the 4th seed
         val stored = db.dayDao().allActivities().single()
@@ -183,7 +183,7 @@ class DayRepositoryTest {
     }
 
     @Test fun `report lifecycle - reported, edited, resend clears edited`() = runTest {
-        repo.startSession(date, WorkMode.BASE, 492, TimeSource.MANUAL)
+        repo.startSession(date, WorkMode.BASE, 480, TimeSource.MANUAL)
         repo.markReported(date)
         assertEquals(DayStatus.REPORTED, repo.getDay(date)!!.status())
 
@@ -210,11 +210,34 @@ class DayRepositoryTest {
     }
 
     @Test fun `range query returns days in order`() = runTest {
-        repo.startSession(date, WorkMode.BASE, 1, TimeSource.MANUAL)
+        repo.startSession(date, WorkMode.BASE, 15, TimeSource.MANUAL)
         repo.startSession(date.plusDays(2), WorkMode.BASE, 2, TimeSource.MANUAL)
         val range = repo.getRange(date, date.plusDays(6))
         assertEquals(2, range.size)
         assertEquals(date, range.first().date)
         assertNotNull(range.first().firstStartMin)
+    }
+
+    /**
+     * Worked time is booked in quarter hours: a start rounds down and an end
+     * rounds up, so the stretch of work is never trimmed by the rounding. This
+     * holds at the repository, which every writer goes through.
+     */
+    @Test fun `a start rounds down and an end rounds up to the quarter`() = runTest {
+        repo.startSession(date, WorkMode.BASE, 8 * 60 + 12, TimeSource.GEOFENCE)
+        repo.endSession(date, WorkMode.BASE, 17 * 60 + 35, TimeSource.GEOFENCE)
+
+        val session = repo.getDay(date)!!.sessions.single()
+        assertEquals(8 * 60, session.startMin)
+        assertEquals(17 * 60 + 45, session.endMin)
+    }
+
+    @Test fun `a hand-typed time is snapped the same way`() = runTest {
+        val id = repo.addSession(date, WorkMode.BASE, startMin = 10 * 60 + 7, endMin = 14 * 60 + 1)
+        repo.editSession(date, id) { it.copy(startMin = 10 * 60 + 44) }
+
+        val session = repo.getDay(date)!!.sessions.single()
+        assertEquals(10 * 60 + 30, session.startMin)
+        assertEquals(14 * 60 + 15, session.endMin)
     }
 }

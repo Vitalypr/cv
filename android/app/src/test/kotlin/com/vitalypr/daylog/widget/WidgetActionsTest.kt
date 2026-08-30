@@ -46,38 +46,39 @@ class WidgetActionsTest {
 
     @After fun teardown() = db.close()
 
-    @Test fun `arrival tap opens a base session at the real current time`() = runTest {
+    /** 08:12 is booked 08:00 — worked time is kept in quarter hours. */
+    @Test fun `arrival tap opens a base session, booked down to the quarter`() = runTest {
         assertTrue(actions.record(arrival = true))
-        assertEquals(8 * 60 + 12, arrival())
+        assertEquals(8 * 60, arrival())
         assertEquals(WorkMode.BASE, repo.getDay(today)!!.sessions.single().mode)
     }
 
-    @Test fun `departure tap records the real current time`() = runTest {
+    @Test fun `departure tap records the leaving time, booked up to the quarter`() = runTest {
         nowDt = LocalDateTime.of(2026, 8, 4, 17, 35)
         assertTrue(actions.record(arrival = false))
-        assertEquals(17 * 60 + 35, departure())
+        assertEquals(17 * 60 + 45, departure())
     }
 
     @Test fun `a second tap overrides the earlier value`() = runTest {
         actions.record(arrival = true)
         nowDt = LocalDateTime.of(2026, 8, 4, 9, 5)
         actions.record(arrival = true)
-        assertEquals(9 * 60 + 5, arrival())
+        assertEquals(9 * 60, arrival())
         assertEquals(1, repo.getDay(today)!!.sessions.size) // corrected, not duplicated
     }
 
     @Test fun `widget overrides a geofence-written value`() = runTest {
-        repo.startSession(today, WorkMode.BASE, 500, TimeSource.GEOFENCE)
+        repo.startSession(today, WorkMode.BASE, 495, TimeSource.GEOFENCE)
         actions.record(arrival = true)
         val session = repo.getDay(today)!!.sessions.single()
-        assertEquals(8 * 60 + 12, session.startMin)
+        assertEquals(8 * 60, session.startMin)
         assertEquals(TimeSource.MANUAL, session.startSource) // and locks out later geofence writes
     }
 
     @Test fun `widget overrides a value typed in the app`() = runTest {
-        repo.startSession(today, WorkMode.BASE, 480, TimeSource.MANUAL)
+        repo.startSession(today, WorkMode.BASE, 465, TimeSource.MANUAL)
         actions.record(arrival = true)
-        assertEquals(8 * 60 + 12, arrival())
+        assertEquals(8 * 60, arrival())
     }
 
     @Test fun `special day refuses the tap and writes nothing`() = runTest {
@@ -89,15 +90,15 @@ class WidgetActionsTest {
     /** A ✓ belongs to the day it was logged on — the next day starts clean. */
     @Test fun `yesterday's value does not carry into today`() = runTest {
         actions.record(arrival = true)
-        assertEquals(8 * 60 + 12, arrival())
+        assertEquals(8 * 60, arrival())
 
         nowDt = LocalDateTime.of(2026, 8, 5, 7, 50)
         val tomorrow = LocalDate.of(2026, 8, 5)
         assertNull(WidgetState.of(repo.getDay(tomorrow)).arrivalMin) // live clock again
 
         actions.record(arrival = true)
-        assertEquals(7 * 60 + 50, arrival(tomorrow))
-        assertEquals(8 * 60 + 12, arrival()) // yesterday untouched
+        assertEquals(7 * 60 + 45, arrival(tomorrow))
+        assertEquals(8 * 60, arrival()) // yesterday untouched
     }
 
     @Test fun `past-midnight tap lands on the current logical day`() = runTest {

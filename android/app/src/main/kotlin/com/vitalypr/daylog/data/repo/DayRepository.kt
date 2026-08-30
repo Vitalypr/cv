@@ -13,6 +13,7 @@ import com.vitalypr.daylog.domain.model.DayType
 import com.vitalypr.daylog.domain.model.TimeSource
 import com.vitalypr.daylog.domain.model.WorkMode
 import com.vitalypr.daylog.domain.model.WorkSession
+import com.vitalypr.daylog.domain.time.WorkTimeStep
 import java.time.Instant
 import java.time.LocalDate
 import javax.inject.Inject
@@ -35,6 +36,18 @@ class DayRepository @Inject constructor(
 ) {
 
     private val writeLock = Mutex()
+
+    /**
+     * Worked time is booked in quarter hours (product-owner rule): a start rounds
+     * down, an end rounds up. Applied here, at the single write gateway, so it
+     * holds for every path — the office fence, the widget, the הגעתי/יצאתי
+     * buttons and the time picker — instead of being re-implemented per caller.
+     * Restore is untouched: it re-inserts stored rows in bulk, not through here.
+     */
+    private fun WorkSessionEntity.snapped(): WorkSessionEntity = copy(
+        startMin = startMin?.let(WorkTimeStep::roundStart),
+        endMin = endMin?.let(WorkTimeStep::roundEnd),
+    )
 
     fun observeDay(date: LocalDate): Flow<DaySnapshot?> =
         dayDao.observeDay(date.toString()).map { it?.toSnapshot() }
@@ -69,13 +82,13 @@ class DayRepository @Inject constructor(
             WorkSessionEntity(
                 date = day.date, mode = mode.name, startMin = startMin, endMin = endMin,
                 title = title.trim(), sortOrder = order,
-            ),
+            ).snapped(),
         )
     }
 
     suspend fun updateSession(session: WorkSessionEntity) = writeLock.withLock {
         dayDao.getDay(session.date)?.let { markEdited(it.day) }
-        dayDao.updateSession(session)
+        dayDao.updateSession(session.snapped())
     }
 
     /**
@@ -90,7 +103,7 @@ class DayRepository @Inject constructor(
     ): Boolean = edit(date) { day ->
         val current = dayDao.sessionsOn(day.date).firstOrNull { it.id == sessionId } ?: return@edit false
         markEdited(day)
-        dayDao.updateSession(block(current))
+        dayDao.updateSession(block(current).snapped())
         true
     }
 
@@ -129,7 +142,7 @@ class DayRepository @Inject constructor(
                 date = day.date, mode = mode.name, startMin = minutes,
                 title = title.trim(), startSource = source.name,
                 jobLocationId = jobLocationId, sortOrder = order,
-            ),
+            ).snapped(),
         )
         true
     }
@@ -143,7 +156,7 @@ class DayRepository @Inject constructor(
         edit(date) { day ->
             val open = dayDao.openSession(day.date, mode.name) ?: return@edit false
             markEdited(day)
-            dayDao.updateSession(open.copy(endMin = minutes, endSource = source.name))
+            dayDao.updateSession(open.copy(endMin = minutes, endSource = source.name).snapped())
             true
         }
 
@@ -164,7 +177,7 @@ class DayRepository @Inject constructor(
                 return@edit false
             }
             markEdited(day)
-            dayDao.updateSession(target.copy(endMin = minutes, endSource = source.name))
+            dayDao.updateSession(target.copy(endMin = minutes, endSource = source.name).snapped())
             true
         }
 
@@ -176,7 +189,7 @@ class DayRepository @Inject constructor(
         val session = dayDao.sessionsOn(date.toString()).firstOrNull { it.id == sessionId } ?: return@withLock
         if (uncertain && session.startSource == TimeSource.MANUAL.name) return@withLock
         if (session.startUncertain == uncertain) return@withLock
-        dayDao.updateSession(session.copy(startUncertain = uncertain))
+        dayDao.updateSession(session.copy(startUncertain = uncertain).snapped())
     }
 
     suspend fun lastSessionOf(date: LocalDate, mode: WorkMode): WorkSessionEntity? =
@@ -207,7 +220,7 @@ class DayRepository @Inject constructor(
                 date = day.date, mode = WorkMode.FIELD.name, startMin = minutes,
                 title = title.trim(), startSource = TimeSource.GEOFENCE.name,
                 jobLocationId = jobLocationId, sortOrder = order,
-            ),
+            ).snapped(),
         )
         true
     }
@@ -216,7 +229,7 @@ class DayRepository @Inject constructor(
     suspend fun endJobSession(date: LocalDate, jobLocationId: Long, minutes: Int): Boolean = edit(date) { day ->
         val open = dayDao.openSessionForJobLocation(day.date, jobLocationId) ?: return@edit false
         markEdited(day)
-        dayDao.updateSession(open.copy(endMin = minutes, endSource = TimeSource.GEOFENCE.name))
+        dayDao.updateSession(open.copy(endMin = minutes, endSource = TimeSource.GEOFENCE.name).snapped())
         true
     }
 

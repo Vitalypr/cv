@@ -51,6 +51,7 @@ import com.vitalypr.daylog.domain.model.TimeBudget
 import com.vitalypr.daylog.domain.model.TimeSource
 import com.vitalypr.daylog.domain.model.WorkMode
 import com.vitalypr.daylog.domain.model.budget
+import com.vitalypr.daylog.domain.time.WorkTimeStep
 import com.vitalypr.daylog.domain.time.formatActivityDuration
 import com.vitalypr.daylog.domain.time.formatDate
 import com.vitalypr.daylog.domain.time.formatDuration
@@ -453,8 +454,8 @@ private fun TimeSlot(
             ) { Text(actionLabel) }
         } else {
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                CompactOutlined(stringResource(R.string.minus_5)) { onNudge(-5) }
-                CompactOutlined(stringResource(R.string.plus_5)) { onNudge(+5) }
+                CompactOutlined(stringResource(R.string.minus_15)) { onNudge(-WorkTimeStep.STEP_MIN) }
+                CompactOutlined(stringResource(R.string.plus_15)) { onNudge(+WorkTimeStep.STEP_MIN) }
             }
         }
     }

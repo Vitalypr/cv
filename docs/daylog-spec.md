@@ -152,7 +152,7 @@ Four-tab bottom navigation (היום / היסטוריה / סטטיסטיקה / �
 - **Day card:** the day's total with its mode split (`סה״כ 9:00 — בסיס 4:00 · בית 2:00 · שטח 3:00`), the **חופש / חג** toggle chips, and — once the day has more than one session — the day-level time budget.
 - **One card per work session**, in logged order:
   - header: the mode name (בסיס / בית / שטח), an optional free-text title (the site/client for a field session), and a remove control;
-  - `כניסה —:—` / `יציאה —:—` values with **הגעתי / יצאתי** one-tap buttons when unset, ±5 nudges, a time picker on tap and an X that clears a value back to unset;
+  - `כניסה —:—` / `יציאה —:—` values with **הגעתי / יצאתי** one-tap buttons when unset, ±15 nudges, a time picker on tap and an X that clears a value back to unset;
   - the session's **time budget** (below);
   - category chips in a flow row; tapping a chip adds an activity entry to *that* session — an inline row with the project (tap to reassign), a −½ / +½ duration stepper (30-minute steps, `—` when unstated), a one-line note field and an optional result field. A chip is highlighted while that session has an entry of it, and tapping again adds another.
 - **Add-session row:** **+ בסיס / + בית / + שטח**. On today a new session starts at the current time (one tap = "I've just started"); on a past day it opens empty.
@@ -236,6 +236,7 @@ The one place bare wall-clock times would bite is midnight and travel, so:
 - `WorkDay.date` (the PK) is the **logical day** a record belongs to.
 - Arrival/departure/field-job times are stored as **minutes from midnight of `date`**, and may exceed 1440: a departure at 01:30 after a day that started 05.08 is stored on 05.08 as 25:30 and **renders as `01:30 (למחרת)`**; durations compute correctly across midnight.
 - Day-assignment rule: a departure logged between 00:00–04:00 is offered to the previous day if that day has an open arrival; otherwise it belongs to the current day.
+- **Quarter-hour booking (v2.1, product-owner rule):** every session time is stored on a 15-minute step — a **start rounds down** and an **end rounds up**, so 08:12–17:35 is booked 08:00–17:45 and the rounding never shortens the work. Applied at `DayRepository`, the single write gateway, so it holds for the office fence, the widget, the הגעתי/יצאתי buttons and the time picker alike; a geofence prompt offers the value it will store. `WorkTimeStep` in `:domain` owns the rule. Restore is exempt — it re-inserts stored rows as they were.
 - All wall-clock values are captured in the device's local timezone at event time and never converted. The reminder alarm is rescheduled on `TIMEZONE_CHANGED` / `TIME_CHANGED` broadcasts. `reportedAt` alone is an absolute `Instant` (audit value).
 
 ### 6.3 Data model (Room)

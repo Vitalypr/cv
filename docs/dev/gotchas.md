@@ -15,6 +15,7 @@
 - Schema v6 is a **clean break** — no migrations, `fallbackToDestructiveMigration`. Room does **not** call `onCreate` after a destructive rebuild, and `onDestructiveMigration` fires *before* the tables exist, so seeding lives in `onOpen` guarded by an emptiness check. Without it an upgraded install has no categories and no projects and cannot log anything.
 
 ## Time
+- **Session times are quarter hours**: `DayRepository` snaps every start down and every end up (`WorkTimeStep`) on the way in, so no caller needs to remember it — and no caller may bypass the repository to write a raw minute. A prompt or a preview must show the snapped value, or the app offers one time and stores another.
 - Session start/end times = minutes-from-midnight `Int`; **may exceed 1440** (overnight ⇒ "01:30 (למחרת)"). `LocalTime` cannot represent this — don't "simplify" back to it.
 - 00:00–04:00 departure offers attachment to yesterday's open day (spec §6.2).
 - All wall-clock in device-local zone at event time; re-arm alarm on `TIMEZONE_CHANGED`/`TIME_CHANGED`; only `reportedAt` is an `Instant`.
