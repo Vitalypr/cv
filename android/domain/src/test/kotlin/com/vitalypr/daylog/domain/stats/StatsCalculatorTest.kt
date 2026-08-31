@@ -113,4 +113,77 @@ class StatsCalculatorTest {
         assertEquals(listOf("פיתוח" to 2, "דיון" to 1), s.categoryCounts)
         assertEquals(listOf("רובוטיקה" to 2, "AI למחלקה" to 1), s.projectCounts)
     }
+
+    /**
+     * Hours per project (v2.2): the split comes from the activity durations,
+     * which is the only place the app knows what the work was for.
+     */
+    @Test fun `hours are split by project, longest first`() {
+        val days = listOf(
+            DaySnapshot(
+                mon,
+                listOf(
+                    session(
+                        WorkMode.BASE, 8 * 60, 16 * 60,
+                        ActivityEntry("רובוטיקה", "פיתוח", 240),
+                        ActivityEntry("AI למחלקה", "בדיקות", 120),
+                    ),
+                ),
+            ),
+            DaySnapshot(
+                mon.plusDays(1),
+                listOf(
+                    session(
+                        WorkMode.HOME, 18 * 60, 21 * 60,
+                        ActivityEntry("רובוטיקה", "תיעוד", 60),
+                    ),
+                ),
+            ),
+        )
+        val s = StatsCalculator.summarize("שבוע", days)
+        assertEquals(listOf("רובוטיקה" to 300, "AI למחלקה" to 120), s.projectMinutes)
+    }
+
+    /** An activity with no duration says what was done, not for how long. */
+    @Test fun `activities without a duration add nothing to the split`() {
+        val day = DaySnapshot(
+            mon,
+            listOf(
+                session(
+                    WorkMode.BASE, 8 * 60, 12 * 60,
+                    ActivityEntry("רובוטיקה", "פיתוח", 60),
+                    ActivityEntry("רובוטיקה", "דיון"),
+                ),
+            ),
+        )
+        assertEquals(listOf("רובוטיקה" to 60), StatsCalculator.summarize("שבוע", listOf(day)).projectMinutes)
+    }
+
+    /** What the projects do not cover is named, so the split never poses as the total. */
+    @Test fun `the hours no activity accounts for are reported as unallocated`() {
+        val day = DaySnapshot(
+            mon,
+            listOf(session(WorkMode.BASE, 8 * 60, 16 * 60, ActivityEntry("רובוטיקה", "פיתוח", 120))),
+        )
+        val s = StatsCalculator.summarize("שבוע", listOf(day))
+        assertEquals(8 * 60, s.totalMinutes)
+        assertEquals(6 * 60, s.unallocatedMinutes)
+    }
+
+    @Test fun `a fully described period has nothing unallocated`() {
+        val day = DaySnapshot(
+            mon,
+            listOf(session(WorkMode.BASE, 8 * 60, 12 * 60, ActivityEntry("רובוטיקה", "פיתוח", 240))),
+        )
+        assertEquals(0, StatsCalculator.summarize("שבוע", listOf(day)).unallocatedMinutes)
+    }
+
+    /** Over-describing is a day-screen problem; the period must not report negative slack. */
+    @Test fun `over-allocated activities never make unallocated negative`() {
+        val day = DaySnapshot(
+            mon,
+            listOf(session(WorkMode.BASE, 8 * 60, 12 * 60, ActivityEntry("רובוטיקה", "פיתוח", 400))),
+        )
+        assertEquals(0, StatsCalculator.summarize("שבוע", listOf(day)).unallocatedMinutes)
+    }
 }

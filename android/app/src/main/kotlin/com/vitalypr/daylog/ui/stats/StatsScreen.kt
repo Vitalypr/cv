@@ -1,6 +1,7 @@
 package com.vitalypr.daylog.ui.stats
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -185,6 +186,30 @@ fun StatsContent(
             }
         }
 
+        // Where the hours went (v2.2). Activities carry durations, not clock
+        // times, so this can only account for what was described — the rest is
+        // named "לא שויך" rather than quietly missing from the split.
+        state.summary?.let { s ->
+            if (s.projectMinutes.isNotEmpty()) {
+                SectionCard(title = stringResource(R.string.hours_by_project)) {
+                    val max = (s.projectMinutes.first().second)
+                        .coerceAtLeast(s.unallocatedMinutes)
+                        .coerceAtLeast(1)
+                    s.projectMinutes.forEach { (name, minutes) ->
+                        ProjectHoursRow(name, minutes, minutes.toFloat() / max, ChartOffice)
+                    }
+                    if (s.unallocatedMinutes > 0) {
+                        ProjectHoursRow(
+                            stringResource(R.string.unallocated_hours),
+                            s.unallocatedMinutes,
+                            s.unallocatedMinutes.toFloat() / max,
+                            InkMuted,
+                        )
+                    }
+                }
+            }
+        }
+
         state.summary?.let { s ->
             if (s.categoryCounts.isNotEmpty()) {
                 SectionCard(title = stringResource(R.string.activities_by_category)) {
@@ -243,6 +268,47 @@ private fun KpiGrid(items: List<Pair<String, String>>) {
                     }
                 }
             }
+        }
+    }
+}
+
+/** One project: its name and hours over a full-width share bar. */
+@Composable
+private fun ProjectHoursRow(
+    name: String,
+    minutes: Int,
+    fraction: Float,
+    color: androidx.compose.ui.graphics.Color,
+) {
+    Column(Modifier.padding(vertical = 5.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                name,
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                formatDuration(minutes),
+                style = MaterialTheme.typography.labelLarge,
+                color = InkSecondary,
+            )
+        }
+        Box(
+            Modifier
+                .padding(top = 3.dp)
+                .fillMaxWidth()
+                .height(9.dp)
+                .background(Line, RoundedCornerShape(5.dp)),
+        ) {
+            Surface(
+                color = color,
+                shape = RoundedCornerShape(5.dp),
+                modifier = Modifier
+                    .fillMaxWidth(fraction.coerceIn(0f, 1f))
+                    .height(9.dp),
+            ) {}
         }
     }
 }

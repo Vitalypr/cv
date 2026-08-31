@@ -45,6 +45,12 @@ class StatsScreenshotTest {
         avgArrivalMin = 8 * 60 + 19, avgDepartureMin = 17 * 60 + 41,
         categoryCounts = listOf("פיתוח" to 6, "דיון" to 4, "התקנה" to 3, "בדיקות" to 2),
         projectCounts = listOf("רובוטיקה" to 8, "AI למחלקה" to 5, "הנדסת מערכת למחלקה" to 2),
+        projectMinutes = listOf(
+            "רובוטיקה" to 18 * 60,
+            "AI למחלקה" to 9 * 60 + 30,
+            "הנדסת מערכת למחלקה" to 4 * 60,
+        ),
+        unallocatedMinutes = 6 * 60 + 30,
     )
 
     @Test fun statsWeek() {

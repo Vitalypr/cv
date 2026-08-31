@@ -19,6 +19,9 @@
     <string name="holiday">חג</string>
 
     <string name="cancel">ביטול</string>
+    <string name="delete">מחיקה</string>
+    <string name="delete_day">מחיקת היום</string>
+    <string name="delete_day_confirm">כל השעות, הפעילויות וההערות של היום הזה יימחקו — גם מהסטטיסטיקה. אי אפשר לבטל.</string>
 
     <!-- work sessions (v2.0): a day is one or more stretches of work, each with its own mode, hours and activities -->
     <string name="mode_base">בסיס</string>
@@ -79,6 +82,8 @@
     <string name="legend_home">בית</string>
     <string name="legend_field">שטח</string>
     <string name="legend_avg">ממוצע</string>
+    <string name="hours_by_project">שעות לפי פרויקט</string>
+    <string name="unallocated_hours">לא שויך</string>
     <string name="activities_by_category">פעילויות לפי קטגוריה</string>
     <string name="share_period_summary">שיתוף סיכום התקופה</string>
 

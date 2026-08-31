@@ -54,6 +54,10 @@ interface DayDao {
     @Query("SELECT EXISTS(SELECT 1 FROM work_day WHERE date = :date)")
     suspend fun dayExists(date: String): Boolean
 
+    /** Sessions and their activities go with the day (FK CASCADE). */
+    @Query("DELETE FROM work_day WHERE date = :date")
+    suspend fun deleteDay(date: String)
+
     // --- sessions -----------------------------------------------------------
 
     @Insert

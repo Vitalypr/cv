@@ -83,6 +83,10 @@ object ReportBuilder {
         if (s.offDays > 0) special += " | חופש: ${s.offDays}"
         if (s.holidays > 0) special += " | חגים: ${s.holidays}"
         lines += special
+        if (s.projectMinutes.isNotEmpty()) {
+            lines += "פרויקטים: " + s.projectMinutes.joinToString(" · ") { (p, m) -> "$p ${formatDuration(m)}" } +
+                if (s.unallocatedMinutes > 0) " · לא שויך ${formatDuration(s.unallocatedMinutes)}" else ""
+        }
         if (s.categoryCounts.isNotEmpty()) {
             lines += "פעילויות: " + s.categoryCounts.joinToString(" · ") { (c, n) -> "$c $n" }
         }

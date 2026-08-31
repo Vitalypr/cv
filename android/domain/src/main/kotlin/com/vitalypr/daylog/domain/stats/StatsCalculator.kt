@@ -18,6 +18,15 @@ data class PeriodSummary(
     val avgDepartureMin: Int?,
     val categoryCounts: List<Pair<String, Int>>,
     val projectCounts: List<Pair<String, Int>>,
+    /** Logged activity time per project, longest first (v2.2). */
+    val projectMinutes: List<Pair<String, Int>> = emptyList(),
+    /**
+     * Worked minutes no activity accounts for. Activities carry durations, not
+     * clock times, so the project split can only ever cover what was actually
+     * described — naming the rest is what stops the split from reading as "all
+     * my hours". Zero when the period is fully described (or over-described).
+     */
+    val unallocatedMinutes: Int = 0,
 )
 
 /**
@@ -59,6 +68,15 @@ object StatsCalculator {
             .sortedByDescending { it.value }
             .map { it.key to it.value }
 
+        val projectMinutes = workSnapshots
+            .flatMap { it.activities }
+            .filter { it.project.isNotBlank() && it.durationMin != null }
+            .groupBy { it.project }
+            .map { (project, acts) -> project to acts.sumOf { it.durationMin ?: 0 } }
+            .sortedByDescending { it.second }
+
+        val describedMinutes = workSnapshots.flatMap { it.activities }.sumOf { it.durationMin ?: 0 }
+
         return PeriodSummary(
             label = label,
             workDays = counted.size,
@@ -73,6 +91,8 @@ object StatsCalculator {
             avgDepartureMin = departures.ifEmpty { null }?.let { it.sum() / it.size },
             categoryCounts = tally { it.category }.filter { it.first.isNotBlank() },
             projectCounts = tally { it.project }.filter { it.first.isNotBlank() },
+            projectMinutes = projectMinutes,
+            unallocatedMinutes = (counted.sumOf { (_, m) -> m.total } - describedMinutes).coerceAtLeast(0),
         )
     }
 }

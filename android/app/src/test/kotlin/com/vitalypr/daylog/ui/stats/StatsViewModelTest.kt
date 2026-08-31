@@ -57,9 +57,18 @@ class StatsViewModelTest {
 
     private fun vm() = StatsViewModel(repo, fakePdf) { fixedNow }
 
+    private suspend fun addActivity(date: LocalDate, sessionId: Long, category: String, project: String, minutes: Int) {
+        val categoryId = db.categoryDao().all().first { it.name == category }.id
+        val projectId = db.projectDao().all().first { it.name == project }.id
+        val id = repo.addActivity(sessionId, categoryId, projectId)
+        repo.editActivity(id) { it.copy(durationMin = minutes) }
+    }
+
     private suspend fun seedWeek() {
         // Sunday: 9 h at the base. Monday: 8 h at the base + 2 h on a site + 1 h from home.
-        repo.addSession(LocalDate.of(2026, 8, 2), WorkMode.BASE, 8 * 60, 17 * 60)
+        val sunday = repo.addSession(LocalDate.of(2026, 8, 2), WorkMode.BASE, 8 * 60, 17 * 60)
+        addActivity(LocalDate.of(2026, 8, 2), sunday, "פיתוח", "רובוטיקה", 4 * 60)
+        addActivity(LocalDate.of(2026, 8, 2), sunday, "בדיקות", "AI למחלקה", 2 * 60)
         repo.addSession(LocalDate.of(2026, 8, 3), WorkMode.BASE, 8 * 60, 16 * 60)
         repo.addSession(LocalDate.of(2026, 8, 3), WorkMode.FIELD, 17 * 60, 19 * 60, title = "אתר")
         repo.addSession(LocalDate.of(2026, 8, 3), WorkMode.HOME, 20 * 60, 21 * 60)
@@ -122,4 +131,17 @@ class StatsViewModelTest {
             if (predicate(item)) return item
         }
     }
+
+    /** "How are my hours split between the disciplines?" — the project view. */
+    @Test fun `the period splits its hours by project and names what is unaccounted for`() =
+        runTest(dispatcher) {
+            seedWeek()
+            vm().uiState.test {
+                val s = awaitUntil { it.summary != null && it.bars.size == 7 }.summary!!
+                assertEquals(listOf("רובוטיקה" to 4 * 60, "AI למחלקה" to 2 * 60), s.projectMinutes)
+                // 20 h worked in the week, 6 h of it described.
+                assertEquals(20 * 60, s.totalMinutes)
+                assertEquals(14 * 60, s.unallocatedMinutes)
+            }
+        }
 }

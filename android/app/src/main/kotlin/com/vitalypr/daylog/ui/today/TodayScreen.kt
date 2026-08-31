@@ -101,6 +101,7 @@ fun TodayScreen(viewModel: TodayViewModel = hiltViewModel()) {
             onRemoveActivity = viewModel::removeActivity,
             onSetNotes = viewModel::setNotes,
             onShare = viewModel::share,
+            onDeleteDay = viewModel::deleteDay,
         ),
     )
 }
@@ -122,6 +123,7 @@ data class TodayCallbacks(
     val onRemoveActivity: (Long) -> Unit = {},
     val onSetNotes: (String) -> Unit = {},
     val onShare: () -> Unit = {},
+    val onDeleteDay: () -> Unit = {},
 )
 
 @Composable
@@ -157,6 +159,9 @@ fun TodayContent(state: TodayUiState, callbacks: TodayCallbacks) {
             NotesCard(state, callbacks)
         }
         ReportCard(state, callbacks)
+        // Erasing a logged day is the last thing on the screen and asks first:
+        // it is the only action here that cannot be undone.
+        if (state.day.hasData || state.isSpecialDay) DeleteDayButton(callbacks)
         Spacer(Modifier.padding(bottom = 8.dp))
     }
 }
@@ -624,6 +629,34 @@ private fun ReportCard(state: TodayUiState, cb: TodayCallbacks) {
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun DeleteDayButton(cb: TodayCallbacks) {
+    var confirming by remember { mutableStateOf(false) }
+    TextButton(
+        onClick = { confirming = true },
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(40.dp),
+    ) {
+        Text(stringResource(R.string.delete_day), style = MaterialTheme.typography.labelLarge, color = Warn)
+    }
+    if (confirming) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { confirming = false },
+            title = { Text(stringResource(R.string.delete_day)) },
+            text = { Text(stringResource(R.string.delete_day_confirm)) },
+            confirmButton = {
+                TextButton(onClick = { cb.onDeleteDay(); confirming = false }) {
+                    Text(stringResource(R.string.delete), color = Warn)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirming = false }) { Text(stringResource(R.string.cancel)) }
+            },
+        )
     }
 }
 

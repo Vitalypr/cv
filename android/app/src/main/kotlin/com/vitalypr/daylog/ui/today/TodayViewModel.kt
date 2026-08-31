@@ -136,6 +136,12 @@ class TodayViewModel @Inject constructor(
 
     fun setNotes(notes: String) = viewModelScope.launch { repository.setNotes(date, notes) }
 
+    /**
+     * Erases this day completely (spec F10a) — the screen asks first, because
+     * nothing brings it back. The state simply re-emits as an empty day.
+     */
+    fun deleteDay() = viewModelScope.launch { repository.deleteDay(date) }
+
     // --- activities ---------------------------------------------------------
 
     /**

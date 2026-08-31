@@ -239,4 +239,52 @@ class DayRepositoryTest {
         assertEquals(10 * 60 + 30, session.startMin)
         assertEquals(14 * 60 + 15, session.endMin)
     }
+
+    /** Deleting a day must leave nothing behind — not a session, not an activity. */
+    @Test fun `deleting a day erases its sessions and activities`() = runTest {
+        val sessionId = repo.addSession(date, WorkMode.BASE, startMin = 480, endMin = 1065)
+        repo.addActivity(sessionId, categoryId = 4, projectId = firstProjectId())
+        repo.setNotes(date, "הערה")
+        repo.markReported(date)
+
+        repo.deleteDay(date)
+
+        assertNull(repo.getDay(date))
+        assertTrue(db.dayDao().allSessions().isEmpty())
+        assertTrue(db.dayDao().allActivities().isEmpty())
+        assertEquals(DayStatus.EMPTY, (repo.getDay(date) ?: emptySnapshot()).status())
+    }
+
+    @Test fun `deleting one day leaves the others alone`() = runTest {
+        val other = date.plusDays(1)
+        repo.addSession(date, WorkMode.BASE, startMin = 480, endMin = 1065)
+        val keptSession = repo.addSession(other, WorkMode.HOME, startMin = 1080, endMin = 1260)
+        repo.addActivity(keptSession, categoryId = 4, projectId = firstProjectId())
+
+        repo.deleteDay(date)
+
+        assertNull(repo.getDay(date))
+        assertEquals(1080, repo.getDay(other)!!.sessions.single().startMin)
+        assertEquals(1, db.dayDao().allActivities().size)
+    }
+
+    /** A deleted day is gone from every range query, so statistics cannot count it. */
+    @Test fun `a deleted day disappears from the range statistics feed`() = runTest {
+        repo.addSession(date, WorkMode.BASE, startMin = 480, endMin = 1065)
+        repo.addSession(date.plusDays(1), WorkMode.BASE, startMin = 480, endMin = 960)
+        assertEquals(2, repo.getRange(date, date.plusDays(6)).size)
+
+        repo.deleteDay(date)
+
+        val range = repo.getRange(date, date.plusDays(6))
+        assertEquals(listOf(date.plusDays(1)), range.map { it.date })
+        assertEquals(8 * 60, range.sumOf { StatsCalculator.dayMinutes(it).total })
+    }
+
+    @Test fun `deleting a day that was never logged is a no-op`() = runTest {
+        repo.deleteDay(date)
+        assertNull(repo.getDay(date))
+    }
+
+    private fun emptySnapshot() = com.vitalypr.daylog.domain.model.DaySnapshot(date)
 }

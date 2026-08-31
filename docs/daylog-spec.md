@@ -107,6 +107,7 @@ Generated in the Statistics tab for the selected week, month, or year and — li
 ‏ימי עבודה: 21 | סה״כ שעות: 186:30 | ממוצע ליום: 8:52
 ‏בסיס 150:00 · בית 20:00 · שטח 16:30
 ‏ימי שטח: 6
+‏פרויקטים: רובוטיקה 120:00 · AI למחלקה 40:00 · לא שויך 26:30
 ‏פעילויות: פיתוח 14 · התקנה 9 · דיון 7 · בדיקות 5
 ```
 
@@ -130,6 +131,7 @@ Generated in the Statistics tab for the selected week, month, or year and — li
 | F8 | Send action opens WhatsApp (or WhatsApp Business) with the report text; system chooser as fallback | Must |
 | F9 | Day status (derived): ריק / נרשם, לא נשלח / נשלח / נשלח (עודכן) / חופש / חג; re-send possible any time and overwrites the sent timestamp | Must |
 | F10 | History view: browse, edit, and re-send any past day; mark any day as day-off (חופש) or holiday (חג) — also available for today on the Today screen | Must |
+| F10a | **Delete a day (v2.2):** opening a day offers to erase it — its sessions, activities and notes — after a confirmation. A deleted day is gone from History, from the statistics and from the backup; there is no soft-deleted state | Must |
 | F11 | Statistics tab with weekly/monthly/yearly views: KPI tiles (total hours, work days, field days, avg day length, avg arrival, avg departure, off/holiday counts), stacked base/home/field hours chart with average reference line and tooltips, activity breakdown; each period's summary (§2.5) shareable to WhatsApp | Must |
 | F12 | Export all data as JSON (full fidelity, versioned schema) and CSV via share sheet | Should |
 | F13 | Android Auto Backup of DB + settings (on by default, off toggle in Settings) | Should |
@@ -163,18 +165,20 @@ Four-tab bottom navigation (היום / היסטוריה / סטטיסטיקה / �
 - **Time budget (screen only, v2.0; graphical v2.1):** each session — and the day, when it has several — shows how much of the worked hours the logged activities account for, as a **full-width bar with three figures above it: עבדת / מולא / נותר**. The bar is petrol while filling, green when it balances, and red across its whole width when the activities claim **more** time than was worked — the third figure then reads **עודף** and names the excess. Exact values always sit beside the bar as text, so the colour is never the only source. This is a filling aid for the person logging; it never appears in the report or the PDF.
 - **Special days:** marking **חופש / חג** suppresses the reminder and geofence prompts for the day, hides the sessions entirely (special days accept no hours) and replaces the report preview with a "no report today" state (S4).
 - **Notes card:** single free-text field.
+- **Delete:** a quiet **מחיקת היום** action at the bottom, behind a confirmation dialog — the only irreversible thing on the screen (F10a).
 - **Report card:** the **שליחה לוואטסאפ** button + status badge. No in-app preview of the text (v2.1): the report is one tap away and the day is already on the screen above it. The report-time notification still shows the rendered report (§5.5), which is where seeing it before sending actually helps.
 - **Only the base is automated.** The office fence records hours at the base and nowhere else; work from home is always entered by hand, and a field session is created automatically only for a job location the user saved themselves (§6.6b). Everything the fence writes stays correctable by hand and by the widget.
 - On a non-workday the screen shows a "יום חופש" state with a **רישום יום בכל זאת** action (S4).
 
 ### 5.2 History (היסטוריה)
 - Month calendar strip with status dots; list of day cards below (date, hours, first activity categories, status badge).
-- Day tap → Day Editor (same layout as Today, bound to that date), with **שליחה מחדש** and **חופש / חג** marking.
+- Day tap → Day Editor (same layout as Today, bound to that date), with **שליחה מחדש**, **חופש / חג** marking and **מחיקת היום** (F10a).
 
 ### 5.3 Statistics (סטטיסטיקה)
 - **Period selector:** segmented control שבוע / חודש / שנה with previous/next arrows.
 - **KPI tiles** (2-column grid): סה״כ שעות, ימי עבודה, ימי שטח, ממוצע ליום, כניסה ממוצעת, יציאה ממוצעת; off/holiday counts as a secondary line.
 - **Hours chart:** stacked bars — base (`#00897B`) + home (`#4054B2`) + field (`#9E6410`), a three-hue palette validated for color-vision deficiency and 3:1 surface contrast (the split is also printed as text under the KPI tiles, so the chart is never the only source) — per day (week/month) or per month (year), right-to-left time axis, dashed average reference line, 2px surface gaps between stacked segments, tap tooltip per bar with exact values, legend above the plot. Rendered with Compose Canvas (no chart library dependency); exact values always available via the KPI tiles and share text (accessibility relief).
+- **Hours by project (v2.2):** one full-width share bar per project with its hours (`רובוטיקה 18:00`), longest first. The split is built from the activity **durations** — the only place the app knows what the work was for — so whatever no activity accounts for is shown as a final muted **לא שויך** row rather than silently missing.
 - **Activity breakdown:** horizontal single-hue bars with count labels per category.
 - **שיתוף** button: sends the selected period's text summary (§2.5).
 

@@ -18,6 +18,8 @@ TDD is the workflow, not a phase: failing test → implementation → green → 
 | F4 activity durations (30-min steps, unset) | `ActivityDurationTest`, `TimesTest` |
 | F4a projects (mandatory, archived when used) | `ProjectRepositoryTest`, `TodayViewModelTest` |
 | F12a full backup round trip (every table + setting) | `BackupRoundTripTest` |
+| F10a deleting a day (nothing orphaned, gone from range queries) | `DayRepositoryTest`, `TodayViewModelTest` |
+| §5.3 hours per project + unallocated remainder | domain `StatsCalculatorTest`, `ReportBuilderPeriodTest`; `StatsViewModelTest`, `StatsScreenshotTest` |
 | §2.5 period summaries, hours rule | `StatsCalculatorTest`, `ReportBuilderPeriodTest` |
 | §6.2 quarter-hour booking (start down, end up, idempotent, past midnight) | domain `WorkTimeStepTest`; `DayRepositoryTest`, `WorkdayFlowTest`, `WidgetActionsTest` |
 | §6.2 time model >24h, day boundary | `TimesTest`, `ReportBuilderOvernightTest` |

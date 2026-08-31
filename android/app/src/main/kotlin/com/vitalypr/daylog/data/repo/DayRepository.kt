@@ -265,6 +265,19 @@ class DayRepository @Inject constructor(
 
     suspend fun removeActivity(id: Long) = writeLock.withLock { dayDao.deleteActivity(id) }
 
+    /**
+     * Erases a whole day — its sessions, their activities, the notes and the
+     * sent stamp (spec F10a). Sessions cascade from the day row and activities
+     * from the sessions, so one delete leaves nothing orphaned, and the day
+     * disappears from History, the statistics and the backup alike: a day with
+     * no row is a day that never happened.
+     *
+     * Deliberately not a "soft" delete. A hidden-but-present day would have to
+     * be filtered out of every query and every sum, and one missed filter is a
+     * number the user cannot explain.
+     */
+    suspend fun deleteDay(date: LocalDate) = writeLock.withLock { dayDao.deleteDay(date.toString()) }
+
     /** Marks the day reported now; re-sending overwrites the timestamp and clears the edited flag (spec F9). */
     suspend fun markReported(date: LocalDate) = edit(date) { day ->
         dayDao.upsertDay(day.copy(reportedAt = clock().toEpochMilli(), editedAfterReport = false))

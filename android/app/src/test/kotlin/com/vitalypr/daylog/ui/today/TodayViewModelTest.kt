@@ -243,4 +243,28 @@ class TodayViewModelTest {
             if (predicate(item)) return item
         }
     }
+
+    /** An old day the user no longer wants: gone from the screen and from the data. */
+    @Test fun `deleting the day empties it completely`() = runTest(dispatcher) {
+        vm.uiState.test {
+            awaitItem()
+            vm.addSession(WorkMode.BASE)
+            val loaded = expectMostRecentItemAfter {
+                it.sessionRows.isNotEmpty() && it.projects.isNotEmpty() && it.categories.isNotEmpty()
+            }
+            vm.addActivity(
+                loaded.sessionRows.single().entity.id,
+                loaded.categories.first().id,
+                loaded.projects.first().id,
+            )
+            vm.setNotes("הערה")
+            expectMostRecentItemAfter { it.day.activities.isNotEmpty() && it.day.notes.isNotBlank() }
+
+            vm.deleteDay()
+            val empty = expectMostRecentItemAfter { it.status == DayStatus.EMPTY }
+            assertTrue(empty.sessionRows.isEmpty())
+            assertTrue(empty.day.activities.isEmpty())
+            assertEquals("", empty.day.notes)
+        }
+    }
 }
