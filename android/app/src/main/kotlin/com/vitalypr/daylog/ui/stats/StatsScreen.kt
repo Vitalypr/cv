@@ -2,6 +2,9 @@ package com.vitalypr.daylog.ui.stats
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -76,6 +79,8 @@ fun StatsScreen(viewModel: StatsViewModel = hiltViewModel()) {
         onPeriod = viewModel::setPeriod,
         onSelectBar = viewModel::selectBar,
         onShare = viewModel::share,
+        onPrevious = viewModel::previousPeriod,
+        onNext = viewModel::nextPeriod,
     )
 }
 
@@ -86,6 +91,8 @@ fun StatsContent(
     onPeriod: (StatsPeriod) -> Unit = {},
     onSelectBar: (Int?) -> Unit = {},
     onShare: () -> Unit = {},
+    onPrevious: () -> Unit = {},
+    onNext: () -> Unit = {},
 ) {
     Column(
         modifier = Modifier
@@ -104,6 +111,7 @@ fun StatsContent(
             val labels = listOf(
                 StatsPeriod.WEEK to stringResource(R.string.period_week),
                 StatsPeriod.MONTH to stringResource(R.string.period_month),
+                StatsPeriod.QUARTER to stringResource(R.string.period_quarter),
                 StatsPeriod.YEAR to stringResource(R.string.period_year),
             )
             labels.forEachIndexed { i, (p, label) ->
@@ -111,9 +119,13 @@ fun StatsContent(
                     selected = state.period == p,
                     onClick = { onPeriod(p) },
                     shape = SegmentedButtonDefaults.itemShape(index = i, count = labels.size),
-                ) { Text(label) }
+                ) { Text(label, style = MaterialTheme.typography.labelMedium, maxLines = 1) }
             }
         }
+
+        // Which week/month/quarter/year — a period report is usually filed once
+        // the period is over, so the past has to be reachable.
+        PeriodNavigator(state, onPrevious, onNext)
 
         state.summary?.let { s ->
             KpiGrid(
@@ -253,6 +265,33 @@ fun StatsContent(
             modifier = Modifier.fillMaxWidth(),
         ) { Text(stringResource(R.string.share_period_summary)) }
         Spacer(Modifier.height(8.dp))
+    }
+}
+
+/** ‹ current period › — the label names it, the arrows move through it. */
+@Composable
+private fun PeriodNavigator(state: StatsUiState, onPrevious: () -> Unit, onNext: () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+        androidx.compose.material3.IconButton(onClick = onPrevious) {
+            androidx.compose.material3.Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = stringResource(R.string.period_previous),
+            )
+        }
+        Text(
+            state.summary?.label.orEmpty(),
+            style = MaterialTheme.typography.titleSmall,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            maxLines = 1,
+            modifier = Modifier.weight(1f),
+        )
+        androidx.compose.material3.IconButton(onClick = onNext, enabled = state.canGoForward) {
+            androidx.compose.material3.Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                contentDescription = stringResource(R.string.period_next),
+                tint = if (state.canGoForward) InkSecondary else Line,
+            )
+        }
     }
 }
 

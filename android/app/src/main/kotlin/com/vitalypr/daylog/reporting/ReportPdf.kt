@@ -106,8 +106,14 @@ class ReportPdf @Inject constructor(
         canvas.drawRect(MARGIN, 40f, PAGE_W - MARGIN, 43f, fill(C.petrol))
         canvas.drawRect(MARGIN, 48f, PAGE_W - MARGIN, 49f, fill(C.petrol))
 
-        // Title at the right, date block at the left.
-        rtlText(canvas, "דוח עבודה יומי", 68f, textPaint(27f, C.ink, bold = true), CONTENT_W)
+        // Title (report name and who it is by) at the right, date block at the left.
+        rtlText(
+            canvas,
+            context.getString(com.vitalypr.daylog.R.string.pdf_daily_title),
+            68f,
+            textPaint(23f, C.ink, bold = true),
+            CONTENT_W,
+        )
         val datePaint = textPaint(16f, C.petrol, bold = true).apply { textAlign = Paint.Align.LEFT }
         canvas.drawText(formatDate(day.date), MARGIN, 88f, datePaint)
         val dayPaint = textPaint(12f, C.inkSecondary).apply { textAlign = Paint.Align.LEFT }

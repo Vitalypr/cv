@@ -68,4 +68,19 @@ class ReportPdfTest {
         kotlin.test.assertTrue(boxBorder, "summary box border missing")
         assertNotEquals(Color.WHITE, bitmap.getPixel(297, 41))
     }
+
+    /** The header names the report and who it is by (product-owner request). */
+    @Test fun `the header carries the report title and the owner`() {
+        val context: Context = ApplicationProvider.getApplicationContext()
+        assertEquals(
+            "דוח עבודה יומי | ויטלי פורטנוב",
+            context.getString(com.vitalypr.daylog.R.string.pdf_daily_title),
+        )
+        // …and it is what the page draws: the title band receives ink.
+        val bitmap = draw(DaySnapshot(date = LocalDate.of(2026, 8, 4)))
+        val titleHasInk = (60..92 step 4).any { y ->
+            (60..545 step 10).any { x -> bitmap.getPixel(x, y) != Color.WHITE }
+        }
+        kotlin.test.assertTrue(titleHasInk, "nothing drawn in the title band")
+    }
 }

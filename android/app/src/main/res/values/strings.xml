@@ -57,6 +57,9 @@
     <string name="notes_hint"></string>
 
     <string name="report_preview">דוח יומי</string>
+    <!-- PDF headers. The owner's name is here so it is changed in one place. -->
+    <string name="pdf_daily_title">דוח עבודה יומי | ויטלי פורטנוב</string>
+    <string name="pdf_period_title">דוח עבודה תקופתי | ויטלי פורטנוב</string>
     <string name="send_whatsapp">שליחה לוואטסאפ</string>
     <string name="resend_whatsapp">שליחה מחדש</string>
     <string name="no_report_special_day">%1$s — לא נשלח דוח</string>
@@ -71,6 +74,7 @@
 
     <string name="period_week">שבוע</string>
     <string name="period_month">חודש</string>
+    <string name="period_quarter">רבעון</string>
     <string name="period_year">שנה</string>
     <string name="kpi_total_hours">סה״כ שעות</string>
     <string name="kpi_work_days">ימי עבודה</string>
@@ -82,6 +86,8 @@
     <string name="legend_home">בית</string>
     <string name="legend_field">שטח</string>
     <string name="legend_avg">ממוצע</string>
+    <string name="period_previous">התקופה הקודמת</string>
+    <string name="period_next">התקופה הבאה</string>
     <string name="hours_by_project">שעות לפי פרויקט</string>
     <string name="unallocated_hours">לא שויך</string>
     <string name="activities_by_category">פעילויות לפי קטגוריה</string>

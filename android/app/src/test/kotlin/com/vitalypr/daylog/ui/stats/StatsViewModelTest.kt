@@ -24,6 +24,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -144,4 +145,56 @@ class StatsViewModelTest {
                 assertEquals(14 * 60, s.unallocatedMinutes)
             }
         }
+
+    /** A quarter is thirteen weekly bars, and the KPIs cover all three months. */
+    @Test fun `quarter view sums the three months and bars them by week`() = runTest(dispatcher) {
+        // Q3 2026 = July–September. One day in July, one in August.
+        repo.addSession(LocalDate.of(2026, 7, 15), WorkMode.BASE, 8 * 60, 16 * 60)
+        seedWeek()
+        val vm = vm()
+        vm.setPeriod(StatsPeriod.QUARTER)
+        vm.uiState.test {
+            val state = awaitUntil { it.period == StatsPeriod.QUARTER && it.summary != null }
+            val s = state.summary!!
+            assertTrue(s.label.contains("רבעון 3 2026"), s.label)
+            assertEquals(3, s.workDays) // 15.07 + 02.08 + 03.08
+            assertEquals(8 * 60 + 20 * 60, s.totalMinutes)
+            assertTrue(state.bars.size >= 13, "a quarter is about thirteen weeks, got ${state.bars.size}")
+            assertEquals(8 * 60, state.bars.first { it.totalMin > 0 }.baseMin) // the July week
+        }
+    }
+
+    /** A month's report is filed after the month ends, so the past must be reachable. */
+    @Test fun `stepping back a month reports that month, and forward is barred at today`() =
+        runTest(dispatcher) {
+            repo.addSession(LocalDate.of(2026, 7, 15), WorkMode.BASE, 8 * 60, 16 * 60)
+            val vm = vm()
+            vm.setPeriod(StatsPeriod.MONTH)
+            vm.uiState.test {
+                val current = awaitUntil { it.period == StatsPeriod.MONTH && it.summary != null }
+                assertTrue(current.summary!!.label.contains("אוגוסט"), current.summary!!.label)
+                assertFalse(current.canGoForward) // there is no future to report
+
+                vm.previousPeriod()
+                val previous = awaitUntil { it.offset == -1 && it.summary != null }
+                assertTrue(previous.summary!!.label.contains("יולי"), previous.summary!!.label)
+                assertEquals(8 * 60, previous.summary!!.totalMinutes)
+                assertTrue(previous.canGoForward)
+
+                vm.nextPeriod()
+                val back = awaitUntil { it.offset == 0 && it.summary != null }
+                assertTrue(back.summary!!.label.contains("אוגוסט"))
+            }
+        }
+
+    @Test fun `changing the kind of period returns to the current one`() = runTest(dispatcher) {
+        val vm = vm()
+        vm.uiState.test {
+            awaitUntil { it.summary != null }
+            vm.previousPeriod()
+            awaitUntil { it.offset == -1 }
+            vm.setPeriod(StatsPeriod.YEAR)
+            assertEquals(0, awaitUntil { it.period == StatsPeriod.YEAR && it.summary != null }.offset)
+        }
+    }
 }

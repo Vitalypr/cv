@@ -27,7 +27,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 
-enum class StatsPeriod { WEEK, MONTH, YEAR }
+enum class StatsPeriod { WEEK, MONTH, QUARTER, YEAR }
 
 /** One chart bar: the day's minutes split by work mode, drawn as a stack. */
 data class StatsBar(
@@ -46,7 +46,12 @@ data class StatsUiState(
     val bars: List<StatsBar> = emptyList(),
     val chartTitle: String = "",
     val selectedBar: Int? = null,
-)
+    /** 0 = the period we are in, -1 = the one before it. Never positive. */
+    val offset: Int = 0,
+) {
+    /** The future holds no hours to report. */
+    val canGoForward: Boolean get() = offset < 0
+}
 
 sealed interface StatsEffect {
     /** Period summary ships as a styled PDF with the text as caption (like the daily report). */
@@ -63,27 +68,35 @@ class StatsViewModel @Inject constructor(
 
     private val period = MutableStateFlow(StatsPeriod.WEEK)
     private val selected = MutableStateFlow<Int?>(null)
+    private val offset = MutableStateFlow(0)
 
     private val effects = Channel<StatsEffect>(Channel.BUFFERED)
     val effect = effects.receiveAsFlow()
 
-    val uiState: StateFlow<StatsUiState> = kotlinx.coroutines.flow.combine(period, selected) { p, sel -> p to sel }
-        .mapLatest { (p, sel) ->
-            val today = now().toLocalDate()
-            val (from, to, label, title) = periodRange(p, today)
-            val days = repository.getRange(from, to)
-            StatsUiState(
-                period = p,
-                summary = StatsCalculator.summarize(label, days),
-                bars = buildBars(p, from, to, days),
-                chartTitle = title,
-                selectedBar = sel,
-            )
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), StatsUiState())
+    val uiState: StateFlow<StatsUiState> =
+        kotlinx.coroutines.flow.combine(period, selected, offset) { p, sel, off -> Triple(p, sel, off) }
+            .mapLatest { (p, sel, off) ->
+                val today = now().toLocalDate()
+                val (from, to, label, title) = periodRange(p, today, off)
+                val days = repository.getRange(from, to)
+                StatsUiState(
+                    period = p,
+                    summary = StatsCalculator.summarize(label, days),
+                    bars = buildBars(p, from, to, days),
+                    chartTitle = title,
+                    selectedBar = sel,
+                    offset = off,
+                )
+            }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), StatsUiState())
 
-    fun setPeriod(p: StatsPeriod) { period.value = p; selected.value = null }
+    /** Switching the kind of period starts again from the current one. */
+    fun setPeriod(p: StatsPeriod) { period.value = p; selected.value = null; offset.value = 0 }
     fun selectBar(index: Int?) { selected.value = index }
+
+    /** Step back through past periods — a month's report is usually filed after it ends. */
+    fun previousPeriod() { offset.value -= 1; selected.value = null }
+    fun nextPeriod() { if (offset.value < 0) { offset.value += 1; selected.value = null } }
 
     fun share() = viewModelScope.launch {
         uiState.value.summary?.let { summary ->
@@ -93,25 +106,34 @@ class StatsViewModel @Inject constructor(
 
     private data class Range(val from: LocalDate, val to: LocalDate, val label: String, val title: String)
 
-    private fun periodRange(p: StatsPeriod, today: LocalDate): Range = when (p) {
+    private fun periodRange(p: StatsPeriod, today: LocalDate, offset: Int): Range = when (p) {
         StatsPeriod.WEEK -> {
-            val from = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.SUNDAY))
+            val from = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.SUNDAY)).plusWeeks(offset.toLong())
             val to = from.plusDays(6)
-            Range(from, to, "סיכום שבועי (${formatDate(from)}–${formatDate(to)})", "שעות לפי יום — השבוע")
+            val span = "${formatDate(from)}–${formatDate(to)}"
+            Range(from, to, "סיכום שבועי ($span)", "שעות לפי יום — $span")
         }
         StatsPeriod.MONTH -> {
-            val m = YearMonth.from(today)
+            val m = YearMonth.from(today).plusMonths(offset.toLong())
+            val name = "${hebrewMonthName(m.monthValue)} ${m.year}"
+            Range(m.atDay(1), m.atEndOfMonth(), "סיכום חודשי — $name", "שעות לפי יום — $name")
+        }
+        StatsPeriod.QUARTER -> {
+            // The quarter we are in, then back in three-month steps.
+            val first = YearMonth.from(today).let { it.minusMonths(((it.monthValue - 1) % 3).toLong()) }
+                .plusMonths((offset * 3).toLong())
+            val last = first.plusMonths(2)
+            val name = "רבעון ${(first.monthValue - 1) / 3 + 1} ${first.year}"
+            Range(first.atDay(1), last.atEndOfMonth(), "סיכום רבעוני — $name", "שעות לפי שבוע — $name")
+        }
+        StatsPeriod.YEAR -> {
+            val year = today.year + offset
             Range(
-                m.atDay(1), m.atEndOfMonth(),
-                "סיכום חודשי — ${hebrewMonthName(m.monthValue)} ${m.year}",
-                "שעות לפי יום — ${hebrewMonthName(m.monthValue)} ${m.year}",
+                LocalDate.of(year, 1, 1), LocalDate.of(year, 12, 31),
+                "סיכום שנתי — $year",
+                "שעות לפי חודש — $year",
             )
         }
-        StatsPeriod.YEAR -> Range(
-            LocalDate.of(today.year, 1, 1), LocalDate.of(today.year, 12, 31),
-            "סיכום שנתי — ${today.year}",
-            "שעות לפי חודש — ${today.year}",
-        )
     }
 
     private fun buildBars(p: StatsPeriod, from: LocalDate, to: LocalDate, days: List<DaySnapshot>): List<StatsBar> {
@@ -130,6 +152,23 @@ class StatsViewModel @Inject constructor(
                         isOff = snap?.dayType?.name in listOf("OFF", "HOLIDAY"),
                     )
                 }.toList()
+            // A quarter is thirteen weeks: per-day would be unreadable, per-month
+            // would be three bars.
+            StatsPeriod.QUARTER -> {
+                val firstWeek = from.with(TemporalAdjusters.previousOrSame(DayOfWeek.SUNDAY))
+                generateSequence(firstWeek) { it.plusWeeks(1) }
+                    .takeWhile { !it.isAfter(to) }
+                    .map { weekStart ->
+                        val week = days.filter { it.date >= weekStart && it.date <= weekStart.plusDays(6) }
+                        val sums = week.map(StatsCalculator::dayMinutes)
+                        StatsBar(
+                            label = "${weekStart.dayOfMonth}.${weekStart.monthValue}",
+                            baseMin = sums.sumOf { m -> m.base },
+                            homeMin = sums.sumOf { m -> m.home },
+                            fieldMin = sums.sumOf { m -> m.field },
+                        )
+                    }.toList()
+            }
             StatsPeriod.YEAR -> (1..12).map { month ->
                 val inMonth = days.filter { it.date.monthValue == month }
                 val sums = inMonth.map(StatsCalculator::dayMinutes)

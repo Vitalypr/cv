@@ -70,6 +70,8 @@ Consultant opens the **Statistics** tab and switches between **שבוע / חוד
 
 ### 2.4 The daily report (the product)
 
+**PDF header (v2.2):** the daily PDF is titled `דוח עבודה יומי | ויטלי פורטנוב` and the period PDF carries `דוח עבודה תקופתי | ויטלי פורטנוב` above its summary label — the owner's name lives in one string resource.
+
 **Delivery format (v0.5):** the daily report is sent to WhatsApp as a **styled PDF document** (A4, Hebrew RTL, brand-styled header) with the plain-text report attached as the message caption — the group reads the text instantly and opens the PDF for the styled record. The plain text below remains the single source of truth (`ReportBuilder`); the PDF is a visual rendering of the same content (`ReportPdf`, native `android.graphics.pdf` — no new dependencies, no network). If caption support is unavailable, WhatsApp delivers the document alone; the text is always recoverable from the preview card.
 
 Plain text in Hebrew (WhatsApp-friendly, no markdown dependency), rendered from a template:
@@ -100,7 +102,7 @@ Template rules:
 
 ### 2.5 Period summaries (shareable on demand)
 
-Generated in the Statistics tab for the selected week, month, or year and — like the daily report (v0.7) — sent as a **styled Ledger-design PDF with the plain text as the WhatsApp caption** (monthly example):
+Generated in the Statistics tab for the selected week, month, quarter or year and — like the daily report (v0.7) — sent as a **styled Ledger-design PDF with the plain text as the WhatsApp caption** (monthly example):
 
 ```
 ‏סיכום חודשי — אוגוסט 2026
@@ -132,7 +134,7 @@ Generated in the Statistics tab for the selected week, month, or year and — li
 | F9 | Day status (derived): ריק / נרשם, לא נשלח / נשלח / נשלח (עודכן) / חופש / חג; re-send possible any time and overwrites the sent timestamp | Must |
 | F10 | History view: browse, edit, and re-send any past day; mark any day as day-off (חופש) or holiday (חג) — also available for today on the Today screen | Must |
 | F10a | **Delete a day (v2.2):** opening a day offers to erase it — its sessions, activities and notes — after a confirmation. A deleted day is gone from History, from the statistics and from the backup; there is no soft-deleted state | Must |
-| F11 | Statistics tab with weekly/monthly/yearly views: KPI tiles (total hours, work days, field days, avg day length, avg arrival, avg departure, off/holiday counts), stacked base/home/field hours chart with average reference line and tooltips, activity breakdown; each period's summary (§2.5) shareable to WhatsApp | Must |
+| F11 | Statistics tab with weekly/monthly/quarterly/yearly views (any past period reachable): KPI tiles (total hours, work days, field days, avg day length, avg arrival, avg departure, off/holiday counts), stacked base/home/field hours chart with average reference line and tooltips, activity breakdown; each period's summary (§2.5) shareable to WhatsApp | Must |
 | F12 | Export all data as JSON (full fidelity, versioned schema) and CSV via share sheet | Should |
 | F13 | Android Auto Backup of DB + settings (on by default, off toggle in Settings) | Should |
 | F14 | Works fully without location permission (geofencing simply off) | Must |
@@ -175,9 +177,9 @@ Four-tab bottom navigation (היום / היסטוריה / סטטיסטיקה / �
 - Day tap → Day Editor (same layout as Today, bound to that date), with **שליחה מחדש**, **חופש / חג** marking and **מחיקת היום** (F10a).
 
 ### 5.3 Statistics (סטטיסטיקה)
-- **Period selector:** segmented control שבוע / חודש / שנה with previous/next arrows.
+- **Period selector:** segmented control **שבוע / חודש / רבעון / שנה** (quarter added v2.2), and under it a `‹ label ›` navigator that steps back through past periods — a period report is usually filed once the period is over. Forward stops at the period we are in; there are no future hours to report.
 - **KPI tiles** (2-column grid): סה״כ שעות, ימי עבודה, ימי שטח, ממוצע ליום, כניסה ממוצעת, יציאה ממוצעת; off/holiday counts as a secondary line.
-- **Hours chart:** stacked bars — base (`#00897B`) + home (`#4054B2`) + field (`#9E6410`), a three-hue palette validated for color-vision deficiency and 3:1 surface contrast (the split is also printed as text under the KPI tiles, so the chart is never the only source) — per day (week/month) or per month (year), right-to-left time axis, dashed average reference line, 2px surface gaps between stacked segments, tap tooltip per bar with exact values, legend above the plot. Rendered with Compose Canvas (no chart library dependency); exact values always available via the KPI tiles and share text (accessibility relief).
+- **Hours chart:** per day (week/month), per week (quarter — thirteen bars; per-day would be unreadable and per-month would be three), per month (year). Stacked bars — base (`#00897B`) + home (`#4054B2`) + field (`#9E6410`), a three-hue palette validated for color-vision deficiency and 3:1 surface contrast (the split is also printed as text under the KPI tiles, so the chart is never the only source) — per day (week/month) or per month (year), right-to-left time axis, dashed average reference line, 2px surface gaps between stacked segments, tap tooltip per bar with exact values, legend above the plot. Rendered with Compose Canvas (no chart library dependency); exact values always available via the KPI tiles and share text (accessibility relief).
 - **Hours by project (v2.2):** one full-width share bar per project with its hours (`רובוטיקה 18:00`), longest first. The split is built from the activity **durations** — the only place the app knows what the work was for — so whatever no activity accounts for is shown as a final muted **לא שויך** row rather than silently missing.
 - **Activity breakdown:** horizontal single-hue bars with count labels per category.
 - **שיתוף** button: sends the selected period's text summary (§2.5).
