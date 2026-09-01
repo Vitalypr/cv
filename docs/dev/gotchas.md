@@ -64,6 +64,12 @@
 - **`BackupRepository` must know about every table and every setting.** Adding either means adding it to `BackupCodec` AND `SettingsRepository.replaceAll` — `BackupRoundTripTest` compares a full export before and after a wipe+restore, so an omission fails the build rather than silently losing the user's data.
 - Restore replaces inside one `withTransaction`, children cleared first and parents inserted first; ids are preserved so activity→project links survive.
 
+## Keyboard / insets
+- The app draws **edge to edge** (`enableEdgeToEdge`, mandatory from Android 15), so the window no longer resizes when the keyboard opens. Nothing else in the tree consumed `WindowInsets.ime`, so every scroll viewport ran to the bottom of the window — *behind* the keyboard — and Compose happily "scrolled the focused field into view" into a region the user could not see. That was the invisible-typing bug.
+- The fix is one `Modifier.imePadding()` on `DayLogScaffold`, the frame every screen lives in. Once the viewport ends at the keyboard, `Modifier.verticalScroll` keeps the focused field visible by itself (it re-runs bring-into-view when the viewport shrinks) — no `BringIntoViewRequester` needed. A version of that was written and then deleted: `ImeInsetsTest` passed without it.
+- `windowSoftInputMode="adjustResize"` still matters on **API < 30**, where the IME inset Compose reads comes from the window resize. `ManifestGuardTest` guards it.
+- Any new screen must live inside `DayLogScaffold`; a screen that builds its own `Scaffold` re-opens the bug.
+
 ## Bidi / Hebrew
 - Lines starting with a digit flip in WhatsApp without a leading RLM (`‏`). ReportBuilder owns RLM; nothing else appends it. (The reports carry no emoji since v2.1 — don't re-add "just one".)
 - In a Kotlin template, `"$rlmבסיס"` parses as ONE identifier: Hebrew letters are valid in identifiers. Golden strings need `"${rlm}בסיס"`.

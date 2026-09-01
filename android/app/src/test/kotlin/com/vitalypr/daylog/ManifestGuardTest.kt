@@ -37,4 +37,25 @@ class ManifestGuardTest {
         assertTrue(android.Manifest.permission.ACCESS_FINE_LOCATION in permissions)
         assertTrue(android.Manifest.permission.ACCESS_BACKGROUND_LOCATION in permissions)
     }
+
+    /**
+     * On API < 30 the window still resizes for the keyboard, and that resize is
+     * where Compose's IME inset comes from on those devices — dropping
+     * `adjustResize` would hide the typing field again on anything older than
+     * Android 11 while looking fine on a modern phone.
+     */
+    @Test
+    fun `the main activity resizes for the keyboard`() {
+        val ctx = ApplicationProvider.getApplicationContext<Context>()
+        val activity = ctx.packageManager.getActivityInfo(
+            android.content.ComponentName(ctx, MainActivity::class.java),
+            0,
+        )
+        assertTrue(
+            activity.softInputMode and
+                android.view.WindowManager.LayoutParams.SOFT_INPUT_MASK_ADJUST ==
+                android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE,
+            "MainActivity must declare windowSoftInputMode=adjustResize",
+        )
+    }
 }

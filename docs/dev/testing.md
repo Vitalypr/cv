@@ -38,6 +38,7 @@ TDD is the workflow, not a phase: failing test → implementation → green → 
 | §6.4/§6.5 share intent, trampoline activity, alarm re-arm | `ReportShareTest`, `SendReportActivityTest`, `ReminderSchedulerTest`, `BootReceiverTest` |
 | §5.6 widget: override rules, special day, state selection | `WidgetActionsTest`, `WidgetStateTest`, `DayWidgetScreenshotTest` (inflates the real RemoteViews at 250x40dp) |
 | F12a full backup (every table + setting, atomic restore, bad file refused) | `BackupRoundTripTest` |
+| Keyboard never covers the field being typed into | `ImeInsetsTest` (dispatches real IME insets, both focus orders), `ManifestGuardTest` |
 | N3 no INTERNET | `ManifestGuardTest` (parses merged manifest) |
 | UI per mockup | Roborazzi snapshots per screen × config |
 
@@ -55,5 +56,6 @@ Screens are snapshotted per state (empty day / full day with base+home+field / s
 - [ ] Geofence field test: office entry/exit prompts, lunch re-entry cancels pending suggestion
 - [ ] WhatsApp handoff: report → share → group → send; Hebrew renders (RLM check) in the actual group
 - [ ] Reminder fires within 10 min of configured time with screen off
+- [ ] Keyboard: tap the פירוט field of the last activity on a long day — the field stays visible as the keyboard animates in (Robolectric applies insets in one step, so the animation itself is only covered here)
 - [ ] 120 Hz: History/Stats scroll without jank; charts crisp at 1440p
 - [ ] Edge screen: no touch targets within 16dp of curved edges on Today's steppers

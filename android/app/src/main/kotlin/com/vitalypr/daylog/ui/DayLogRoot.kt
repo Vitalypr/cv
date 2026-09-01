@@ -2,6 +2,8 @@ package com.vitalypr.daylog.ui
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
@@ -40,6 +42,35 @@ private val topDestinations = listOf(
     TopDestination("settings", R.string.tab_settings, Icons.Default.Settings),
 )
 
+/**
+ * The window frame every screen lives in — and the one place the on-screen
+ * keyboard is dealt with.
+ *
+ * The app draws edge to edge (mandatory from Android 15), so the window no
+ * longer resizes when the keyboard opens: `adjustResize` in the manifest only
+ * still applies on API < 30. Without consuming the IME inset here, every
+ * screen's scroll viewport would extend behind the keyboard — and a field
+ * "scrolled into view" could still sit under it, which is exactly what made
+ * typing into an activity invisible.
+ *
+ * Kept separate from [DayLogRoot] so the behaviour can be tested without the
+ * navigation graph and its Hilt-wired view models.
+ */
+@Composable
+fun DayLogScaffold(
+    bottomBar: @Composable () -> Unit,
+    content: @Composable (PaddingValues) -> Unit,
+) {
+    Scaffold(
+        modifier = Modifier
+            .fillMaxSize()
+            .imePadding(),
+        containerColor = MaterialTheme.colorScheme.background,
+        bottomBar = bottomBar,
+        content = content,
+    )
+}
+
 @Composable
 fun DayLogRoot() {
     DayLogTheme {
@@ -47,9 +78,7 @@ fun DayLogRoot() {
         val backStack by navController.currentBackStackEntryAsState()
         val currentRoute = backStack?.destination?.route
 
-        Scaffold(
-            modifier = Modifier.fillMaxSize(),
-            containerColor = MaterialTheme.colorScheme.background,
+        DayLogScaffold(
             bottomBar = {
                 NavigationBar {
                     topDestinations.forEach { dest ->

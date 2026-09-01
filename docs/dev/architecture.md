@@ -11,6 +11,13 @@ Google's official app-architecture guidance, kept minimal: **UI → ViewModel �
 | UI | `:app` `ui/` | one ViewModel + one `UiState` data class per screen; stateless composables | touch repositories directly from composables; hold Android `Context` in ViewModels beyond injected app context |
 | System | `:app` `reminder/`, `geofence/`, `reporting/`, `notifications/` | AlarmManager scheduling, geofence receiver decision table, share-intent construction, notification channels/variants | contain business rules — they call into `:domain`/repositories |
 
+## Window frame
+
+`DayLogScaffold` is the frame every screen lives in and the only place window
+insets are handled — including `imePadding()`, which is what makes a focused
+text field land above the keyboard instead of behind it. Screens never build
+their own `Scaffold`.
+
 ## State flow
 
 - Repositories expose `Flow<DaySnapshot>` / `Flow<Settings>`; ViewModels `combine` + `stateIn` into a single `StateFlow<UiState>`.
